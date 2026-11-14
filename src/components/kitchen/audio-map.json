@@ -8,7 +8,11 @@
     "对白留空间（按场景 + 阶段，不因停滚压低）：idea 停留阶段 sizzle 0.1→0.05；call / recognize / punchline 停留阶段 room 0.2→0.14 / 0.14 / 0.12；search / eggcall 的 room 本来就很低（0.06 / 0.08）。",
     "意外前的安静：missing 停留阶段 sizzle 0.2→0.04，只剩 room；hear 进入阶段由 loopLevels 自动从 0.04 升到 0.6（镜头推近锅），停留阶段再退到 0.3 给「嗯？」「啵！」留空间；「啵」（pop）无源保持空位。",
     "跨景由远到近：catch 段 sizzle 当作随蛋一起接近的声音，动作阶段 0.3→0.38 略升，同时混音器给 sizzle 的低通随 flight 从约 1.5 kHz 打开到 16 kHz（只处理 sizzle，其它声不滤波）；动作阶段结束（actionEnd）蛋落铲时 catch 一声，handoff 进入阶段 sizzle 0.38→0。",
-    "空位（没有音源，接口已登记、保持静音，不用不相关的声音填补）：stirfry、steps、pour、pop、momCall、eggCall、eggSmall。炒菜段不另加翻炒循环，由 sizzle 0.45 承担底声。",
+    "空位（接口已登记、保持静音，不用不相关的声音填补；用户 2026-11-14 决定）：",
+    "- 翻炒 stirfry：不新增文件，直接复用现有 sizzle。stirfry 段 sizzle 0.45 承担翻炒底声，加 stirfryIn 下锅一声；stirfry 循环槽位永久留空。",
+    "- 倒汁 pour：保持空位。",
+    "- 台词 momCall / eggCall / eggSmall：保留漫画文字，不加合成配音，保持空位。",
+    "- 脚步 steps（search 段）、「啵」pop（hear 段）：待补，只用许可清楚的素材（CC0 或同等，记入 LICENSES.md / CREDITS.md）；找不到合适的就保持空位。",
     "以上全部未经人耳试听；客观测量见 public/assets/audio/README.md。",
     "available：真正有文件的声音 id。混音器只为这些声音创建 <audio> 并请求文件；不在列表里的空位不发请求、保持静音（避免 404）。以后补上文件：放进 public/assets/audio/、加到这个列表即可。"
   ],

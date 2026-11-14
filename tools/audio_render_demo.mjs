@@ -34,9 +34,16 @@ const DEFAULT_PHASES = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 };
 
 const raw = JSON.parse(readFileSync(BEATS_PATH, "utf8"));
 const map = JSON.parse(readFileSync(join(ROOT, "src/components/kitchen/audio-map.json"), "utf8")).scenes;
-// 触发点符号（与 useKitchenAudio.resolveAt 相同）：enterEnd / actionEnd / holdEnd（± 偏移），按该段 phases 换算
-function resolveAt(phases, at) {
+// 触发点（与 useKitchenAudio.resolveAt / beats.ts eventAt 相同）：数字；"@eggOnTable" / "@eggOnSpatula" / "@eggInBowl"
+// 共享事件（该段 egg 模式对上时 = 动作阶段结束）；或 enterEnd / actionEnd / holdEnd。都可带 ± 偏移
+const EGG_EVENTS = { eggOnTable: "toTable", eggOnSpatula: "flight", eggInBowl: "serve" };
+function resolveAt(phases, at, egg) {
   if (typeof at === "number") return at;
+  const ev = /^@(\w+)([+-]\d*\.?\d+)?$/.exec(String(at).trim());
+  if (ev) {
+    if (!EGG_EVENTS[ev[1]] || EGG_EVENTS[ev[1]] !== egg) throw new Error(`事件 ${at} 与本段蛋模式 ${egg} 对不上`);
+    return Math.min(1, Math.max(0, phases.enter + phases.action + (ev[2] ? parseFloat(ev[2]) : 0)));
+  }
   const m = /^(enterEnd|actionEnd|holdEnd)([+-]\d*\.?\d+)?$/.exec(String(at).trim());
   if (!m) throw new Error(`不认识的触发点 ${at}`);
   const e = phases.enter, a = e + phases.action, h = a + phases.hold;
@@ -46,7 +53,7 @@ function resolveAt(phases, at) {
 const beats = (raw.beats ?? raw).map((b) => {
   const phases = b.phases ?? DEFAULT_PHASES;
   const audio = map[b.id] ?? b.audio ?? { loops: {}, fades: [], oneshots: [] };
-  return { ...b, phases, audio: { ...audio, oneshots: audio.oneshots.map((o) => ({ sound: o.sound, atSpec: o.at, at: resolveAt(phases, o.at) })) } };
+  return { ...b, phases, audio: { ...audio, oneshots: audio.oneshots.map((o) => ({ sound: o.sound, atSpec: o.at, at: resolveAt(phases, o.at, b.egg) })) } };
 });
 const totalVh = beats.reduce((s, b) => s + b.lengthVh, 0);
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
