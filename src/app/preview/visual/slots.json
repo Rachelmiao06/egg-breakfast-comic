@@ -405,8 +405,8 @@
     512
    ],
    "land": {
-    "fx": 0.81,
-    "fy": 0.53
+    "fx": 0.775,
+    "fy": 0.49
    },
    "frameSrc": null,
    "occluderSrc": null,
