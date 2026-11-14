@@ -8,20 +8,27 @@ export const SCENE_H = 1024;
 /** cover 裁切时尽量保持在视口约 55% 高度处的那条线（锅和蛋附近）。 */
 export const FOCUS_Y = 600;
 
-/** 主图里关键区域（场景像素，目测值，拆层时请实测修正并更新这里）。 */
+/**
+ * 主图里关键区域（场景像素）。kitchen-clean.png 与原画逐像素对齐（已验证位移 0,0），
+ * 所以这些坐标对两张图都成立。2026-11-13 按新底图校准。
+ */
 export const ANCHORS = {
   /** 荷包蛋在原画中的包围盒 [x0, y0, x1, y1] */
   eggBox: [525, 150, 915, 525] as const,
-  /** 蛋静止落在锅面时的脚底中心 */
-  eggRest: { x: 720, y: 560 },
-  /** 锅内油面区域，油泡和影子在这里 */
-  panBox: [430, 540, 1050, 650] as const,
+  /** 蛋静止落在锅底时的脚底中心（锅底中心 y≈590，锅前沿 y≈648） */
+  eggRest: { x: 720, y: 618 },
+  /** 蛋图（public/assets/scene/egg.webp）在场景里的显示尺寸 */
+  eggSize: { w: 388, h: 388 },
+  /** 锅内可见锅底区域（内沿椭圆的外接框），油泡和影子在这里 */
+  panBox: [370, 505, 1105, 648] as const,
   /** 锅底火苗 */
   flameBox: [600, 735, 830, 790] as const,
   /** 水壶嘴，蒸汽起点 */
   kettleSpout: { x: 1200, y: 330 },
   /** 吐司盘（前层） */
-  toastBox: [0, 820, 440, 1024] as const,
+  toastBox: [0, 805, 440, 1024] as const,
+  /** 蛋飞向吐司时的落点（脚底中心，吐司面黄油附近） */
+  toastLand: { x: 185, y: 905 },
 } as const;
 
 export type Box = readonly [number, number, number, number];
