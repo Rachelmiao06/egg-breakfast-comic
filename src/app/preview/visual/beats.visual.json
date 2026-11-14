@@ -455,7 +455,11 @@
    "depth": [
     45,
     15
-   ]
+   ],
+   "events": {
+    "leave": 0.1,
+    "peek": 0.25
+   }
   },
   {
    "id": "eggcall",
