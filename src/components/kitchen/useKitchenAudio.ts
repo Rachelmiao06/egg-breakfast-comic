@@ -39,7 +39,9 @@ const ONESHOTS: Record<OneShotSound, { file: string; volume: number }> = {
   bowlDown: { file: "bowl-down.mp3", volume: 0.6 },
   pour: { file: "pour.mp3", volume: 0.5 }, // 暂无素材（刻意留空），保持静音
   momCall: { file: "mom-call.mp3", volume: 0.6 }, // 暂无素材："宝宝，来吃饭啦"
-  eggCall: { file: "egg-call.mp3", volume: 0.6 }, // 暂无素材：蛋喊"妈妈"
+  eggCall: { file: "egg-call.mp3", volume: 0.6 }, // 暂无素材：蛋大声喊"妈！这里！"
+  pop: { file: "pop.mp3", volume: 0.6 }, // 暂无素材："啵！"（蛋从锅里蹦起的声音）
+  eggSmall: { file: "egg-small.mp3", volume: 0.5 }, // 暂无素材：蛋小声"我在这儿……"
 };
 const ONESHOT_SOUNDS = Object.keys(ONESHOTS) as OneShotSound[];
 

@@ -9,8 +9,9 @@ import data from "./beats.json";
 export const PHASES = ["enter", "action", "hold", "exit"] as const;
 export type Phase = (typeof PHASES)[number];
 export type LoopSound = "room" | "sizzle" | "chop" | "stirfry" | "sauce" | "steps";
-export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour" | "momCall" | "eggCall";
-export type EggMode = "loop" | "flight" | "serve" | "bowl";
+export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour" | "momCall" | "eggCall" | "pop" | "eggSmall";
+/** gone = 后景这颗蛋已交给漫画（漫画里画着蛋），后景隐藏，避免出现两颗蛋 */
+export type EggMode = "loop" | "flight" | "serve" | "bowl" | "gone";
 /** 停留组：同组连续段落期间画面停住（sticky / pin），组结束后释放；null = 正常流动段 */
 export type PinGroup = "prep" | "catch" | "bowl" | "search" | "reunion";
 
@@ -137,6 +138,7 @@ export function derive(t: Timeline): Derived {
   const action = phaseProgress(t, "action");
   // 接蛋段的进入阶段蛋仍在锅里跳（null），动作阶段才起飞
   const flight = b.egg === "loop" ? null : b.egg === "flight" ? (t.phase === "enter" ? null : action) : 1;
+  // gone：flight 仍为 1（蛋停在铲面位置），由 Egg 组件负责淡出隐藏
   const serve = b.egg === "serve" ? action : b.egg === "bowl" ? 1 : null;
   return { activePanel: b.n, progress, flight, serve };
 }
