@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { ChopPanel, HearPanel, usePerfEnabled } from "./PanelPerf";
+import { ChopPanel, HearPanel, SaucePanel, StirfryPanel, usePerfEnabled } from "./PanelPerf";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -287,6 +287,8 @@ function FlowLayer() {
         else if (q > e0) dy = -pan - exitOff * inQuad((q - e0) / (e1 - e0));
         if (p.key === "p2b") return <ChopPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
         if (p.key === "p3d") return <HearPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
+        if (p.key === "p2d") return <StirfryPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
+        if (p.key === "p3a") return <SaucePanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
         return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
       })}
     </div>
