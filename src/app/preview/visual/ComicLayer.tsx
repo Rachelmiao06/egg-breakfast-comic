@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
+import { ChopPanel, HearPanel, usePerfEnabled } from "./PanelPerf";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -173,9 +174,10 @@ function fitPlaces(list: PanelSpec[], vw: number, vh: number, bottom: number): R
   }
   const s = Math.min(1, (bottom - minY) / Math.max(1, maxY - minY), 96 / Math.max(1, maxX - minX));
   const cx = (minX + maxX) / 2;
-  const shiftX = Math.max(0, 2 - (50 + (minX - cx) * s)) - Math.max(0, 50 + (maxX - cx) * s - 98);
+  const lx = cx + (minX - cx) * s, rx = cx + (maxX - cx) * s;
+  const shiftX = Math.max(0, 2 - lx) - Math.max(0, rx - 98);
   const out: Record<string, Place> = {};
-  for (const b of base) out[b.p.key] = { x: 50 + (b.x - cx) * s + shiftX, y: minY + (b.y - minY) * s, w: b.w * s };
+  for (const b of base) out[b.p.key] = { x: cx + (b.x - cx) * s + shiftX, y: minY + (b.y - minY) * s, w: b.w * s };
   return out;
 }
 
@@ -242,6 +244,7 @@ function avoidEgg(list: PanelSpec[], places: Record<string, Place>, egg: Rect, v
 function FlowLayer() {
   const { timeline: t, beats, reducedMotion } = useScene();
   const vp = useViewport();
+  const perf = usePerfEnabled() && !reducedMotion; // 格内表演：减少动态效果或 ?perf=0 时用原静态格
   const g = t.index + t.p;
   const index: Record<string, number> = {};
   beats.forEach((b, i) => (index[b.id] = i));
@@ -282,6 +285,8 @@ function FlowLayer() {
         let dy = -panNow;
         if (q < s1) dy = enterOff * (1 - outCubic((q - s0) / (s1 - s0)));
         else if (q > e0) dy = -pan - exitOff * inQuad((q - e0) / (e1 - e0));
+        if (p.key === "p2b") return <ChopPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
+        if (p.key === "p3d") return <HearPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
         return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
       })}
     </div>
