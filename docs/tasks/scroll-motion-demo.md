@@ -165,3 +165,60 @@ A、B 到位后可以去掉近景的裁切复用和主格的色块背景；C 不
 ### 需要集成会话改（第二轮追加）
 
 8. 无（这一轮只读共享文件）。如果用户确认这个构图，正式首页的切菜屏建议由 comic-scroll 按这个版式落地，`comic-parts.tsx` 的手绘框和气泡可以搬过去。
+
+## 第三轮：前景局部动画（切菜刀手、妈妈表情）——接手、修正、验证（2026-11-14）
+
+### 起点
+
+- 分支 `feat/scroll-motion-demo`，合入最新已提交的 `origin/main`（500ceac 合并），再合入 `origin/feat/visual-direction`（3208f81 合并）。原因：正式漫画布局 `/preview/visual` 和这两格的第一版表演（19513da "In-panel performance for two panels"、bd4cf2a 落刀事件）都只在 visual-direction 上，main 还没有；按"完成部分不重复实现"，在它的基础上修正，而不是另写一套。
+- 没有恢复第一轮被否决的卡片栏、缩略图收纳或旧滚动布局；`/demo/scroll-motion` 路由按主会话要求保持不动。
+- worktree 依赖用 `npm ci` 按 lockfile 重装（main 引入了 lenis），没有新增包。
+
+### 素材对应表（桌面原件不动，只处理项目副本；副本与原件逐字节一致，已用 shasum 核对）
+
+| 桌面源文件（~/Desktop/new pics/） | 项目副本 | 生成的图层 | 使用组件 | 剧情段落 |
+|---|---|---|---|---|
+| 01-chopping-clean-plate.png（切菜无刀手底图） | source/comic-v3-perf/01-chopping-clean-plate.png | public/assets/comic-v3/perf/p2b-base.webp；对白泡 p2b-bubble.webp 也从它取出 | `ChopPanel`（src/app/preview/visual/PanelPerf.tsx，ComicLayer 的 FlowLayer 里替换 p2b） | 第 2 页 B 格"哒、哒、哒"，节拍 `chop`（v2 表 475–605vh，📌prep） |
+| 02-knife-arm-overlay-draft.png（透明握刀手臂层） | source/comic-v3-perf/02-knife-arm-overlay-draft.png | p2b-arm.webp（**本轮重做**） | `ChopPanel` | 同上 |
+| 03-mom-eyes-up.png（抬眼） | source/comic-v3-perf/03-mom-eyes-up.png | p3d-eyes.webp（只含眉眼嘴区域） | `HearPanel` | 第 3 页 D 格"嗯？啵！"，节拍 `hear`（1040–1140vh，接在 `missing`"饭少点什么"之后） |
+| 04-mom-puzzled.png（疑惑） | source/comic-v3-perf/04-mom-puzzled.png | p3d-puzz.webp | `HearPanel` | 同上 |
+
+图层生成：`PYTHONPATH=tools python3 tools/prepare_perf_layers.py`（从仓库根目录运行）。
+
+### 参考
+
+- **Ponpon Mania**（codrops 2025-10-07）：每格的元素单独分层导出，在完整画格里重建，只让少数元素用 GSAP 时间轴表演，元素切换用"整组显隐"而不是变形；滚动只负责相机和进度。借：分层 + 少数元素表演 + 显隐切换（表情硬切）。不借：WebGL / 贴图集、它的 `repeat: -1` 循环和弹性缓动（我们只播一次、停住）。
+- **SeamTransitions**（github.com/codrops/SeamTransitions，MIT，版权 Codrops；仓库里打包的 GSAP 3.15 文件另受 GSAP 标准许可约束）：不固定任何东西，接缝是跟着内容一起滚的盒子；一个 gsap.ticker 统一算 progress 广播给所有接缝；只画与下层不同的像素、进度 0 时完全透明、边缘 1px 内实心盖住亚像素错位、用与真实图层同一套 cover 计算。属于后景转场，本任务不用；给后景负责人的建议写在共享笔记 `seam-transitions-notes.md`。
+
+### 本轮修正（都在共享笔记的对比录屏里能看到）
+
+1. **刀尖被平切**：`prepare_perf_layers.py` 先把草图裁到格子框再旋转缩放，草图刀尖在页面 y≈820、框底 810，刀尖被切成平头。改为外扩 120px 再变换、最后裁回。
+2. **袖口半透明**：贴到空画布时用了自身 alpha 当蒙版，alpha 变成 a²（247→239，内部 4056 个像素不实）。改为预乘 alpha 下变换、直接贴，手臂内部（离边 3px 以上）一律不透明，柔边保留。其余图层重新生成后逐字节不变。
+3. **关掉表演时声音不停**：表演进行中切到"减少动态效果"，旧逻辑不收住时间轴，分离的时间轴会继续派发落刀声。现在一关掉就硬复位。
+4. **离场瞬移**：刀在半空时格子开始离开，旧逻辑 `gsap.set` 瞬间归位；现在停掉后续刀数，0.15 秒缓落回原位，不发声。
+5. **表情停在半截**：表情还没到"疑惑"就滚走，旧逻辑停在"抬眼"，回滚回来也一直是半截；现在离场时直接落到终态"疑惑"。
+6. **落在格子中段不播**：刷新或快速跳进已稳定的格子（q 已在 0.36–0.72），旧逻辑永远不播；现在首次挂载在这个区间也播一次。
+
+### 验证（无头 Chrome 1440×900，逐帧录屏 + DOM 读数；应用内浏览器面板隐藏时 rAF 暂停，不能用来看动画）
+
+- 切菜：格子稳定后切三刀，落刀声事件间隔 583 ms（抬 0.17 s → 停 0.05 s → 落 0.075 s → 接触派发 `kitchen:oneshot` chopHit → 反作用 0.125 s → 间隔 0.16 s），之后停住。底图、框线、对白不动；手臂绕袖口支点（格子左缘）转 −9° 并上提 3%，袖口始终压在左框线外侧，不脱离。
+- 回滚 / 重进：小幅回滚（仍在复位线 0.3 之上）不重播；回到 0.3 以下复位；离场途中只响已开始的那一刀；滚出可见范围卸载；从前面重新进入再播一次；从后面倒滚回来不重播。共 7 刀 = 3 + 1 + 3，与预期一致。
+- 表情：越过 0.36 后 0.5 s 抬眼、1.3 s 疑惑，硬切、无交叉淡化、头部逐像素对齐，停在疑惑；小幅回滚保持疑惑，回到 0.3 以下恢复原表情。
+- 减少动态效果：两格都显示原静态格（p2b.webp / p3d.webp），0 个落刀声事件。
+- 没有重复实例：同一时刻 DOM 里只有一个 p2b-arm、一组 p3d 图层；背景蛋在表演期间暂缓小跳（`data-comic-perf`），表演结束或离场时清掉标记。
+- `npm run lint`、`npm run build` 通过。
+
+### 真实剩余问题
+
+1. **手臂草图和原格不完全匹配**：草图里的手按校准缩到 0.92，刀身也比原格短一截。静止时刀尖落在胡萝卜端头上，不像原格那样压到砧板，读作"正切进胡萝卜"，可以接受，但不如原格准确。若要完全对齐，需要画师按原格同尺寸重画一张握刀手臂层（袖口到刀尖完整，透明底）。
+2. **底图是重画的**：无刀手底图里胡萝卜丁的排列和原格不同，所以"静态原格（?perf=0 / 减少动态效果）"和"表演版"在胡萝卜丁上有差异。
+3. **表情变化很细**：原格本来就在往上看，"抬眼"和原格差别主要在上眼睑和瞳孔位置；在约 320px 宽的格子里，第一步变化不明显，"疑惑"（眉毛一高一低、嘴张开）比较明显。如需更清楚，需要画师加大抬眼一步的差别。
+4. **减少动态效果时没有切菜声**：静态格不派发落刀声，切菜段在这种模式下是安静的。是否要按固定时刻补三声，交给声音负责人决定。
+5. **声音没有真听**：无头录制是静音的，只核对了三次事件派发的时刻和间隔；混音器侧的接收由 kitchen-audio 会话验证过（见 public/assets/audio/README.md）。
+6. 只验证了 1440×900 横屏；竖屏和窄屏布局下格子更小，没有重新录。
+7. `beats.visual-v2.json` 的 chop 段 loops 里还写着 `"chop": 0.5`；audio-map 已不加载 chop 循环，所以不会和逐刀声重复，但数据上可以清掉（不在我的文件范围，交主会话）。
+
+### 需要集成会话改（第三轮）
+
+9. 合并本分支时注意：本分支已合入 visual-direction（3208f81）。我改动的共享文件只有 `src/app/preview/visual/PanelPerf.tsx`、`tools/prepare_perf_layers.py`、`public/assets/comic-v3/perf/p2b-arm.webp`，其余都是合并带来的。
+10. 可选：`beats.visual-v2.json` chop 段去掉 `"chop": 0.5`（见剩余问题 7）。

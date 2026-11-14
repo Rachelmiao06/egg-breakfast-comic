@@ -35,29 +35,50 @@ const flag = (on: boolean) => {
   else delete document.documentElement.dataset.comicPerf;
 };
 
-/** 越过 START 时触发一次；q < RESET 时复位；q > LEAVE 时收住。返回的 ref 记录是否已播过（本次进入） */
+/**
+ * 越过 START 时触发一次；q < RESET 时复位；q > LEAVE 时收住。
+ * - 首次挂载时若格子已经稳定在 [START, LEAVE)（刷新或快速跳到中段）也播一次；
+ * - 关掉表演（减少动态效果 / ?perf=0）时立即收住，避免分离的时间轴继续派发落刀声；
+ * - 卸载时收住（离场、回滚出可见范围），重新进入是新实例，重新判断。
+ */
 function useCrossing(q: number, enabled: boolean, play: () => void, stop: () => void, reset: () => void) {
   const prev = useRef<number | null>(null);
   const played = useRef(false);
+  const wasEnabled = useRef(enabled);
   useEffect(() => {
     const pq = prev.current;
     prev.current = q;
-    if (!enabled) return;
+    if (!enabled) {
+      if (wasEnabled.current) { wasEnabled.current = false; played.current = false; reset(); }
+      return;
+    }
+    wasEnabled.current = true;
     if (q < RESET) { if (played.current) { played.current = false; reset(); } return; }
     if (q > LEAVE) { stop(); return; }
-    if (pq !== null && pq < START && q >= START && !played.current) { played.current = true; play(); }
+    const crossed = pq !== null && pq < START && q >= START;
+    const landedInside = pq === null && q >= START;
+    if ((crossed || landedInside) && !played.current) { played.current = true; play(); }
   });
-  useEffect(() => () => { stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function ChopPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; animate: boolean }) {
   const arm = useRef<HTMLImageElement>(null);
   const tl = useRef<gsap.core.Timeline | null>(null);
-  const stop = () => { tl.current?.kill(); tl.current = null; if (arm.current) gsap.set(arm.current, { rotation: 0, yPercent: 0 }); flag(false); };
+  /** 硬复位：卸载、回滚到进入前、关掉表演 */
+  const reset = () => { tl.current?.kill(); tl.current = null; if (arm.current) gsap.set(arm.current, { rotation: 0, yPercent: 0 }); flag(false); };
+  /** 格子开始离开：停掉后续刀数，刀若在半空就 0.15 秒缓落回原位（不发声），不瞬移 */
+  const stop = () => {
+    if (!tl.current) return;
+    tl.current.kill();
+    tl.current = null;
+    if (arm.current) gsap.to(arm.current, { rotation: 0, yPercent: 0, duration: 0.15, ease: "power1.out", overwrite: true });
+    flag(false);
+  };
   const play = () => {
     const el = arm.current;
     if (!el) return;
-    stop();
+    reset();
     flag(true);
     const contact = () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit" } }));
     const t = gsap.timeline({ delay: 0.3, onComplete: () => { tl.current = null; flag(false); } });
@@ -71,7 +92,7 @@ export function ChopPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place
     }
     tl.current = t;
   };
-  useCrossing(q, animate, play, stop, stop);
+  useCrossing(q, animate, play, stop, reset);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -103,10 +124,12 @@ export function HearPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place
     flag(true);
     timers.current = [
       window.setTimeout(() => show(1), 500), // 先停住，再抬眼
-      window.setTimeout(() => { show(2); flag(false); }, 1300), // 露出疑惑，停住
+      window.setTimeout(() => { show(2); timers.current = []; flag(false); }, 1300), // 露出疑惑，停住
     ];
   };
-  const stop = () => clear(); // 离开时保持当前表情
+  // 离开时：还没播完就直接落到结尾表情（疑惑），保证这一格的终态始终一致；
+  // 否则停在"抬眼"半途，回滚回来也一直是半截表情。已播完时什么都不做。
+  const stop = () => { if (timers.current.length) { clear(); show(2); } };
   const reset = () => { clear(); show(0); };
   useCrossing(q, animate, play, stop, reset);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
