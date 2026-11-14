@@ -17,7 +17,7 @@ import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import { SearchBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
-import { eggAtTableFor, fitCatchForEgg, flightApexYFor, tableWaitFor } from "./eggPath";
+import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, tableWaitFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig } from "./slots";
 import { useViewport } from "./viewport";
@@ -97,13 +97,14 @@ function StageV2() {
     eggInBowl: BG.anchors.eggInTableBowl,
     // 飞行最高点：格上框以下 25% 格高，短弧线从右侧越过格框落到铲面，不经过气泡和妈妈视线左侧（eggPath.ts）
     flightApexY: flightApexYFor(cfg),
+    flightEaseX: flightEaseXFor(cfg), // 只在窄屏 narrowSlot = "below" 时为 true，默认 "right" 不变
     // 朝向：身体倒向左侧的妈妈，停在铲面上贴合铲面斜度（slots.json egg.onSpatulaTilt / flightLean）
     spatulaTilt: cfg.egg.onSpatulaTilt,
     flightLean: cfg.egg.flightLean,
   };
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;
-  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight);
+  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight, 0.6, anchors.flightEaseX);
   // 环境段（蛋是主体）：镜头水平方向主要跟着蛋的站点，窄屏、竖屏也不会把蛋切出画面；进入和离开时按段内进度渐变
   let follow: number | undefined;
   const envEgg = t.beat.egg === "ready" ? anchors.tableWait : t.beat.egg === "inBowl" ? anchors.bowlLand : null;

@@ -36,6 +36,8 @@ export type EggAnchors = {
   eggInBowl: number;
   /** 可选：接蛋飞行的最高点（脚底的场景 y）。给了就越过接蛋格上框再落到铲面；不给用旧的固定抬升 */
   flightApexY?: number;
+  /** 可选：飞行横向 ease-in（窄屏格子下方偏右模式，eggPath.flightEaseXFor） */
+  flightEaseX?: boolean;
   /**
    * 可选：蛋停在铲面上的倾角（度，负 = 顶部向左倒向接蛋的妈妈）。给了就启用"朝妈妈"的姿态：
    * 飞行中身体逐渐倒向妈妈（再叠加 flightLean 的中途前倾），落到铲面时贴合铲面斜度，落地是一次轻压缩回弹后停稳；
@@ -106,14 +108,15 @@ function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number,
  * 所以蛋从桌沿起跳后很快升到格子上框之上，再从上方落到铲面，不在妈妈头部和对白泡上方停留。
  * 镜头跟随（page.tsx）读同一条路径。
  */
-export function flightPoint(A: Pt, B: Pt, apexY: number, t: number, apexAt = 0.6): Pt {
+export function flightPoint(A: Pt, B: Pt, apexY: number, t: number, apexAt = 0.6, easeX = false): Pt {
   const k = clamp01(t);
   const H = Math.min(apexY, Math.min(A.y, B.y) - 40);
   const cy = H - Math.sqrt((A.y - H) * (B.y - H)); // 让曲线最高点 = H
   const ts = (A.y - cy) / (A.y + B.y - 2 * cy); // 最高点所在的 t
   const X = A.x + apexAt * (B.x - A.x);
   const cx = (X - (1 - ts) ** 2 * A.x - ts ** 2 * B.x) / (2 * (1 - ts) * ts);
-  return { x: bez(A.x, cx, B.x, k), y: bez(A.y, cy, B.y, k) };
+  // easeX（窄屏“格子下方偏右”）：横向用 ease-in，蛋先近乎竖直上升，后段才向左落到铲面，不往右鼓、不掠过铲尖；纵向不变
+  return { x: easeX ? A.x + (B.x - A.x) * k * k : bez(A.x, cx, B.x, k), y: bez(A.y, cy, B.y, k) };
 }
 
 /** 本段之前，蛋最后停在哪一站（决定 flight 从哪起飞） */
@@ -174,7 +177,7 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       if (travelling) {
         const pose = arc(from, "spatula", actionP, a, 380, -18);
         if (a.flightApexY !== undefined) {
-          const f = flightPoint(from === "pan" ? a.panLaunch : a.tableWait, a.spatulaLand, a.flightApexY, actionP);
+          const f = flightPoint(from === "pan" ? a.panLaunch : a.tableWait, a.spatulaLand, a.flightApexY, actionP, 0.6, !!a.flightEaseX);
           pose.x = f.x - REST.x;
           pose.y = f.y - REST.y;
         }
