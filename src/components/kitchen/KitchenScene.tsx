@@ -3,7 +3,7 @@
  * 厨房场景的组合入口（集成会话维护）。
  * - 底图：默认 <KitchenLayers mouse />（五层分层 + 锅沿遮挡 + 视差，kitchen-layers 交付）；可用 base 覆盖。
  * - children：feat/kitchen-scene 的角色层（蛋、影子、火苗、油、油泡、蒸汽）。
- * - 阅读弱化：随 progress 轻微调暗、去饱和，几乎不模糊，只盖一层很薄的纸色。厨房不退场，始终在背景里活动，
+ * - 阅读弱化：随 progress 降低对比度、轻微调暗和去饱和，不模糊，只盖一层很薄的纸色。厨房不退场，始终在背景里活动，
  *   而且要在漫画格子的间隙和画面边缘清楚可见（用户反馈：不要整屏棕色蒙层、不要过度模糊）。
  *   飞行节拍（flight 非 null）时弱化退回到很轻，让整屏飞行发生在厨房里；
  *   镜头随飞行进度平移到前景锅铲；放进饭碗时（serve 非 null）对准饭碗中央。
@@ -41,7 +41,7 @@ export default function KitchenScene({
   return (
     <div
       className="relative h-full w-full transition-[filter] duration-300"
-      style={{ filter: `brightness(${1 - 0.06 * dim}) saturate(${1 - 0.1 * dim})${dim > 0.01 ? ` blur(${(0.4 * dim).toFixed(2)}px)` : ""}` }}
+      style={{ filter: `contrast(${(1 - 0.22 * dim).toFixed(3)}) brightness(${(1 - 0.05 * dim).toFixed(3)}) saturate(${(1 - 0.18 * dim).toFixed(3)})` }}
     >
       <SceneStage focus={camera ?? focus}>
         {base ?? <KitchenLayers mouse depth={depth} />}

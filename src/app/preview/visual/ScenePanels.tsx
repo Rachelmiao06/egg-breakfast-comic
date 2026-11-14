@@ -10,7 +10,7 @@ import { Z } from "@/lib/scene";
 import { phaseProgress } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import { Placeholder } from "./ComicLayer";
-import { handoffBox, landPoint, useSlots } from "./slots";
+import { handoffBox, landedEgg, landPoint, useSlots } from "./slots";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -59,6 +59,28 @@ export default function ScenePanels({ debug = false }: { debug?: boolean }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={slot.occluderSrc} alt="" className="pointer-events-none absolute" style={{ left: x, top: y, width: w, height: h, zIndex: Z.eggFlying + 1, opacity: Math.min(1, k * 1.5) }} />
       )}
+      {/* 落在铲面的接触影子：蛋接近铲面时出现、变小变深，与落点同步（铲面本身不下沉：素材不支持） */}
+      {flight !== null && flight > 0.82 && t.beat.id === "catch" && (() => {
+        const e = landedEgg(cfg);
+        const near = Math.min(1, (flight - 0.82) / 0.18);
+        const w = e.w * (1.05 - 0.25 * near);
+        return (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute"
+            style={{
+              left: lp.x - w / 2,
+              top: lp.y - w * 0.09,
+              width: w,
+              height: w * 0.18,
+              zIndex: Z.eggFlying - 1,
+              borderRadius: "50%",
+              background: "radial-gradient(ellipse at center, rgba(60,36,14,0.42), rgba(60,36,14,0) 70%)",
+              opacity: 0.2 + 0.8 * near,
+            }}
+          />
+        );
+      })()}
       {debug && (
         <div className="pointer-events-none absolute" style={{ left: lp.x - 12, top: lp.y - 12, width: 24, height: 24, zIndex: Z.eggFlying + 2, border: "2px solid #e0442a", borderRadius: "50%" }} />
       )}
