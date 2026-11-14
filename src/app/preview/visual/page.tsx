@@ -101,7 +101,15 @@ function StageV2() {
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;
   if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight);
-  const cam = cameraV2(g, eggPt);
+  // 环境段（蛋是主体）：镜头水平方向主要跟着蛋的站点，窄屏、竖屏也不会把蛋切出画面；进入和离开时按段内进度渐变
+  let follow: number | undefined;
+  const envEgg = t.beat.egg === "ready" ? anchors.tableWait : t.beat.egg === "inBowl" ? anchors.bowlLand : null;
+  if (envEgg) {
+    const w = t.phase === "enter" ? t.phaseP : t.phase === "exit" ? 1 - t.phaseP : 1;
+    eggPt = { x: envEgg.x, y: envEgg.y - 120 };
+    follow = 0.85 * (w * w * (3 - 2 * w));
+  }
+  const cam = cameraV2(g, eggPt, follow);
   return (
     <>
       <div className="fixed inset-0 z-0">

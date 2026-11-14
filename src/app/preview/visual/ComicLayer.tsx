@@ -159,17 +159,23 @@ const inQuad = (t: number) => { const k = Math.min(1, Math.max(0, t)); return k 
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const hOf = (p: PanelSpec, w: number, vw: number, vh: number) => ((w * vw) / 100 / p.aspect / vh) * 100;
 
-/** 横屏：按 slots 的 x/y/w（以 16:10 设计）；整组超出安全区（上 3vh、下 top..bottom）时等比收拢，保留主次比例 */
+/**
+ * 横屏：按 slots 的 x/y/w（以 16:10 设计）。窗口比 16:10 窄时整组按比例放大（像素宽度不至于缩到读不清），
+ * 再整体收进安全区（左右 2–98vw，上沿 minY、下沿 bottom），保留主次比例。
+ */
 function fitPlaces(list: PanelSpec[], vw: number, vh: number, bottom: number): Record<string, Place> {
+  const k = Math.min(1.6, Math.max(1, 1.6 / (vw / vh)));
+  const base = list.map((p) => ({ p, x: 50 + (p.x + p.w / 2 - 50) * k - (p.w * k) / 2, y: p.y, w: p.w * k }));
   let minY = Infinity, maxY = -Infinity, minX = Infinity, maxX = -Infinity;
-  for (const p of list) {
-    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y + hOf(p, p.w, vw, vh));
-    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
+  for (const b of base) {
+    minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y + hOf(b.p, b.w, vw, vh));
+    minX = Math.min(minX, b.x); maxX = Math.max(maxX, b.x + b.w);
   }
-  const s = Math.min(1, (bottom - minY) / Math.max(1, maxY - minY));
+  const s = Math.min(1, (bottom - minY) / Math.max(1, maxY - minY), 96 / Math.max(1, maxX - minX));
   const cx = (minX + maxX) / 2;
+  const shiftX = Math.max(0, 2 - (50 + (minX - cx) * s)) - Math.max(0, 50 + (maxX - cx) * s - 98);
   const out: Record<string, Place> = {};
-  for (const p of list) out[p.key] = { x: cx + (p.x - cx) * s, y: minY + (p.y - minY) * s, w: p.w * s };
+  for (const b of base) out[b.p.key] = { x: 50 + (b.x - cx) * s + shiftX, y: minY + (b.y - minY) * s, w: b.w * s };
   return out;
 }
 
