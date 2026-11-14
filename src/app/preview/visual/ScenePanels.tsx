@@ -2,7 +2,7 @@
 /**
  * 场景层的接蛋格（与蛋同一套场景坐标）。图片、位置、铲面落点都来自 slots.json（可替换、可调）。
  * 顺序：后景的蛋先主动起飞 → 飞到 appearFlight 区间时这一格才出现（妈妈惊讶伸铲）→ 蛋越过这一格的框线落到铲面。
- * 层级：格子 z = Z.mom；飞行中的蛋 z = Z.eggFlying 在格子与框线之上（"打破次元"）。
+ * 层级：新版（flow）格子 z = Z.catchPanel（纸面之上、桌沿蛋之下，升起时不盖住等待的蛋），旧版 z = Z.mom；飞行中的蛋 z = Z.eggFlying 在格子与框线之上（"打破次元"）。
  * 下一段（handoff）进入时，这一格和后景的蛋一起淡出，由画着蛋的下一格漫画接手，全程只有一颗蛋。
  * 锅铲前沿遮挡层（occluderSrc）目前缺图，蛋压在铲面上方。
  */
@@ -60,7 +60,7 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
     <>
       <div
         className="pointer-events-none absolute"
-        style={{ left: x, top: y, width: w, height: h, zIndex: Z.mom, opacity: flow ? 1 : Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * (flow ? 560 : 70)}px)` }}
+        style={{ left: x, top: y, width: w, height: h, zIndex: flow ? Z.catchPanel : Z.mom, opacity: flow ? 1 : Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * (flow ? 560 : 70)}px)` }}
       >
         {slot.src ? (
           // eslint-disable-next-line @next/next/no-img-element
