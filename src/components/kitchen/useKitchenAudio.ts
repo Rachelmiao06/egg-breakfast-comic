@@ -27,7 +27,7 @@
  *   触发点可写成阶段符号（"actionEnd" 等，见 resolveAt），按当前节拍表的 phases 换算成段内进度，新旧两版节拍共用一张表。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { crossedOneShots, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
+import { crossedOneShots, eventAt, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import audioMap from "./audio-map.json";
 
@@ -65,6 +65,12 @@ const SCENE_AUDIO = (audioMap as { scenes: Record<string, MapScene> }).scenes;
 const AT_SYMBOL = /^(enterEnd|actionEnd|holdEnd)([+-]\d*\.?\d+)?$/;
 export function resolveAt(b: Beat, at: number | string): number | null {
   if (typeof at === "number") return at;
+  // "@eggOnSpatula" 等：共享事件（beats.ts eventAt），与 Egg 的落点读同一个值；可带偏移 "@eggOnSpatula-0.01"
+  const ev = /^@(\w+)([+-]\d*\.?\d+)?$/.exec(at.trim());
+  if (ev) {
+    const p = eventAt(b, ev[1]);
+    return p === null ? null : Math.min(1, Math.max(0, p + (ev[2] ? parseFloat(ev[2]) : 0)));
+  }
   const m = AT_SYMBOL.exec(at.trim());
   if (!m) return null;
   const [, enterEnd, actionEnd, holdEnd] = phaseEdges(b);
@@ -89,7 +95,7 @@ export function withAudioMap(beats: Beat[]): Beat[] {
     for (const o of m.oneshots) {
       if (!(ONESHOT_SOUNDS as string[]).includes(o.sound)) { warnOnce(`audio-map.json: 场景 ${b.id} 的单次音效 ${o.sound} 未登记`); continue; }
       const at = resolveAt(b, o.at);
-      if (at === null) { warnOnce(`audio-map.json: 场景 ${b.id} 的触发点 ${String(o.at)} 不认识（数字或 enterEnd/actionEnd/holdEnd±偏移）`); continue; }
+      if (at === null) { warnOnce(`audio-map.json: 场景 ${b.id} 的触发点 ${String(o.at)} 不认识（数字、enterEnd/actionEnd/holdEnd±偏移，或本段存在的共享事件 @eggOnTable/@eggOnSpatula/@eggInBowl）`); continue; }
       oneshots.push({ sound: o.sound as OneShotSound, at });
     }
     return { ...b, audio: { loops, fades, oneshots } };

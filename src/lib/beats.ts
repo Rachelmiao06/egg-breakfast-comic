@@ -79,6 +79,25 @@ export function phaseEdges(b: Beat) {
   return [0, e, e + a, e + a + h, 1] as const;
 }
 
+/**
+ * 共享事件：蛋落到某一站的段内位置。视觉（Egg 的飞行/落点）和声音（audio-map.json 里写 "@eggOnSpatula"）
+ * 都从这里读同一个值，不在两边各写一个数字。落点 = 该段动作阶段的结束处，所以只需在节拍表里调 phases。
+ */
+export type EggEvent = "eggOnTable" | "eggOnSpatula" | "eggInBowl";
+export const EGG_EVENTS: Record<EggEvent, EggMode> = { eggOnTable: "toTable", eggOnSpatula: "flight", eggInBowl: "serve" };
+export function eventAt(b: Beat, ev: string): number | null {
+  const mode = (EGG_EVENTS as Record<string, EggMode | undefined>)[ev];
+  if (!mode || b.egg !== mode) return null;
+  return phaseEdges(b)[2];
+}
+/** 本段的蛋事件（没有则 null）：段内起飞点、落点 */
+export function eggTravel(b: Beat): { ev: EggEvent; start: number; land: number } | null {
+  const ev = (Object.keys(EGG_EVENTS) as EggEvent[]).find((k) => EGG_EVENTS[k] === b.egg);
+  if (!ev) return null;
+  const [, start, land] = phaseEdges(b);
+  return { ev, start, land };
+}
+
 export function phaseAt(b: Beat, p: number): { phase: Phase; phaseP: number } {
   const edges = phaseEdges(b);
   for (let i = 0; i < 4; i++) {
