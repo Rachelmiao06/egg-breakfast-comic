@@ -22,8 +22,8 @@
 | 素材 | 模板 |
 |---|---|
 | B1 | `docs/bg-templates/tech-B1-table-band.png` |
-| B2 横版 | `docs/bg-templates/tech-hallway-landscape.png` |
-| B2 竖版 | `docs/bg-templates/tech-hallway-portrait.png` |
+| B2 横版 | `docs/bg-templates/tech-search-backdrop-landscape.png` |
+| B2 竖版 | `docs/bg-templates/tech-search-backdrop-portrait.png` |
 
 ## B1 桌沿带
 
@@ -85,7 +85,7 @@ B1 和纸面同属 z 62 的纸面组，B1 在组内下层，蛋在 z 63。整组
 
 | 项目 | 数据 |
 |---|---|
-| 文件名 | `hallway-landscape.png`（或 `.webp`），放 `public/assets/bg/` |
+| 文件名 | `search-backdrop-landscape.png`（或 `.webp`），放 `public/assets/bg/`（当前接入的是门口厨房 `kitchen-doorway.webp`） |
 | 画布 | **2400×1500 图片像素**，宽高比 **16:10** |
 | 透明背景 | **不需要**，整张不透明 |
 | 何时使用 | 视口宽高比 ≥ 1.0 |
@@ -120,7 +120,7 @@ B1 和纸面同属 z 62 的纸面组，B1 在组内下层，蛋在 z 63。整组
 
 | 项目 | 数据 |
 |---|---|
-| 文件名 | `hallway-portrait.png`（或 `.webp`），放 `public/assets/bg/` |
+| 文件名 | `search-backdrop-portrait.png`（或 `.webp`），放 `public/assets/bg/` |
 | 画布 | **1200×2600 图片像素**，宽高比 **6:13** |
 | 透明背景 | **不需要**，整张不透明 |
 | 何时使用 | 视口宽高比 < 1.0，例如手机或 860×1000 的窄窗口 |

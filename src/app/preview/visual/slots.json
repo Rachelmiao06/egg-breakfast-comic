@@ -465,6 +465,8 @@
  },
  "egg": {
   "onSpatulaScale": 0.4,
-  "inBowlScale": 0.441
+  "inBowlScale": 0.441,
+  "onSpatulaTilt": -8,
+  "flightLean": -8
  }
 }

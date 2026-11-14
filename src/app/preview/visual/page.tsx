@@ -14,7 +14,7 @@ import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
 import { SceneProvider, useScene } from "@/lib/scene-context";
 import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
-import { HallwayBackdrop, Paper } from "./Backdrops";
+import { SearchBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, tableWaitFor } from "./eggPath";
@@ -97,6 +97,9 @@ function StageV2() {
     eggInBowl: BG.anchors.eggInTableBowl,
     // 飞行最高点：格上框以下 25% 格高，短弧线从右侧越过格框落到铲面，不经过气泡和妈妈视线左侧（eggPath.ts）
     flightApexY: flightApexYFor(cfg),
+    // 朝向：身体倒向左侧的妈妈，停在铲面上贴合铲面斜度（slots.json egg.onSpatulaTilt / flightLean）
+    spatulaTilt: cfg.egg.onSpatulaTilt,
+    flightLean: cfg.egg.flightLean,
   };
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;
@@ -127,7 +130,7 @@ function StageV2() {
           <KitchenCharacters eggAnchors={anchors} direct />
         </KitchenScene>
       </div>
-      <HallwayBackdrop />
+      <SearchBackdrop />
       <ComicLayer flow />
       <ScrollDriver smooth />
       <SoundToggle />

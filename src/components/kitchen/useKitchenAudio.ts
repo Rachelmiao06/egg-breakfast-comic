@@ -26,13 +26,14 @@
  *   这样不用改共享的 beats.json；音量、触发点都在声音分支自己的文件里。
  *   触发点可写成阶段符号（"actionEnd" 等，见 resolveAt），按当前节拍表的 phases 换算成段内进度，新旧两版节拍共用一张表。
  * - 越过节拍表触发点的单次音效：同一次时间轴更新越过多个时只播最后一个；一次跨过 40 vh 以上（拖滚动条、跳转）全部跳过；
- *   停在原地不重复，倒滚不播。
+ *   停在原地不重复，倒滚不播。audio-map 里 oncePerVisit 的段（quiet）每进入一次只播一次：段内倒滚再前进不重播，
+ *   回到这一段开始之前才重新允许。
  * - audio-map 的扩展：ramps（段内定时的电平斜坡）和 lowpass（段内定时的低通，目前给 steps 由远到近），见 MappedBeat。
  * - 动画逐帧触发的单次音效（目前只有切菜格的 chopHit）：监听 window 事件 "kitchen:oneshot"（detail.sound），收到就播一次。
  *   解码成 AudioBuffer，每次新建 BufferSource，快速连刀可以重叠；静音、未解锁（AudioContext 未 running）、后台时丢弃不补播。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { crossedOneShots, eventAt, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
+import { eventAt, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import audioMap from "./audio-map.json";
 
@@ -91,10 +92,14 @@ type At = number | string;
 type MapRamp = { sound: string; from: number; to: number; start: At; end: At };
 /** 段内定时的低通（目前给 steps 由远到近用）：截止频率 fromHz → toHz，规则同 ramps；没写的段 = 全开 */
 type MapLowpass = { sound: string; fromHz: number; toHz: number; start: At; end: At };
-type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: At }[]; ramps?: MapRamp[]; lowpass?: MapLowpass[] };
+/**
+ * oncePerVisit：这一段的单次音效"每进入一次只播一次"。段内倒滚再前进不重播；只有时间轴回到这一段开始之前
+ * （例如回到上一段）之后才重新允许。只给需要的段打开（quiet 的画外敲击）；其它段保持"倒滚后再前进可以再播"。
+ */
+type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: At }[]; ramps?: MapRamp[]; lowpass?: MapLowpass[]; oncePerVisit?: boolean };
 type Ramp = { sound: LoopSound; from: number; to: number; start: number; end: number };
 /** 带声音分支扩展字段的节拍（ramps / lowpass 已换算成段内进度） */
-export type MappedBeat = Beat & { mapRamps?: Ramp[]; mapLowpass?: Ramp[] };
+export type MappedBeat = Beat & { mapRamps?: Ramp[]; mapLowpass?: Ramp[]; mapOncePerVisit?: boolean };
 const SCENE_AUDIO = (audioMap as { scenes: Record<string, MapScene> }).scenes;
 /**
  * 触发点符号：enterEnd / actionEnd / holdEnd（= 该段进入 / 动作 / 停留阶段的结束处），可带偏移，如 "actionEnd-0.02"。
@@ -134,7 +139,7 @@ export function withAudioMap(beats: Beat[]): MappedBeat[] {
       if (!(ONESHOT_SOUNDS as string[]).includes(o.sound)) { warnOnce(`audio-map.json: 场景 ${b.id} 的单次音效 ${o.sound} 未登记`); continue; }
       const at = resolveAt(b, o.at);
       if (at === null) { warnOnce(`audio-map.json: 场景 ${b.id} 的触发点 ${String(o.at)} 不认识（数字、enterEnd/actionEnd/holdEnd±偏移，或本段存在的共享事件 @eggOnTable/@eggOnSpatula/@eggInBowl）`); continue; }
-      // MapOnlySound（bowlTap1/2）不在共享类型里：这里只做类型转换，运行时名字原样传给 crossedOneShots → fire
+      // MapOnlySound（bowlTap1/2）不在共享类型里：这里只做类型转换，运行时名字原样传给 crossedShots → fire
       oneshots.push({ sound: o.sound as OneShotSound, at });
     }
     const resolveRamps = (list: { sound: string; from: number; to: number; start: At; end: At }[] | undefined, kind: string): Ramp[] => {
@@ -150,7 +155,7 @@ export function withAudioMap(beats: Beat[]): MappedBeat[] {
     const mapRamps = resolveRamps(m.ramps, "ramps");
     const mapLowpass = resolveRamps(m.lowpass?.map((l) => ({ sound: l.sound, from: l.fromHz, to: l.toHz, start: l.start, end: l.end })), "lowpass");
     for (const r of mapRamps) loops[r.sound] = r.to; // 排过序：最后一条的 to 留下
-    return { ...b, audio: { loops, fades, oneshots }, mapRamps, mapLowpass };
+    return { ...b, audio: { loops, fades, oneshots }, mapRamps, mapLowpass, mapOncePerVisit: m.oncePerVisit === true };
   });
 }
 function warnOnce(msg: string) {
@@ -181,6 +186,23 @@ function posVh(t: Timeline, beats: Beat[]) {
   let acc = 0;
   for (let i = 0; i < t.index && i < beats.length; i++) acc += beats[i].lengthVh;
   return acc + t.p * (beats[t.index]?.lengthVh ?? 0);
+}
+/**
+ * 两次时间轴之间向前越过的单次音效，带"哪一段、第几个"（规则与 beats.ts 的 crossedOneShots 完全相同：
+ * 只算向前、触发点落在 (prev, cur]）。需要身份是为了 oncePerVisit 记账。
+ */
+function crossedShots(prev: Timeline | null, cur: Timeline, beats: Beat[]): { bi: number; oi: number; sound: OneShotSound }[] {
+  if (!prev) return [];
+  const pos = (t: Timeline) => t.index + t.p;
+  if (pos(cur) <= pos(prev)) return [];
+  const out: { bi: number; oi: number; sound: OneShotSound }[] = [];
+  for (let i = prev.index; i <= cur.index && i < beats.length; i++) {
+    beats[i].audio.oneshots.forEach((o, oi) => {
+      const at = i + o.at;
+      if (at > pos(prev) && at <= pos(cur)) out.push({ bi: i, oi, sound: o.sound });
+    });
+  }
+  return out;
 }
 /** 一次时间轴更新跨过这么多 vh 以上（拖滚动条、跳转），越过的单次音效全部跳过 */
 const MAX_CROSS_VH = 40;
@@ -526,6 +548,8 @@ export function useKitchenAudio() {
 
   // 单次音效：向下滚动越过节拍表里的触发点时播一次
   const prevT = useRef<Timeline | null>(null);
+  /** oncePerVisit 段：本次进入里已经越过（播过或被跳过）的单次音效，键 = 段序号，值 = 第几个 */
+  const visit = useRef(new Map<number, Set<number>>());
   useEffect(() => {
     if (document.visibilityState === "hidden") {
       // 后台里时间轴若有变化只重同步，不触发
@@ -533,12 +557,19 @@ export function useKitchenAudio() {
       return;
     }
     const prev = prevT.current;
-    const fired = crossedOneShots(prev, timeline, beats);
     prevT.current = timeline;
-    if (!soundOn || fired.length === 0) return;
+    // 时间轴回到某段开始之前：这一段的"本次进入"结束，下次进入重新允许
+    for (const bi of [...visit.current.keys()]) if (timeline.index < bi) visit.current.delete(bi);
+    const crossed = crossedShots(prev, timeline, beats);
+    if (crossed.length === 0) return;
+    const once = (bi: number) => (beats[bi] as MappedBeat).mapOncePerVisit === true;
+    const fresh = crossed.filter((c) => !(once(c.bi) && visit.current.get(c.bi)?.has(c.oi)));
+    // 越过就算这次进入用掉了（包括被"只播最后一个 / 跨太远全部跳过"略掉的），段内来回滚动不再响
+    for (const c of crossed) if (once(c.bi)) { const set = visit.current.get(c.bi) ?? new Set<number>(); set.add(c.oi); visit.current.set(c.bi, set); }
+    if (!soundOn || fresh.length === 0) return;
     // 一次更新跨得太远（拖滚动条、跳转）：越过的全部跳过；同一次越过多个：只播最后一个，不堆在一起
     if (prev && Math.abs(posVh(timeline, beats) - posVh(prev, beats)) > MAX_CROSS_VH) return;
-    mixer.current?.fire(fired[fired.length - 1]);
+    mixer.current?.fire(fresh[fresh.length - 1].sound);
   }, [timeline, soundOn, beats]);
 
   // 回到前台：把"上一次时间轴"重同步到当前滚动位置（后台期间越过的触发点不补播；之后的真实滚动照常触发）

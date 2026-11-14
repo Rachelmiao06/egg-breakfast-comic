@@ -12,13 +12,13 @@
  *   → 饭桌：蛋交给漫画之后（curves.dinner），纸面 + 桌沿整体下移 22 场景像素（饭桌更近，桌面让出碗的底座）。
  *   → 环境段 tablecall（空饭桌上碗里的蛋在喊）：B3 占位碗（curves.bowl），碗身 z 62（蛋之下）、前沿遮挡层 Z.bowlFront（蛋之上），
  *       位置全部相对 anchors.tableBowl，与蛋的脚底点对位；碗只跟随主体层视差，不跟随饭桌位移，所以永远和蛋锁在一起。
- *   → 寻找段外围：<HallwayBackdrop/> 里的 SearchSurround，页面层（fixed z-5，漫画之下），横版 / 竖版两张，
- *       进场时从右往左持续漂移（curves.hallwayDrift），像镜头转到家里另一处；淡出后露回饭桌。
- *   → 收尾：<HallwayBackdrop/> 里的 EndingSheet，干净暖米白平涂，盖住一切（含桌沿）。
+ *   → 寻找段外围：<SearchBackdrop/> 里的 SearchSurround，页面层（fixed z-5，漫画之下），横版 / 竖版两张，
+ *       进场时从右往左持续漂移（curves.doorwayDrift），像镜头转到家里另一处；淡出后露回饭桌。
+ *   → 收尾：<SearchBackdrop/> 里的 EndingSheet，干净暖米白平涂，盖住一切（含桌沿）。
  *
  * 规则：只改不透明度和位移；不卸载任何角色层（各层自己在不透明度≈0 时返回 null，蛋不受影响）；
  * 不画第二只蛋或锅；占位只用平涂色块，说明文字只在 ?debug=1 显示。
- * 导出名 Paper / HallwayBackdrop 不变，preview/visual/page.tsx 不需要改。
+ * 导出名 Paper / SearchBackdrop。
  */
 import { useSyncExternalStore, type CSSProperties } from "react";
 import { Z } from "@/lib/scene";
@@ -35,7 +35,7 @@ export const bgCurve = (name: CurveName, g: number) => curve(BG.curves[name] as 
 export function backgroundState(g: number) {
   const paper = bgCurve("paper", g);
   const table = bgCurve("table", g);
-  const hallway = bgCurve("hallway", g);
+  const doorway = bgCurve("doorway", g);
   const ending = bgCurve("ending", g);
   const bowl = bgCurve("bowl", g);
   const lift = bgCurve("dinner", g);
@@ -43,7 +43,7 @@ export function backgroundState(g: number) {
   const name =
     ending > 0.5
       ? "ending"
-      : hallway > 0.5
+      : doorway > 0.5
         ? "search"
         : bowl > 0.5
           ? "table-call"
@@ -57,7 +57,7 @@ export function backgroundState(g: number) {
                   : "table-edge"
               : "kitchen";
   const quiet = bgCurve("searchQuiet", g);
-  return { paper, table, hallway, ending, bowl, lift, reading, quiet, quietPush: bgCurve("quietPush", g), drift: bgCurve("hallwayDrift", g) * BG.hallway.driftPct * (1 - quiet), name: name === "search" && quiet > 0.5 ? "quiet-corner" : name };
+  return { paper, table, doorway, ending, bowl, lift, reading, quiet, quietPush: bgCurve("quietPush", g), drift: bgCurve("doorwayDrift", g) * BG.doorway.driftPct * (1 - quiet), name: name === "search" && quiet > 0.5 ? "quiet-corner" : name };
 }
 
 const SHOW = 0.001;
@@ -283,14 +283,14 @@ function TableBand({ opacity, debug }: { opacity: number; debug: boolean }) {
   );
 }
 
-/** 寻找段外围 + 收尾（页面层，漫画之下）。名字沿用 HallwayBackdrop，页面不用改。 */
-export function HallwayBackdrop() {
+/** 寻找段外围 + 收尾（页面层，漫画之下）。（原名 HallwayBackdrop，按内容改名：这里是门口厨房和收尾，不是走廊）。 */
+export function SearchBackdrop() {
   const { timeline: t } = useScene();
   const debug = useDebugFlag();
   const s = backgroundState(gNow(t));
   return (
     <>
-      {s.hallway > SHOW && <SearchSurround opacity={s.hallway} driftPct={s.drift} quiet={s.quiet} push={s.quietPush} debug={debug} />}
+      {s.doorway > SHOW && <SearchSurround opacity={s.doorway} driftPct={s.drift} quiet={s.quiet} push={s.quietPush} debug={debug} />}
       {s.ending > SHOW && <EndingSheet opacity={s.ending} />}
     </>
   );
@@ -298,7 +298,7 @@ export function HallwayBackdrop() {
 
 /** B2 寻找段外围：浅色墙面 + 局部门框 + 纸白。横版 / 竖版按视口选；占位是平涂 */
 function SearchSurround({ opacity, driftPct, quiet, push, debug }: { opacity: number; driftPct: number; quiet: number; push: number; debug: boolean }) {
-  const H = BG.hallway;
+  const H = BG.doorway;
   const Q = H.quiet;
   const vp = useViewport();
   const { reducedMotion } = useScene();

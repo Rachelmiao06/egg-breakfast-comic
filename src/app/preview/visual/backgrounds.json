@@ -107,7 +107,7 @@
    "frontY": 995
   },
   "portraitBelow": 0.6,
-  "source": "source/bg-v3/BG-kitchen-secret-friends.png（横版，桌面 new pics 原件的副本）、source/bg-v3/hallway-portrait.png（竖版：内容是同一套厨房，不是走廊）",
+  "source": "source/bg-v3/BG-kitchen-secret-friends.png（横版）、source/bg-v3/kitchen-friends-portrait.png（竖版，桌面原件 new pics/hallway-portrait.png 的副本；内容是同一套厨房）",
   "status": "已替换。横版缩放 1.05（场景像素 / 图片像素），竖版 0.9；box 由 counter 对齐和可见范围算出",
   "srcBase": "/assets/bg/kitchen-friends-base.webp",
   "actorsNote": "横版阅读厨房的三个小角色（tools/prepare_friends.py 从原图拆出：角色层 + 遮挡物 + 只在角色背后补齐的底图）。img / pivot 是原图像素；只转动几度，方向选在只会露出干净背景的一侧：酱油瓶往左躲到油瓶后（露出层板侧面）、糖罐往左歪头（露出墙面）、葱叶往右偏向胡萝卜（露出瓷砖）。角度由 curves 里对应曲线给出（度，滚动驱动），只安排在各段的进入 / 退出阶段，阅读停留阶段不动；三个错开。减少动态效果时全部为 0。胡萝卜背后是生菜和番茄，没有可用的底图，保持静态。竖版没有拆层，保持静态。",
@@ -230,74 +230,6 @@
   "edgeY": 965,
   "feather": 45,
   "status": "占位：暖米白纸面，保留下方桌沿"
- },
- "hallway": {
-  "type": "placeholder",
-  "label": "寻找段外围：厨房 + 通往另一个房间的门口（new pics/hallway-landscape.png）",
-  "src": "/assets/bg/kitchen-doorway.webp",
-  "size": [
-   1585,
-   992
-  ],
-  "srcPortrait": null,
-  "sizePortrait": [
-   1200,
-   2600
-  ],
-  "focus": [
-   0.5,
-   0.5
-  ],
-  "driftPct": 2.5,
-  "portraitBelow": 1.0,
-  "status": "已替换（横版）。没有竖版的门口图：竖屏用同一张横版按 focusPortrait 裁到门口和菜篮一侧（保持比例，不拉伸）",
-  "color": "#f6eee2",
-  "focusPortrait": [
-   0.86,
-   0.5
-  ],
-  "quiet": {
-   "note": "声音留白段（quiet）：镜头不换图，推进到门口厨房左下的桌角（只取 x0..x1、底边对齐 y1 的这一块，避开左边层板上的小角色和右边门口）。桌角单独一层（tools/prepare_quiet.py 裁出），在段内比墙面多放大 cornerPush，像更近的一层；只往外长、盖住地板，不露底。墙上一片柔和暖光随段内进度缓慢移动。碗和声音在画外左边，和 p5e 妈妈向左回头一致。图片像素。 frame = [x0, x1, 底边 y]，frameH = 至少显示的高度（竖屏按它推近，桌角才不会太小）；band = 斜向的窗光带（视口宽 %，随段内进度从 from 移到 to）。",
-   "frame": [
-    262,
-    1112,
-    992
-   ],
-   "corner": {
-    "src": "/assets/bg/doorway-corner.png",
-    "img": [
-     0,
-     868,
-     361,
-     124
-    ]
-   },
-   "push": 0.03,
-   "cornerPush": 0.06,
-   "light": {
-    "from": [
-     640,
-     600
-    ],
-    "to": [
-     720,
-     570
-    ],
-    "r": [
-     560,
-     360
-    ],
-    "color": "rgba(255,232,186,0.85)"
-   },
-   "frameH": 620,
-   "band": {
-    "from": -6,
-    "to": 4,
-    "angle": -24,
-    "color": "rgba(255,244,214,0.42)",
-    "width": 16
-   }
-  }
  },
  "room": {
   "type": "placeholder",
@@ -548,28 +480,6 @@
     1
    ]
   ],
-  "hallway": [
-   [
-    "tablecall",
-    0.85,
-    0
-   ],
-   [
-    "search",
-    0.25,
-    1
-   ],
-   [
-    "eggcall",
-    0.7,
-    1
-   ],
-   [
-    "return",
-    0.2,
-    0
-   ]
-  ],
   "ending": [
    [
     "punchline",
@@ -626,28 +536,6 @@
     "search",
     0.3,
     0
-   ]
-  ],
-  "hallwayDrift": [
-   [
-    "tablecall",
-    0.85,
-    1
-   ],
-   [
-    "search",
-    0.5,
-    0.25
-   ],
-   [
-    "eggcall",
-    0.7,
-    -0.25
-   ],
-   [
-    "return",
-    0.2,
-    -1
    ]
   ],
   "reading": [
@@ -901,9 +789,53 @@
     0.92,
     1
    ]
+  ],
+  "doorway": [
+   [
+    "tablecall",
+    0.85,
+    0
+   ],
+   [
+    "search",
+    0.25,
+    1
+   ],
+   [
+    "eggcall",
+    0.7,
+    1
+   ],
+   [
+    "return",
+    0.2,
+    0
+   ]
+  ],
+  "doorwayDrift": [
+   [
+    "tablecall",
+    0.85,
+    1
+   ],
+   [
+    "search",
+    0.5,
+    0.25
+   ],
+   [
+    "eggcall",
+    0.7,
+    -0.25
+   ],
+   [
+    "return",
+    0.2,
+    -1
+   ]
   ]
  },
- "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后纸面 + 桌沿带整体的垂直位移（场景像素，当前 0；B1 正式图到位后如需为饭桌微调桌面高度只改这里，正值向下）；bowl：环境段 tablecall 饭桌上的碗（B3）；hallway：寻找段外围不透明度；hallwayDrift：外围的横向漂移（乘 hallway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。 reading：阅读段主后景（厨房小角色）不透明度，有 reading.src 时替代 paper / table。 换场不叠两张厨房：drop 段先由纸面盖住旧厨房（0.55→0.78），再在纸面上淡入厨房小角色（0.78→bag 0.2）；寻找段和收尾的图层内部也是先铺满纸色、再淡入图片（前一半纸色、后一半图片）。 friendJar / friendSoy / friendLeaves：阅读厨房三个小角色的转动角度（度），只在进入 / 退出阶段变化。 searchQuiet：寻找段镜头从门口厨房全景推到左下桌角（0 = 全景，1 = 桌角），search 结尾推进、eggcall 开头拉回；quietPush：quiet 段内的缓慢推近和光影移动（0–1）。",
+ "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后纸面 + 桌沿带整体的垂直位移（场景像素，当前 0；B1 正式图到位后如需为饭桌微调桌面高度只改这里，正值向下）；bowl：环境段 tablecall 饭桌上的碗（B3）；doorway：寻找段外围不透明度；doorwayDrift：外围的横向漂移（乘 doorway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。 reading：阅读段主后景（厨房小角色）不透明度，有 reading.src 时替代 paper / table。 换场不叠两张厨房：drop 段先由纸面盖住旧厨房（0.55→0.78），再在纸面上淡入厨房小角色（0.78→bag 0.2）；寻找段和收尾的图层内部也是先铺满纸色、再淡入图片（前一半纸色、后一半图片）。 friendJar / friendSoy / friendLeaves：阅读厨房三个小角色的转动角度（度），只在进入 / 退出阶段变化。 searchQuiet：寻找段镜头从门口厨房全景推到左下桌角（0 = 全景，1 = 桌角），search 结尾推进、eggcall 开头拉回；quietPush：quiet 段内的缓慢推近和光影移动（0–1）。",
  "ending": {
   "type": "color",
   "color": "#f6eee2",
@@ -913,5 +845,74 @@
    0.5,
    0.7
   ]
+ },
+ "doorway": {
+  "type": "placeholder",
+  "label": "寻找段外围：门口厨房（厨房 + 通往另一个房间的门口）",
+  "src": "/assets/bg/kitchen-doorway.webp",
+  "size": [
+   1585,
+   992
+  ],
+  "srcPortrait": null,
+  "sizePortrait": [
+   1200,
+   2600
+  ],
+  "focus": [
+   0.5,
+   0.5
+  ],
+  "driftPct": 2.5,
+  "portraitBelow": 1.0,
+  "status": "已替换（横版）。没有竖版的门口图：竖屏用同一张横版按 focusPortrait 裁到门口和菜篮一侧（保持比例，不拉伸）",
+  "color": "#f6eee2",
+  "focusPortrait": [
+   0.86,
+   0.5
+  ],
+  "quiet": {
+   "note": "声音留白段（quiet）：镜头不换图，推进到门口厨房左下的桌角（只取 x0..x1、底边对齐 y1 的这一块，避开左边层板上的小角色和右边门口）。桌角单独一层（tools/prepare_quiet.py 裁出），在段内比墙面多放大 cornerPush，像更近的一层；只往外长、盖住地板，不露底。墙上一片柔和暖光随段内进度缓慢移动。碗和声音在画外左边，和 p5e 妈妈向左回头一致。图片像素。 frame = [x0, x1, 底边 y]，frameH = 至少显示的高度（竖屏按它推近，桌角才不会太小）；band = 斜向的窗光带（视口宽 %，随段内进度从 from 移到 to）。",
+   "frame": [
+    262,
+    1112,
+    992
+   ],
+   "corner": {
+    "src": "/assets/bg/doorway-corner.png",
+    "img": [
+     0,
+     868,
+     361,
+     124
+    ]
+   },
+   "push": 0.03,
+   "cornerPush": 0.06,
+   "light": {
+    "from": [
+     640,
+     600
+    ],
+    "to": [
+     720,
+     570
+    ],
+    "r": [
+     560,
+     360
+    ],
+    "color": "rgba(255,232,186,0.85)"
+   },
+   "frameH": 620,
+   "band": {
+    "from": -6,
+    "to": 4,
+    "angle": -24,
+    "color": "rgba(255,244,214,0.42)",
+    "width": 16
+   }
+  },
+  "source": "source/bg-v3/kitchen-doorway.png（桌面原件 new pics/hallway-landscape.png 的副本；内容是厨房门口，不是走廊）"
  }
 }

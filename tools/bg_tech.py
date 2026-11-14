@@ -1,6 +1,6 @@
 """后景素材技术数据 + 模板 PNG（B1、B2 横版、B2 竖版）。只给影响动画、遮挡和裁切的数据，不涉及画风。
 
-数值来源：src/app/preview/visual/backgrounds.json（table / hallway / anchors / camera）、slots.json（漫画格）、
+数值来源：src/app/preview/visual/backgrounds.json（table / doorway / anchors / camera）、slots.json（漫画格）、
 ComicLayer.tsx 的 fitPlaces / columnPlaces（漫画格排版算法，这里按同样公式重算）、Backdrops.tsx（B2 显示方式：
 比视口左右各宽 driftPct%，object-fit: cover，object-position = focus）。
 输出：docs/bg-templates/tech-*.png（画布原尺寸，像素坐标即图片像素）、docs/bg-templates/tech-data.json。
@@ -125,7 +125,7 @@ def column_places(keys, vw, vh, top=4, bottom=95):
     if total < avail:
         for v in out.values(): v[1] += (avail - total) / 2
     return out, max(0, total - avail)
-H2 = BG["hallway"]; pad = H2["driftPct"]
+H2 = BG["doorway"]; pad = H2["driftPct"]
 GROUPS = {"search（寻找）": ["p5a", "p5b", "p5c"], "eggcall（蛋喊）": ["p5d", "p5e"]}
 
 def b2_map(IW, IH, vw, vh):
@@ -200,11 +200,11 @@ def draw_b2(name, IW, IH, viewports, layout, title, notes):
     im.save(f"{OUT}/tech-{name.split('.')[0]}.png")
     return info
 
-DATA["B2_landscape"] = draw_b2("hallway-landscape.png", *H2["size"], {"16:9 1600×900": (1600, 900), "16:10 1440×900": (1440, 900), "4:3 1024×768": (1024, 768)}, "landscape",
+DATA["B2_landscape"] = draw_b2("search-backdrop-landscape.png", *H2["size"], {"16:9 1600×900": (1600, 900), "16:10 1440×900": (1440, 900), "4:3 1024×768": (1024, 768)}, "landscape",
     f"B2 横版 {H2['size'][0]}×{H2['size'][1]}（16:10）不透明｜视口宽高比 ≥ {H2['portraitBelow']} 时使用",
     ["坐标：图片像素。显示：容器比视口左右各宽 2.5%，object-fit cover，居中；寻找段从右往左漂移 ±2.5vw",
      "图层：页面层 z-5，盖住整个场景舞台（厨房、纸面、B1），在漫画层 z-10 之下。红/蓝 = 漫画覆盖（三种视口并集）"])
-DATA["B2_portrait"] = draw_b2("hallway-portrait.png", *H2["sizePortrait"], {"390×844": (390, 844), "860×1000": (860, 1000)}, "portrait",
+DATA["B2_portrait"] = draw_b2("search-backdrop-portrait.png", *H2["sizePortrait"], {"390×844": (390, 844), "860×1000": (860, 1000)}, "portrait",
     f"B2 竖版 {H2['sizePortrait'][0]}×{H2['sizePortrait'][1]} 不透明｜视口宽高比 < {H2['portraitBelow']} 时使用",
     ["坐标：图片像素。漫画在竖屏排成一列并在停留阶段上移，覆盖范围取上移前后并集",
      "图层：页面层 z-5，在漫画层 z-10 之下"])

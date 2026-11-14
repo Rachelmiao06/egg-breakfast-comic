@@ -1,4 +1,4 @@
-"""寻找段 → 声音留白段（quiet）的桌角近景层：从门口厨房（new pics/hallway-landscape.png）里裁出左下角的台面一角。
+"""寻找段 → 声音留白段（quiet）的桌角近景层：从门口厨房（source/bg-v3/kitchen-doorway.png，桌面原件 new pics/hallway-landscape.png 的副本）里裁出左下角的台面一角。
 只裁切加遮罩，不改像素。quiet 段镜头推到这个角落时，这一层比墙面多放大一点，形成纵深；它只会往外长、盖住地板，不露底。
 输出 public/assets/bg/doorway-corner.png（RGBA，裁到外接框），打印外接框（图片像素）。用法：python3 tools/prepare_quiet.py
 """
@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from scipy import ndimage
 
-img = cv2.imread("source/bg-v3/hallway-landscape.png", cv2.IMREAD_COLOR)
+img = cv2.imread("source/bg-v3/kitchen-doorway.png", cv2.IMREAD_COLOR)
 H, W = img.shape[:2]
 lum = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 free = (lum > 110).astype(np.uint8)

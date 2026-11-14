@@ -163,7 +163,7 @@
 |---|---|---|---|---|
 | 1 | `curves.paper`（纸面不透明度） | bag 到 punchline 为 1（整片盖住厨房），prejump 降到 0.5 | **最高 0.3 的暖色薄纱**：drop 0.7 → bag 0.3 升到 0.3；prejump 和 tablecall 降到 0；search、eggcall 0.45；return 回到 0.3 | 厨房常驻，漫画仍然可读（KitchenScene 还会按阅读进度轻度弱化厨房） |
 | 2 | `curves.table`（B1 桌沿带） | 和纸面同时淡入到 1 | **全程 0**（不再显示）；`table.topY`、`table.edgeY` 改成新厨房桌面在蛋活动区的实测高度 | 蛋直接站在新厨房的木桌上；检查工具仍用 topY / edgeY 判断“脚底在桌面上” |
-| 3 | `curves.hallway`、`hallwayDrift` | search、eggcall 换成外围画境 | **全程 0** | 寻找段留在厨房：妈妈走开，厨房空着，小角色面面相觑；门口和空房间仍由漫画格 p5b、p5c 承担 |
+| 3 | `curves.doorway`、`doorwayDrift`（原名 hallway / hallwayDrift） | search、eggcall 换成外围画境 | **全程 0** | 寻找段留在厨房：妈妈走开，厨房空着，小角色面面相觑；门口和空房间仍由漫画格 p5b、p5c 承担 |
 | 4 | `curves.dinner` | 0 | 不变 | — |
 | 5 | `bowl`（B3） | 复用 p3b 的碗，tablecall 出现 | 不变；接图后看碗的米白和新桌面是否撞色 | — |
 | 6 | 新增 `peekers` 数组 | 无 | 每个小角色一项：`src`、`occluder`（可选）、`box`（场景 x、y、宽、高）、`z`（躲在哪一层后面就在那一层和它的遮挡层之间）、`hide`（缩回时的位移，场景像素）、`curve`（探头量 0–1 的节拍曲线，见第 2 节的出场时机） | 后景会话在 `Backdrops.tsx` 加一个按配置渲染的组件，只做位移和不透明度，跟随所在层的视差；数组为空时什么也不画 |
