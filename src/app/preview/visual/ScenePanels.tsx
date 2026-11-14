@@ -27,10 +27,12 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
     if (t.beat.egg === "flight") k = t.phase === "enter" ? Math.min(1, t.phaseP / 0.62) : 1;
   } else if (t.beat.egg === "flight" && flight !== null) k = Math.min(1, Math.max(0, (flight - a0) / (a1 - a0)));
   const handIn = t.beat.id === "handoff" ? phaseProgress(t, "enter") : 0;
-  // 交接：接蛋格先较快淡出，交接格稍后淡入，减少两格重叠的时间
-  if (t.beat.id === "handoff") k = 1 - Math.min(1, handIn * 1.6);
-  // 交接格在活动蛋下方淡入，画里的蛋被活动蛋整颗盖住；交接格不透明后活动蛋在 HANDOFF.swap 瞬时消失（Egg.tsx），不出现两张脸
-  const handOp = Math.min(1, Math.max(0, (handIn - HANDOFF.panelIn[0]) / (HANDOFF.panelIn[1] - HANDOFF.panelIn[0])));
+  // 交接（Egg.tsx HANDOFF）：活动蛋先在接蛋格的铲面上回正、以脚底为轴缩到画里那颗蛋的外轮廓宽度；
+  // 交接格只在 swap 前很短的区间（约 1vh）淡入，正好在 swap 点完全不透明，活动蛋同时瞬时消失；接蛋格在 swap 之后才离开，
+  // 交接前蛋始终站在接蛋格的铲面上。两颗蛋外轮廓同宽、蛋黄重合（slots.ts handoffBox）。
+  const span = (v: number, [a, b]: readonly [number, number]) => Math.min(1, Math.max(0, (v - a) / (b - a)));
+  if (t.beat.id === "handoff") k = 1 - span(handIn, HANDOFF.catchOut);
+  const handOp = span(handIn, HANDOFF.panelIn);
   const hb = handoffBox(cfg);
   const hand = cfg.scene.handoff;
   // 交叉淡化完成后（只剩画里的蛋），交接格平滑移到画面内完整可读的位置

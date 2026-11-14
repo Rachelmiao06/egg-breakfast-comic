@@ -48,12 +48,17 @@ export type HandoffSlot = {
   imageSize: [number, number];
   eggCenter: { fx: number; fy: number };
   eggWidthFrac: number;
+  /** 画里那颗蛋的外轮廓宽 / 本格宽（含描边金边，不含手脚） */
+  eggOutlineWidthFrac?: number;
+  /** 画里那颗蛋的蛋黄中心（本格内比例）；配合 egg.yolkCenter 和交接缩放，让两颗蛋的蛋黄在交接点重合 */
+  eggYolk?: { fx: number; fy: number };
 };
 export type SlotConfig = {
   scene: { catch: SceneSlot; handoff?: HandoffSlot; bowl?: SceneSlot };
   /** onSpatulaTilt：停在铲面上的倾角（度，负 = 倒向左侧的妈妈，贴合铲面斜度）；flightLean：飞行中途额外前倾 */
   /** faces：表情图（飞行期待 fly / 落稳安心 rest），与 egg.webp 同画布同轮廓；null = 未交付，用原图 */
-  egg: { onSpatulaScale: number; inBowlScale: number; onSpatulaTilt?: number; flightLean?: number; faces?: EggFaces };
+  /** outlineWidthFrac：活动蛋外轮廓（含金边，不含伸出的手脚）宽 / 画布宽；yolkCenter：蛋黄中心在画布内的比例（都从 egg.webp 量出） */
+  egg: { onSpatulaScale: number; inBowlScale: number; onSpatulaTilt?: number; flightLean?: number; faces?: CatchFaces; outlineWidthFrac?: number; yolkCenter?: { fx: number; fy: number } };
   /** 运行时（page.tsx 按视口算）：接蛋镜头下可见的场景范围，交接格滑动以它为界 */
   view?: { x0: number; x1: number; y0: number; y1: number };
   /** 运行时：横版接蛋格放不下，已缩到可见宽度内（竖屏、窄窗口） */
@@ -66,12 +71,53 @@ export function landedEgg(cfg: SlotConfig) {
   const size = 388 * cfg.egg.onSpatulaScale;
   return { cx: lp.x, cy: lp.y - size / 2, w: size };
 }
+/**
+ * 接蛋用的表情图（飞行期待 fly / 落稳安心 rest，同一身体底图、只换脸）。量值都是图片尺寸的比例（与分辨率无关）：
+ *   contact：落在铲面上的接触点（身体最低点）；bodyWidthFrac：外轮廓宽（含金边，不含手脚）；yolk：蛋黄中心。
+ * 图片按正方形画布处理。
+ */
+export type CatchFaces = { fly: string | null; rest: string | null; contact?: { fx: number; fy: number }; bodyWidthFrac?: number; yolk?: { fx: number; fy: number } };
+
+/** 表情图在蛋布局框里的摆放：接触点 → 脚底（布局框底边中点），外轮廓宽度与原图（outlineWidthFrac）一致 */
+export function eggFacesFor(cfg: SlotConfig): EggFaces | undefined {
+  const f = cfg.egg.faces;
+  if (!f || (!f.fly && !f.rest)) return undefined;
+  const { w: W, h: H } = ANCHORS.eggSize;
+  if (!f.contact || !f.bodyWidthFrac) return { fly: f.fly, rest: f.rest };
+  const side = ((cfg.egg.outlineWidthFrac ?? 1) * W) / f.bodyWidthFrac;
+  return { fly: f.fly, rest: f.rest, box: { left: W / 2 - f.contact.fx * side, top: H - f.contact.fy * side, width: side, height: side } };
+}
+/** 交接时看得到的是安心表情图：它的蛋黄在布局框里的位置（比例）；没有表情图时用原图的蛋黄 */
+function handoffYolk(cfg: SlotConfig): { fx: number; fy: number } | undefined {
+  const f = cfg.egg.faces, b = eggFacesFor(cfg)?.box;
+  if (f?.rest && f.yolk && b) {
+    const { w: W, h: H } = ANCHORS.eggSize;
+    return { fx: (b.left + f.yolk.fx * b.width) / W, fy: (b.top + f.yolk.fy * b.height) / H };
+  }
+  return cfg.egg.yolkCenter;
+}
+
+/** 交接段活动蛋要缩到的比例：外轮廓宽度与画里的蛋一致（交接点前后宽度不跳） */
+export function handoffShrinkFor(cfg: SlotConfig): number | undefined {
+  const h = cfg.scene.handoff;
+  if (!h?.eggOutlineWidthFrac || !cfg.egg.outlineWidthFrac) return undefined;
+  return h.eggOutlineWidthFrac / (h.eggWidthFrac * cfg.egg.outlineWidthFrac);
+}
 export function handoffBox(cfg: SlotConfig): [number, number, number, number] | null {
   const h = cfg.scene.handoff;
   if (!h) return null;
   const e = landedEgg(cfg);
   const w = e.w / h.eggWidthFrac;
   const hh = (w * h.imageSize[1]) / h.imageSize[0];
+  const k = handoffShrinkFor(cfg);
+  const yc = handoffYolk(cfg);
+  if (k !== undefined && yc && h.eggYolk) {
+    // 交接时活动蛋以脚底（铲面落点）为轴缩到 k：此时它的蛋黄位置 = 脚底 + 缩小后的蛋黄偏移；让画里的蛋黄落在这里
+    const lp = landPoint(cfg.scene.catch);
+    const ew = e.w * k; // 缩小后的画布宽（画布近似正方形）
+    const yx = lp.x + (yc.fx - 0.5) * ew, yy = lp.y - (1 - yc.fy) * ew;
+    return [Math.round(yx - h.eggYolk.fx * w), Math.round(yy - h.eggYolk.fy * hh), Math.round(w), Math.round(hh)];
+  }
   return [Math.round(e.cx - h.eggCenter.fx * w), Math.round(e.cy - h.eggCenter.fy * hh), Math.round(w), Math.round(hh)];
 }
 
