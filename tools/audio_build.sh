@@ -19,7 +19,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 TARGET_LUFS=-18
 CEIL_DBTP=-1
-LIMIT_LIN=0.891   # -1 dBFS
+LIMIT_LIN=0.794   # -2 dBFS 采样峰值；mp3 编码后真峰值约高 1 dB，留出余量使成品 ≤ -1 dBTP
 
 log() { printf '  %s\n' "$*"; }
 
