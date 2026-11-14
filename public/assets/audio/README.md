@@ -21,7 +21,7 @@
 
 场景 → 声音的对应表在 `src/components/kitchen/audio-map.json`（按场景编号覆盖节拍数据的 audio 字段，表里没有的场景沿用节拍数据原值；场景编号与 `src/app/preview/visual/beats.visual.json` 一致）。
 音量是相对电平（0–1），素材本身已按 `tools/audio_build.sh` 处理（原档在 `tools/audio_raw/`，测量用 `tools/audio_measure.sh`；`tools/audio_render_demo.mjs` 可把整个故事离线混成一条音频 + mp4 供试听）。
-**空位 = 还没有音源，接口里已登记、保持静音；不要用不相关的声音填补。**
+**空位 = 还没有音源，接口里已登记、保持静音；不要用不相关的声音填补。** 混音器只为 `audio-map.json` 的 `available` 列表里的 7 个声音创建 `<audio>` 并请求文件，空位不发请求（没有 404）。补上文件后：放进本目录、加到 `available`、LICENSES.md 记一行、本表状态改为"已接入"。
 
 | 声音 id | 文件 | 方式 | 场景编号（音量 / 触发点） | 状态 |
 |---|---|---|---|---|
@@ -79,8 +79,9 @@
 
 ### 浏览器行为（Chromium，/preview/visual，DOM 读数）
 
-- 首次手势解锁：清掉记忆后刷新，点声音按钮前 14 个元素全部 paused；点一次按钮后 room 0.2 + sizzle 0.45 播放，`localStorage.kitchen.soundOn = "1"`；再次刷新按钮为"开"状态。
+- 首次手势解锁：清掉记忆后刷新，点声音按钮前 7 个元素（只为有文件的声音建通道）全部 paused；点一次按钮后 room 0.2 + sizzle 0.45 播放，`localStorage.kitchen.soundOn = "1"`；再次刷新按钮为"开"状态。
 - 场景电平：idea 退出阶段 sizzle 0.05；missing 停留 0.19→0.05；hear 进入中段 0.31、停留开始 0.58、停留末 0.32；catch p=0.1 / 0.5 / 0.9 sizzle 0.31 / 0.35 / 0.38，低通 2032 / 6840 / 16000 Hz；handoff 只剩 room。
-- 快速前后滚：在 bowl 触发点两侧 5 次来回（间隔 80 ms），bowlDown 触发计数 +5，始终只有 1 个元素，结束时 paused；元素总数始终 14。倒滚不触发。
+- 快速前后滚：在 bowl 触发点两侧 5 次来回（间隔 80 ms），bowlDown 触发计数 +5，始终只有 1 个元素，结束时 paused；元素总数始终等于 available 列表长度（7）。倒滚不触发。
 - 切后台：全部 paused；后台期间滚过触发点不播；回前台只恢复循环声。
+- 后台恢复不补播（素材会话在真实 Chrome 里报的缺陷，已修）：后台里 rAF 停止、时间轴不更新，回前台时时间轴一次跳过后台滚过的距离。现在 visibilitychange→visible 时先把"上一次时间轴"重同步到当前滚动位置再放行。复现脚本（rAF 排队模拟后台，catch p=0.5 → 后台 scrollTo bowl p=0.6 → 恢复）：恢复后 catch / bowlDown 触发计数保持 0，只有 room 播放；之后真实滚动 bowl 0.1→0.5 触发 bowlDown 一次。真实最小化窗口的复测由素材会话的录制脚本做。
 - 未测：iOS 真机、Safari 桌面版。
