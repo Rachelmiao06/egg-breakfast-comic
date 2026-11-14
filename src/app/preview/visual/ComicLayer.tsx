@@ -289,7 +289,7 @@ function FlowLayer() {
         if (p.key === "p3d") return <HearPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
         return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
       })}
-      <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} />
+      <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} aspect={vp.w / vp.h} />
     </div>
   );
 }
@@ -299,7 +299,7 @@ function FlowLayer() {
  * 横屏放在左侧三分之一的墙面上（避开左缘的瓶罐小角色），竖屏贴左。出现时刻读 quiet 段的 events（tap1 / tap2 / eggCall），声音的触发点读同一组值（audio-map "@tap1" 等）。
  * 全部由滚动直接决定，没有计时器：倒滚就退回，快速滚过不会堆积，停在原地也不会重复。声音关闭时靠这些字理解剧情。
  */
-function SoundText({ g, index, beats, portrait }: { g: number; index: Record<string, number>; beats: { id: string; events?: Record<string, number> }[]; portrait: boolean }) {
+function SoundText({ g, index, beats, portrait, aspect }: { g: number; index: Record<string, number>; beats: { id: string; events?: Record<string, number> }[]; portrait: boolean; aspect: number }) {
   const qi = index["quiet"];
   if (qi === undefined) return null;
   const ev = beats[qi].events ?? {};
@@ -311,7 +311,7 @@ function SoundText({ g, index, beats, portrait }: { g: number; index: Record<str
     { text: "嗒嗒", from: at("tap2"), hideAt: qi + 0.92, x: portrait ? 13 : 19, y: portrait ? 47 : 39, size: 1.5, rot: 4, weight: 700 },
     { text: "妈！这里！", from: at("eggCall"), hideAt: portrait ? ei - 0.02 : ei + 0.3, x: portrait ? 6 : 14, y: portrait ? 56 : 46, size: 2.3, rot: -3, weight: 800 }, // 竖屏漫画列满宽，回头格进场前淡出，不压格子
   ];
-  const k = portrait ? 3.2 : 1; // 竖屏字号按视口宽放大，保证可读
+  const k = portrait ? 3.2 : Math.min(1.6, Math.max(1, 1.6 / aspect)); // 竖屏、窄窗口按视口宽放大（与漫画格同一比例），保证可读
   return (
     <>
       {items.map((it) => {
