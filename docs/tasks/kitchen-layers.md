@@ -1,30 +1,28 @@
-# 任务：feat/kitchen-layers — 厨房前中后景拆分、补图、鼠标视差
+# 任务：feat/kitchen-layers — 厨房前中后景拆分、补图、鼠标视差（第二版）
 
-先读 `docs/DESIGN.md`、`SPEC.md` §2–§4、`src/lib/scene.ts`。只改 DESIGN.md §6 里分给本分支的文件。
+先读 `docs/DESIGN.md`（第二版）、`src/lib/scene.ts`。只改 DESIGN.md §6 里分给本分支的文件。开工前 `git merge origin/main`。
+
+**变化**：用户已经提供了干净底图 `source/kitchen-clean.png`（无蛋、无火苗、无油、无动作线，与原画逐像素对齐）和透明蛋 `source/egg.png`。本分支不再需要抠蛋、抽火苗或清动作线，只把干净底图拆成三层。厨房在漫画阶段**不退场**，只在背景里被轻微弱化（弱化由 KitchenScene 统一做，本分支不管调暗）。
 
 ## 产出
 
-1. `tools/split_scene.py`（PIL / numpy / cv2 都可用，可重跑）：从 `source/kitchen-main.png` 生成 `public/assets/scene/` 下五张 1536×1024 透明 PNG：
-   - `back.png`：墙面、瓷砖、台面、黄锅、瓶罐、水壶。补：蛋身后的墙面与瓷砖（瓷砖按行周期克隆、砖缝对齐）、蛋旁动作线、红锅与手柄身后的瓷砖和台面（约 x 350–1480, y 505–770）。台面前沿以下透明。
-   - `mid.png`：木桌、灶台、红锅、锅内油。补：吐司盘、蛋壳、格纹布身后的木纹；锅上方两滴飞溅油星用锅内纹理盖掉；火苗抽走后填暗色炉心。
-   - `front.png`：吐司盘、蛋壳、格纹布。
-   - `egg.png`：荷包蛋含小手小脚，边缘羽化 1–2 px，不带背景色。（cv2.grabCut + 手工矩形/种子效果不错）
-   - `flame.png`：只含火苗，用橙/蓝色相键控。
-2. `tools/check_overlay.png`：五层叠回去与原图做差，差异只允许在刻意清除的区域。把差图和各层缩略图贴到最终报告里。
-3. `src/components/kitchen/KitchenLayers.tsx`：渲染 back/mid/front（场景像素，`position:absolute; inset:0`），
+1. `tools/split_scene.py`（PIL / numpy / cv2，可重跑）：从 `source/kitchen-clean.png` 生成 `public/assets/scene/` 下三张 1536×1024 透明 PNG：
+   - `back.png`（不透明到台面前沿，约 y 770 以下透明）：墙、瓷砖、后台面、黄锅、瓶罐、水壶。补红锅与锅柄、灶台身后的瓷砖和台面（约 x 340–1480, y 500–770），瓷砖按行周期克隆、砖缝对齐。
+   - `mid.png`：木桌、绿色灶台、红锅（含锅柄）。补吐司盘、蛋壳、格纹布身后的木纹（沿水平纹理克隆）。
+   - `front.png`：吐司盘（含吐司）、蛋壳、格纹布。边缘羽化 1–2 px。
+   - 叠合检查图 `tools/check_overlay.png`：三层叠回去与 kitchen-clean 做差，应几乎为零。
+2. `src/components/kitchen/KitchenLayers.tsx`：三层用场景像素 `position:absolute; inset:0` 叠放；
    - 鼠标视差：front ±10 px、mid ±5 px、back ±2 px，缓动跟随，`useScene().isTouch` 时关闭；
-   - 按 `useScene().progress`（0→1）做退场：front 上移 1.6×、mid 1.0×、back 0.4× 视口高度，同时整体亮度降到 0.7、轻微模糊 2px（进入漫画后厨房仍作为背景存在，不消失）。
-4. `src/app/dev/layers/page.tsx`：预览页，用 `<KitchenLayers mouse />` 替换占位图，加一个滑块临时驱动 progress 方便验收。
-5. 实测后修正 `src/lib/scene.ts` 里的 ANCHORS 数值（只改数值）。
+   - 随 `useScene().progress`（0→1）做**轻微**景深漂移：front 上移约 14 px、mid 6 px、back 2 px（场景像素），让读漫画时厨房仍有一点呼吸感。不做整体移出屏幕，不调亮度/模糊。
+   - 注意：蛋、影子、火苗、油泡渲染在三层之上（KitchenScene 的 children）。蛋会在锅里和飞向吐司时经过 front 层上方，这是预期的。
+3. `src/app/dev/layers/page.tsx`：预览页 `<KitchenScene base={<KitchenLayers mouse />} />`，加一个临时滑块驱动 progress。
 
 ## 验收
 
-- 五层叠合与原图一致，100% 显示看不出补痕；没有重复的蛋/火苗/油星。
-- 鼠标移动前景明显、背景轻微；progress 拖到 1 时前景先走、墙面最慢。
+- 三层叠合与 kitchen-clean 一致，100% 显示看不出补痕。
+- 鼠标移动前景明显、背景轻微；progress 拖到 1 时只有轻微漂移，厨房始终完整可见。
 - `npm run lint` 和 `npm run build` 通过。每个阶段 commit 到 feat/kitchen-layers 并 push，不合并 main。
-
-## 用户可能会用 ChatGPT 重生成素材
-如果手工补图效果不过关，在本文件末尾写清需要生成什么（例如"同一张厨房、没有蛋和火苗的干净版"），集成会话会转给用户。
+- 最终报告贴三层缩略图、差图、预览截图和剩余问题。
 
 ## 需要集成会话改：
 （在这里追加）
