@@ -77,7 +77,7 @@ export function Paper() {
             className="pointer-events-none absolute left-0 top-0 h-full w-full"
             style={{ zIndex: Z.paper, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
           >
-            {/* 先由纸面盖住旧厨房，再在纸面上淡入新厨房：任何时刻只看得到一张厨房 */}
+            {/* 新厨房直接叠化盖过旧厨房（drop 0.3–0.6，不经过整屏米白的纸面）；纸面只在新厨房未满时作底 */}
             {s.paper > SHOW && s.reading < 0.999 && <PaperSheet opacity={s.paper} />}
             {s.reading > SHOW && <ReadingKitchen opacity={s.reading} />}
           </div>
