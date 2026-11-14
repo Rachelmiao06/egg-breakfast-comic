@@ -4,7 +4,7 @@
     "共享事件位置（优先用）：at 写 \"@eggOnSpatula\" / \"@eggOnTable\" / \"@eggInBowl\"，由 src/lib/beats.ts 的 eventAt 换算；蛋的动画（Egg.tsx）读同一个函数，所以声音和画面永远落在同一点，两边都不写死数字。catch 用 @eggOnSpatula（v2 = 0.80，v1 = 0.78）。",
     "单次音效的 at：数字 = 段内进度 0–1；或阶段符号 enterEnd / actionEnd / holdEnd（可带偏移，如 actionEnd-0.02），由混音器按当前节拍表的 phases 换算，这样新旧两版节拍的动作结束点不同也只写一次（catch 落铲 = actionEnd：v1 0.78、v2 0.80）。",
     "drop（只在 v2 有）：蛋从锅里跳到桌沿、灶台上移退出、厨房转为纸面，所以 room 保持低位、sizzle 在动作阶段从开场的 0.45 渐降到 0.2，停留阶段保持 0.2，之后 bag 进入阶段再降到 0.12；不加新声音。",
-    "混音原则：任何时刻 = 很轻的环境底声 room + 一个当前主要动作声（sizzle / chop / sauce / steps 之一）+ 必要的单次音效。跨段切换：进入阶段里上一段的动作声按进度退下、本段的进入（loopLevels 的进入渐变），重叠只发生在进入阶段内；fades 只写在该段确实存在的阶段上（hear 没有动作阶段，所以用 hold）。",
+    "混音原则：任何时刻 = 很轻的环境底声 room + 一个当前主要动作声（sizzle / sauce / steps 之一；切菜改为逐刀单次 chopHit）+ 必要的单次音效。跨段切换：进入阶段里上一段的动作声按进度退下、本段的进入（loopLevels 的进入渐变），重叠只发生在进入阶段内；fades 只写在该段确实存在的阶段上（hear 没有动作阶段，所以用 hold）。",
     "对白留空间（按场景 + 阶段，不因停滚压低）：idea 停留阶段 sizzle 0.1→0.05；call / recognize / punchline 停留阶段 room 0.2→0.14 / 0.14 / 0.12；search / eggcall 的 room 本来就很低（0.06 / 0.08）。",
     "意外前的安静：missing 停留阶段 sizzle 0.2→0.04，只剩 room；hear 进入阶段由 loopLevels 自动从 0.04 升到 0.6（镜头推近锅），停留阶段再退到 0.3 给「嗯？」「啵！」留空间；「啵」（pop）在 hear p=0.35（进入阶段结束、镜头到位）响一声。",
     "跨景由远到近：catch 段 sizzle 当作随蛋一起接近的声音，动作阶段 0.3→0.38 略升，同时混音器给 sizzle 的低通随 flight 从约 1.5 kHz 打开到 16 kHz（只处理 sizzle，其它声不滤波）；动作阶段结束（actionEnd）蛋落铲时 catch 一声，handoff 进入阶段 sizzle 0.38→0。",
@@ -15,25 +15,26 @@
     "- 脚步 steps（search 段，地毯上拖鞋慢走，0.3，低而温和；eggcall 里她停下听、脚步在进入阶段退掉；return 走回去：进入阶段 0→0.3、停留阶段 0.3→0 到达）和「啵」pop（hear 段）：2026-11-14 用户批准下载，已接入（Pixabay Content License，见 LICENSES.md）。",
     "- v2 新增的 prejump / tablecall 沿用节拍表里的 audio（表里没写）；closeup 在这里覆盖：room 0.12，停留阶段 0.12→0.08，安静收尾（节拍表原值进入时会先回升到 0.14）。",
     "以上全部未经人耳试听；客观测量见 public/assets/audio/README.md。",
+    "切菜格逐刀（2026-11-14，集成会话要求）：chop 段不再放 chop 循环。前景动画在每次落刀接触的那一帧派发 window 事件 kitchen:oneshot（detail.sound = \"chopHit\"），混音器收到就播 chop-hit.mp3 一次（从 chop-loop 同一原档切出的一刀，0.26 s，电平 0.5 = 原来循环里每一刀的电平）。触发时刻由动画决定，混音器不做节拍判断；静音、未解锁、后台标签页时丢弃，不补播；每刀新建一个 Web Audio 节点，快速连刀可以重叠。chop 循环文件保留但不再加载（不在 available 里）。",
     "available：真正有文件的声音 id。混音器只为这些声音创建 <audio> 并请求文件；不在列表里的空位不发请求、保持静音（避免 404）。以后补上文件：放进 public/assets/audio/、加到这个列表即可。"
   ],
   "available": [
     "room",
     "sizzle",
-    "chop",
     "sauce",
     "stirfryIn",
     "catch",
     "bowlDown",
     "steps",
-    "pop"
+    "pop",
+    "chopHit"
   ],
   "scenes": {
     "opening": { "loops": { "room": 0.2, "sizzle": 0.45 }, "fades": [], "oneshots": [] },
     "drop": { "loops": { "room": 0.2, "sizzle": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.45, "to": 0.2, "phase": "action" } ], "oneshots": [] },
     "bag": { "loops": { "room": 0.25, "sizzle": 0.12 }, "fades": [], "oneshots": [] },
     "idea": { "loops": { "room": 0.25, "sizzle": 0.1 }, "fades": [ { "sound": "sizzle", "from": 0.1, "to": 0.05, "phase": "hold" } ], "oneshots": [] },
-    "chop": { "loops": { "room": 0.2, "sizzle": 0.06, "chop": 0.5 }, "fades": [], "oneshots": [] },
+    "chop": { "loops": { "room": 0.2, "sizzle": 0.06 }, "fades": [], "oneshots": [] },
     "stirfry": { "loops": { "room": 0.2, "sizzle": 0.45 }, "fades": [], "oneshots": [ { "sound": "stirfryIn", "at": 0.22 } ] },
     "sauce": { "loops": { "room": 0.2, "sizzle": 0.08, "sauce": 0.4 }, "fades": [], "oneshots": [] },
     "missing": { "loops": { "room": 0.25, "sizzle": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.2, "to": 0.04, "phase": "hold" } ], "oneshots": [] },

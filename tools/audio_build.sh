@@ -71,7 +71,8 @@ finalize() {
 loop_seam() {
   local in=$1 out=$2 start=$3 end=$4 d=$5 c=$6 pad=${7:-0}
   local seg="$TMP/seg.wav" sr=44100
-  "$FFMPEG" -hide_banner -loglevel error -y -ss "$start" -to "$end" -i "$in" -ar $sr -af "apad=pad_dur=${pad}" -c:a pcm_f32le "$seg"
+  # 不用 -ss 输入寻址：mp3 寻址后第一帧（约 24 ms）解码为静音。从头解码再用 atrim 精确裁切
+  "$FFMPEG" -hide_banner -loglevel error -y -i "$in" -af "aresample=$sr,atrim=start=${start}:end=${end},asetpts=N/SR/TB,apad=pad_dur=${pad}" -c:a pcm_f32le "$seg"
   local total ds cs lx
   total=$(wav_samples "$seg")
   d=$(node "$ROOT/tools/audio_pick_cut.mjs" "$seg" "$d" 0.1)
@@ -90,8 +91,8 @@ oneshot_trim() {
   local dur fo_start
   dur=$(awk -v s="$start" -v e="$end" 'BEGIN{printf "%.3f", e-s}')
   fo_start=$(awk -v d="$dur" -v f="$fo" 'BEGIN{printf "%.3f", d-f}')
-  "$FFMPEG" -hide_banner -loglevel error -y -ss "$start" -to "$end" -i "$in" \
-    -af "afade=t=in:st=0:d=${fi},afade=t=out:st=${fo_start}:d=${fo}" -c:a pcm_f32le "$out"
+  "$FFMPEG" -hide_banner -loglevel error -y -i "$in" \
+    -af "aresample=44100,atrim=start=${start}:end=${end},asetpts=N/SR/TB,afade=t=in:st=0:d=${fi},afade=t=out:st=${fo_start}:d=${fo}" -c:a pcm_f32le "$out"
 }
 
 build() {
@@ -114,6 +115,10 @@ build() {
     footsteps-loop)   # 原档 29.86 s 单声道，地毯上穿拖鞋慢走，约 -42 LUFS；0.17–7.76 s 是 7 步均匀的一段（间隔约 1.27 s）。
                       # 取 [0.80, 8.66]（两端都在步间），交叉淡化 0.3 s → 7.56 s 循环 = 6 步 + 回绕处一个 1.27 s 的步间
       loop_seam "$raw" "$wav" 0.80 8.66 0.4 0.3;      finalize "$wav" "$out" 3 128k loop ;;
+    chop-hit)         # 从 chop-loop 原档里取一刀（第二刀最干净：起音 1.1793 s 直接到 -18 dB，没有切菜前奏；+40 ms 刀碰案板峰值；之后无二次撞击）。
+                      # 取 [1.177, 1.437]（起音前 2 ms），1 ms 淡入、尾部 0.08 s 淡出 → 0.26 s。供前景动画逐刀触发（kitchen:oneshot 事件）
+      raw="$RAW/chop-loop.mp3"
+      oneshot_trim "$raw" "$wav" 1.177 1.437 0.001 0.08; finalize "$wav" "$out" 3 192k ;;
     pop)              # 原档 1.04 s，起音 0.025 s、约 0.17 s 后衰减到底；取 [0.02, 0.30]，2 ms 淡入、尾部 0.1 s 淡出 → 0.28 s
       oneshot_trim "$raw" "$wav" 0.02 0.30 0.002 0.1; finalize "$wav" "$out" 3 192k ;;
     *) echo "未知文件 $name" >&2; exit 1 ;;
@@ -121,6 +126,6 @@ build() {
 }
 
 names=("$@")
-if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop); fi
+if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit); fi
 for n in "${names[@]}"; do build "$n"; done
 echo "完成。测量：tools/audio_measure.sh"
