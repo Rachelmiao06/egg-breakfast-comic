@@ -25,6 +25,8 @@
  * - 场景 → 声音的对应表在 audio-map.json（按场景编号 id 覆盖节拍数据的 audio 字段，表里没有的场景沿用原值）。
  *   这样不用改共享的 beats.json；音量、触发点都在声音分支自己的文件里。
  *   触发点可写成阶段符号（"actionEnd" 等，见 resolveAt），按当前节拍表的 phases 换算成段内进度，新旧两版节拍共用一张表。
+ * - 动画逐帧触发的单次音效（目前只有切菜格的 chopHit）：监听 window 事件 "kitchen:oneshot"（detail.sound），收到就播一次。
+ *   解码成 AudioBuffer，每次新建 BufferSource，快速连刀可以重叠；静音、未解锁（AudioContext 未 running）、后台时丢弃不补播。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { crossedOneShots, eventAt, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
@@ -41,8 +43,17 @@ const LOOP_FILES: Record<LoopSound, string> = {
   sauce: "sauce-stir-loop.mp3",
   steps: "footsteps-loop.mp3", // 寻找段：地毯上拖鞋慢走
 };
+/**
+ * 由前景动画按帧触发的单次音效（不在节拍表里）：页面派发
+ *   window.dispatchEvent(new CustomEvent("kitchen:oneshot", { detail: { sound: "chopHit" } }))
+ * 触发时刻完全由动画决定，混音器不做节拍判断。
+ */
+type EventSound = "chopHit";
+type ShotSound = OneShotSound | EventSound;
+const EVENT_SOUNDS: readonly EventSound[] = ["chopHit"];
+export const KITCHEN_ONESHOT_EVENT = "kitchen:oneshot";
 /** 单次音效：文件与播放音量（素材已统一到约 -18 LUFS，这里是相对电平） */
-const ONESHOTS: Record<OneShotSound, { file: string; volume: number }> = {
+const ONESHOTS: Record<ShotSound, { file: string; volume: number }> = {
   stirfryIn: { file: "stirfry-in.mp3", volume: 0.6 },
   catch: { file: "catch.mp3", volume: 0.6 },
   bowlDown: { file: "bowl-down.mp3", volume: 0.6 },
@@ -51,8 +62,12 @@ const ONESHOTS: Record<OneShotSound, { file: string; volume: number }> = {
   eggCall: { file: "egg-call.mp3", volume: 0.6 }, // 暂无素材：蛋大声喊"妈！这里！"
   pop: { file: "pop.mp3", volume: 0.5 }, // "啵！"：蛋的轻快小声（峰值瞬时响度与 catch 相当，所以略低）
   eggSmall: { file: "egg-small.mp3", volume: 0.5 }, // 暂无素材：蛋小声"我在这儿……"
+  // 切菜格逐刀：从 chop-loop 同一原档切出的一刀，0.26 s；电平 0.5 = 原来 chop 循环里每一刀的电平
+  chopHit: { file: "chop-hit.mp3", volume: 0.5 },
 };
-const ONESHOT_SOUNDS = Object.keys(ONESHOTS) as OneShotSound[];
+/** 可以写进节拍表 / audio-map 的单次音效（事件触发的不在其中） */
+const ONESHOT_SOUNDS = (Object.keys(ONESHOTS) as ShotSound[]).filter((n): n is OneShotSound => !(EVENT_SOUNDS as readonly string[]).includes(n));
+const SHOT_NAMES = Object.keys(ONESHOTS) as ShotSound[];
 
 type SceneAudio = Beat["audio"];
 /** audio-map.json 里一段的写法：单次音效的 at 可以是数字（段内进度 0–1），也可以是阶段符号 */
@@ -134,7 +149,10 @@ class KitchenMixer {
   private root: HTMLDivElement;
   private ctx: AudioContext | null = null;
   private loops: Partial<Record<LoopSound, Channel>> = {};
-  private shots: Partial<Record<OneShotSound, Channel>> = {};
+  private shots: Partial<Record<ShotSound, Channel>> = {};
+  /** 事件触发的声音解码成 AudioBuffer：每次触发新建一个 BufferSource，快速连刀可以重叠，不用等元素重放 */
+  private buffers: Partial<Record<ShotSound, AudioBuffer>> = {};
+  private voices = new Set<AudioBufferSourceNode>();
   private total = 0;
   private soundOn = false;
   private hidden = false;
@@ -156,16 +174,18 @@ class KitchenMixer {
       this.ctx = null;
     }
     const loopNames = LOOP_SOUNDS.filter((n) => AVAILABLE.has(n));
-    const shotNames = ONESHOT_SOUNDS.filter((n) => AVAILABLE.has(n));
+    const shotNames = SHOT_NAMES.filter((n) => AVAILABLE.has(n));
     this.total = loopNames.length + shotNames.length;
     for (const name of loopNames) this.loops[name] = this.channel(name, "loop", LOOP_FILES[name], true);
     for (const name of shotNames) this.shots[name] = this.channel(name, "oneshot", ONESHOTS[name].file, false);
+    for (const name of EVENT_SOUNDS) if (this.shots[name]) this.loadBuffer(name);
     if (this.total === 0) queueMicrotask(() => onAvailable(false));
     this.hidden = document.visibilityState === "hidden";
     document.addEventListener("visibilitychange", this.onVisibility);
     window.addEventListener("pointerup", this.onGesture, { passive: true });
     window.addEventListener("touchend", this.onGesture, { passive: true });
     window.addEventListener("keydown", this.onGesture, { passive: true });
+    window.addEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
     this.lastTick = performance.now();
     this.timer = window.setInterval(this.tick, TICK_MS);
   }
@@ -258,9 +278,40 @@ class KitchenMixer {
     for (const ch of this.all(this.shots)) this.prime(ch);
   };
 
+  private loadBuffer(name: ShotSound) {
+    const ctx = this.ctx;
+    if (!ctx) return; // 没有 Web Audio：退回 <audio> 元素重放
+    fetch(DIR + ONESHOTS[name].file)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((ab) => ctx.decodeAudioData(ab))
+      .then((buf) => {
+        if (this.disposed) return;
+        this.buffers[name] = buf;
+        const ch = this.shots[name];
+        if (ch) ch.el.dataset.buffer = "1";
+      })
+      .catch(() => { /* 解码失败：退回元素重放 */ });
+  }
+
+  /** 页面事件：前景动画在落刀那一帧派发 */
+  private onShotEvent = (e: Event) => {
+    const name = (e as CustomEvent<{ sound?: unknown }>).detail?.sound;
+    if (typeof name !== "string" || !(name in ONESHOTS)) {
+      warnOnce(`${KITCHEN_ONESHOT_EVENT}: 未登记的声音 ${String(name)}`);
+      return;
+    }
+    this.fire(name as ShotSound);
+  };
+
+  private stopVoices() {
+    for (const v of this.voices) { try { v.stop(); } catch { /* 已结束 */ } }
+    this.voices.clear();
+  }
+
   private onVisibility = () => {
     this.hidden = document.visibilityState === "hidden";
     if (this.hidden) {
+      this.stopVoices();
       for (const ch of [...this.all(this.loops), ...this.all(this.shots)]) {
         if (!ch.el.paused) ch.el.pause();
         ch.priming = false;
@@ -295,6 +346,7 @@ class KitchenMixer {
   setSoundOn(on: boolean) {
     this.soundOn = on;
     if (!on) {
+      this.stopVoices();
       for (const ch of this.all(this.shots)) {
         if (!ch.el.paused) { ch.el.pause(); ch.el.currentTime = 0; }
       }
@@ -319,10 +371,30 @@ class KitchenMixer {
     }
   }
 
-  /** 单次音效：从头播一次。同一音效只有一个元素，重触发 = 重放，不叠加 */
-  fire(name: OneShotSound) {
+  /**
+   * 单次音效：从头播一次。静音、后台、未解锁时直接丢弃（不排队、不补播）。
+   * - 有解码好的 AudioBuffer（事件触发的 chopHit）：每次新建 BufferSource，允许快速连续触发、彼此重叠。
+   * - 其它：同一音效只有一个 <audio>，重触发 = 从头重放，不叠加。
+   */
+  fire(name: ShotSound) {
     const ch = this.shots[name];
-    if (!ch || !ch.ok || !this.soundOn || this.hidden) return; // 空位或不可播
+    if (!ch || !this.soundOn || this.hidden) return; // 空位或不可播
+    const buf = this.buffers[name];
+    if (buf && this.ctx) {
+      if (this.ctx.state !== "running") return; // 还没被手势解锁
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const g = this.ctx.createGain();
+      g.gain.value = ONESHOTS[name].volume;
+      src.connect(g).connect(this.ctx.destination);
+      src.onended = () => { src.disconnect(); g.disconnect(); this.voices.delete(src); };
+      this.voices.add(src);
+      src.start();
+      ch.fired += 1;
+      ch.el.dataset.fired = String(ch.fired);
+      return;
+    }
+    if (!ch.ok) return;
     ch.priming = false;
     ch.fired += 1;
     ch.el.dataset.fired = String(ch.fired);
@@ -338,6 +410,8 @@ class KitchenMixer {
     window.removeEventListener("pointerup", this.onGesture);
     window.removeEventListener("touchend", this.onGesture);
     window.removeEventListener("keydown", this.onGesture);
+    window.removeEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
+    this.stopVoices();
     for (const ch of [...this.all(this.loops), ...this.all(this.shots)]) {
       ch.el.pause();
       ch.el.removeAttribute("src");

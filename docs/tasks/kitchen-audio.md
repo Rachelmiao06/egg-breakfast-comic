@@ -53,6 +53,11 @@
   - pop：「Happy Pop 1」，floraphonic（与 sizzle、chop 同一作者），Pixabay Content License，约 1 s，可爱的小气泡「啵」。https://pixabay.com/sound-effects/film-special-effects-happy-pop-1-185286/
     备选：floraphonic「Jug Pop 1」约 1 s（口腔「啵」声）。
 
+## 切菜逐刀（2026-11-14 傍晚，集成会话要求，未试听）
+
+- chop 段去掉 chop 循环；前景在每次落刀接触帧派发 `kitchen:oneshot`（detail.sound = "chopHit"），混音器播 chop-hit.mp3 一次（AudioBuffer，每刀新节点，可重叠；静音 / 未解锁 / 后台丢弃不补播）。
+- 裁切改为解码后 atrim（mp3 输入寻址会吃掉第一帧约 24 ms），全部素材重建，接缝检查通过。
+
 ## 需要集成会话改：
 
 - 无需改 beats 数据：音量和触发点都在 audio-map.json。若试听后要调 sauce（0.4）/ chop（0.5）/ 炒菜段 sizzle（0.45），改 audio-map.json 即可。
