@@ -19,7 +19,7 @@ import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, tableWaitFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
-import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig } from "./slots";
+import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor } from "./slots";
 import { useViewport } from "./viewport";
 
 function Debug() {
@@ -101,6 +101,8 @@ function StageV2() {
     // 朝向：身体倒向左侧的妈妈，停在铲面上贴合铲面斜度（slots.json egg.onSpatulaTilt / flightLean）
     spatulaTilt: cfg.egg.onSpatulaTilt,
     flightLean: cfg.egg.flightLean,
+    // 交接：回正的同时以脚底为轴缩到画里那颗蛋的外轮廓宽度（slots.json scene.handoff / egg）；交接格按缩小后的蛋黄摆放
+    handoffShrink: handoffShrinkFor(cfg),
   };
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;

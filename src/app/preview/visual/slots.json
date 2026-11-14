@@ -460,6 +460,11 @@
     "fy": 0.5406
    },
    "eggWidthFrac": 0.2389,
+   "eggOutlineWidthFrac": 0.137,
+   "eggYolk": {
+    "fx": 0.2012,
+    "fy": 0.5325
+   },
    "note": "box 由活动蛋落定的位置和大小自动算出。eggCenter = 活动蛋画布中心应落在本格的哪一点，eggWidthFrac = 活动蛋画布宽 / 本格宽；数值由 align.py 量出：两颗蛋的蛋黄中心重合（偏差 0），画里的蛋被活动蛋整颗盖住（未盖住约 25 px，在右手尖的描边）。两张图画法不同，活动蛋的蛋黄约大 1.5 倍，无法同时对齐大小"
   }
  },
@@ -471,6 +476,11 @@
   "faces": {
    "fly": null,
    "rest": null
+  },
+  "outlineWidthFrac": 0.9729,
+  "yolkCenter": {
+   "fx": 0.5707,
+   "fy": 0.4881
   }
  }
 }

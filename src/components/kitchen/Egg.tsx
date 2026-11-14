@@ -45,6 +45,11 @@ export type EggAnchors = {
    */
   spatulaTilt?: number;
   flightLean?: number;
+  /**
+   * 可选：交接段回正的同时把蛋缩到这个比例（相对铲面上的缩放），让外轮廓和下一格画里的蛋一样宽。
+   * 以脚底为轴缩放，蛋一直站在接蛋格的铲面上；交接格按缩小后的蛋黄位置摆放（slots.ts handoffBox），交接点前后不跳。
+   */
+  handoffShrink?: number;
 };
 
 /**
@@ -52,7 +57,7 @@ export type EggAnchors = {
  * 两颗蛋按蛋黄中心对位，活动蛋整颗盖住画里的蛋（slots.json scene.handoff），所以这期间只看得到一颗蛋；
  * 交接格完全不透明后，在 swap 这一点活动蛋瞬时消失（不淡化），画里的蛋接手。ScenePanels 读同一组数。
  */
-export const HANDOFF = { straighten: [0, 0.35], panelIn: [0.1, 0.45], swap: 0.5 } as const;
+export const HANDOFF = { straighten: [0, 0.35], panelIn: [0.47, 0.5], swap: 0.5, catchOut: [0.5, 0.68] } as const;
 
 /** 可选的表情图：与 egg.webp 同画布、同轮廓、同脚底锚点，只改脸。没给（null）就一直用原图 */
 export type EggFaces = { fly?: string | null; rest?: string | null };
@@ -207,9 +212,12 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       const prev = beats[t.index - 1];
       const handingOff = !!prev && prev.egg === "flight"; // 只有接蛋之后的交接段淡出
       if (a.spatulaTilt !== undefined) {
-        // 回正 → 交接格在下方淡入（画里的蛋被活动蛋整颗盖住）→ swap 点瞬时交接
+        // 回正并缩小 → 交接格在 swap 点前很短的区间淡入 → swap 点瞬时交接
         const e = t.phase === "enter" ? t.phaseP : 1;
-        P.pose.rotation = a.spatulaTilt * (1 - smooth(span(e, HANDOFF.straighten)));
+        const k = smooth(span(e, HANDOFF.straighten));
+        P.pose.rotation = a.spatulaTilt * (1 - k);
+        // 回正的同时以脚底为轴缩到画里那颗蛋的外轮廓宽度（蛋仍站在铲面上）
+        if (a.handoffShrink !== undefined) P.pose.scale *= 1 + (a.handoffShrink - 1) * k;
         P.opacity = handingOff && t.phase === "enter" && e < HANDOFF.swap ? 1 : 0;
       } else P.opacity = handingOff && t.phase === "enter" ? 1 - clamp01((t.phaseP - 0.25) / 0.75) : 0;
       return P;
