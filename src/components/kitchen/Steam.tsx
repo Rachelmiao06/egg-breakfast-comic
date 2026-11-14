@@ -14,14 +14,16 @@ export default function Steam() {
   const { reducedMotion } = useScene();
   const puffs = useRef<Puff[]>([]);
   const acc = useRef(0);
+  const nextPuff = useRef(0.6);
 
   const ref = useCanvasLoop(
     BOX.w,
     BOX.h,
     (ctx, dt, t) => {
       acc.current += dt;
-      if (acc.current > 0.55) {
+      if (acc.current > nextPuff.current) {
         acc.current = 0;
+        nextPuff.current = 0.45 + Math.random() * 0.5; // 不规则间隔，避免与蛋、火苗同节奏
         puffs.current.push({ x: SPOUT.x, y: SPOUT.y, r: 8, life: 0, ttl: 4 + Math.random() * 1.5, vx: -6 - Math.random() * 6, seed: Math.random() * 10 });
       }
       const ps = puffs.current;

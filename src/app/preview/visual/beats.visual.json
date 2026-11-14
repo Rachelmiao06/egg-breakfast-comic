@@ -46,9 +46,9 @@
     "exit": 0.15
    },
    "kitchenDim": [
-    0.1,
-    0.12,
-    0.12
+    0.0,
+    0.55,
+    0.55
    ],
    "egg": "loop",
    "audio": {
@@ -72,9 +72,9 @@
    "lengthVh": 160,
    "pin": "prep",
    "kitchenDim": [
-    0.12,
-    0.18,
-    0.18
+    0.55,
+    0.7,
+    0.7
    ],
    "egg": "loop",
    "audio": {
@@ -98,9 +98,9 @@
    "lengthVh": 170,
    "pin": "prep",
    "kitchenDim": [
-    0.18,
-    0.18,
-    0.18
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "loop",
    "audio": {
@@ -125,9 +125,9 @@
    "lengthVh": 160,
    "pin": "prep",
    "kitchenDim": [
-    0.18,
-    0.2,
-    0.2
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "loop",
    "audio": {
@@ -157,9 +157,9 @@
    "lengthVh": 150,
    "pin": "prep",
    "kitchenDim": [
-    0.2,
-    0.12,
-    0.12
+    0.7,
+    0.6,
+    0.6
    ],
    "egg": "loop",
    "audio": {
@@ -181,12 +181,12 @@
    "id": "missing",
    "n": 6,
    "title": "\"是不是还少点什么……\"",
-   "lengthVh": 140,
+   "lengthVh": 130,
    "pin": "prep",
    "kitchenDim": [
-    0.12,
-    0.08,
-    0.08
+    0.6,
+    0.45,
+    0.2
    ],
    "egg": "loop",
    "audio": {
@@ -201,22 +201,28 @@
    "depth": [
     25,
     0
-   ]
+   ],
+   "phases": {
+    "enter": 0.25,
+    "action": 0,
+    "hold": 0.6,
+    "exit": 0.15
+   }
   },
   {
    "id": "hear",
    "n": 7,
    "title": "\"嗯？\" \"啵！\"",
-   "lengthVh": 140,
+   "lengthVh": 120,
    "pin": "catch",
    "phases": {
-    "enter": 0.25,
-    "action": 0.25,
-    "hold": 0.5,
+    "enter": 0.35,
+    "action": 0,
+    "hold": 0.65,
     "exit": 0
    },
    "kitchenDim": [
-    0.08,
+    0.2,
     0,
     0
    ],
@@ -251,7 +257,7 @@
    "id": "catch",
    "n": 8,
    "title": "蛋主动飞向前景；\"哎？慢点！\" 她惊讶伸出空锅铲接住",
-   "lengthVh": 230,
+   "lengthVh": 220,
    "pin": "catch",
    "phases": {
     "enter": 0,
@@ -261,8 +267,8 @@
    },
    "kitchenDim": [
     0,
-    0.04,
-    0.04
+    0,
+    0
    ],
    "egg": "flight",
    "audio": {
@@ -307,9 +313,9 @@
     "exit": 0.15
    },
    "kitchenDim": [
-    0.04,
-    0.15,
-    0.15
+    0,
+    0.6,
+    0.6
    ],
    "egg": "gone",
    "audio": {
@@ -339,9 +345,9 @@
    "lengthVh": 160,
    "pin": "bowl",
    "kitchenDim": [
-    0.15,
-    0.15,
-    0.15
+    0.6,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -373,9 +379,9 @@
    "lengthVh": 140,
    "pin": "bowl",
    "kitchenDim": [
-    0.15,
-    0.2,
-    0.2
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -398,9 +404,9 @@
    "lengthVh": 160,
    "pin": "bowl",
    "kitchenDim": [
-    0.2,
-    0.2,
-    0.2
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -432,9 +438,9 @@
    "lengthVh": 170,
    "pin": "search",
    "kitchenDim": [
-    0.2,
-    0.55,
-    0.55
+    0.7,
+    0.85,
+    0.85
    ],
    "egg": "gone",
    "audio": {
@@ -458,9 +464,9 @@
    "lengthVh": 150,
    "pin": "search",
    "kitchenDim": [
-    0.55,
-    0.45,
-    0.45
+    0.85,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -488,9 +494,9 @@
    "lengthVh": 150,
    "pin": "reunion",
    "kitchenDim": [
-    0.45,
-    0.2,
-    0.2
+    0.7,
+    0.65,
+    0.65
    ],
    "egg": "gone",
    "audio": {
@@ -520,9 +526,9 @@
    "lengthVh": 150,
    "pin": "reunion",
    "kitchenDim": [
-    0.2,
-    0.2,
-    0.2
+    0.65,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -551,9 +557,9 @@
     "exit": 0
    },
    "kitchenDim": [
-    0.2,
-    0.2,
-    0.2
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
