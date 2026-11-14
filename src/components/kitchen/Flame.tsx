@@ -49,7 +49,7 @@ export default function Flame() {
         alt=""
         draggable={false}
         className="pointer-events-none absolute inset-0 select-none"
-        style={{ ...style, filter: "brightness(1.25) saturate(1.1)", mixBlendMode: "screen" }}
+        style={{ ...style, filter: "brightness(1.12) saturate(1.05)" }}
       />
     </>
   );
