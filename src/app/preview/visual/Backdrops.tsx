@@ -56,8 +56,8 @@ export function backgroundState(g: number) {
                   ? "table-edge+kitchen"
                   : "table-edge"
               : "kitchen";
-  const quiet = bgCurve("searchQuiet", g);
-  return { paper, table, doorway, ending, bowl, lift, reading, quiet, quietPush: bgCurve("quietPush", g), drift: bgCurve("doorwayDrift", g) * BG.doorway.driftPct * (1 - quiet), name: name === "search" && quiet > 0.5 ? "quiet-corner" : name };
+  const listen = bgCurve("listenFocus", g);
+  return { paper, table, doorway, ending, bowl, lift, reading, listen, listenPush: bgCurve("listenPush", g), drift: bgCurve("doorwayDrift", g) * BG.doorway.driftPct, name: name === "kitchen-friends" && listen > 0.5 ? "listen-corner" : name };
 }
 
 const SHOW = 0.001;
@@ -116,8 +116,32 @@ function ReadingKitchen({ opacity }: { opacity: number }) {
   const [iw, ih] = R.size;
   const pct = (b: number[]) => ({ left: `${(b[0] / iw) * 100}%`, top: `${(b[1] / ih) * 100}%`, width: `${(b[2] / iw) * 100}%`, height: `${(b[3] / ih) * 100}%` });
   const g = gNow(t);
+  // listen（接蛋前的声音停顿）：段内整张图缓慢推近，台面前沿多推一点（纵深），墙上暖光和窗光带；减少动态效果时只留静止的光
+  const LS = R.listen;
+  const lf = bgCurve("listenFocus", g);
+  const lp = reducedMotion ? 0 : bgCurve("listenPush", g);
+  const lq = lf * lf * (3 - 2 * lf);
+  const lfoc = portrait ? LS.focusPortrait : LS.focus;
+  const [liw, lih] = portrait ? R.sizePortrait : R.size;
+  const near = portrait ? LS.nearPortrait : LS.near;
+  const L = portrait ? LS.lightPortrait : LS.light;
+  const lx = L.from[0] + (L.to[0] - L.from[0]) * lp, ly = L.from[1] + (L.to[1] - L.from[1]) * lp;
+  const lpct = (b: number[]) => ({ left: `${(b[0] / liw) * 100}%`, top: `${(b[1] / lih) * 100}%`, width: `${(b[2] / liw) * 100}%`, height: `${(b[3] / lih) * 100}%` });
   return (
-    <div data-bg="reading" data-variant={portrait ? "portrait" : "landscape"} className="absolute" style={{ left: x, top: y, width: w, height: h, opacity }}>
+    <div
+      data-bg="reading"
+      data-variant={portrait ? "portrait" : "landscape"}
+      className="absolute"
+      style={{
+        left: x,
+        top: y,
+        width: w,
+        height: h,
+        opacity,
+        transformOrigin: `${(lfoc[0] / liw) * 100}% ${(lfoc[1] / lih) * 100}%`,
+        transform: lq > 0.001 ? `scale(${(1 + LS.push * lp * lq).toFixed(4)})` : undefined,
+      }}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
       {actors.map((a) => {
@@ -166,6 +190,43 @@ function ReadingKitchen({ opacity }: { opacity: number }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img key={o.id} data-occluder={o.id} src={o.src} alt="" draggable={false} className="absolute select-none" style={pct(o.img)} />
         ))}
+      {lq > 0.001 && (
+        <>
+          {/* 台面前沿近景层：以底边中点为原点再多推近一点，只往外长、盖住台面 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            data-listen-near
+            src={near.src}
+            alt=""
+            draggable={false}
+            className="absolute select-none"
+            style={{ ...lpct(near.img), transformOrigin: "50% 100%", transform: `scale(${(1 + LS.nearPush * lp * lq).toFixed(4)})` }}
+          />
+          <div
+            data-listen-light
+            className="absolute"
+            style={{
+              ...lpct([lx - L.r[0], ly - L.r[1], 2 * L.r[0], 2 * L.r[1]]),
+              background: `radial-gradient(closest-side, ${L.color}, rgba(255,232,186,0))`,
+              mixBlendMode: "screen",
+              opacity: lq * 0.9,
+            }}
+          />
+          <div
+            data-listen-band
+            className="absolute inset-y-0"
+            style={{
+              left: `${LS.band.from + (LS.band.to - LS.band.from) * lp}%`,
+              width: `${LS.band.width}%`,
+              background: `linear-gradient(90deg, rgba(255,244,214,0), ${LS.band.color}, rgba(255,244,214,0))`,
+              transform: `skewX(${LS.band.angle}deg)`,
+              transformOrigin: "50% 100%",
+              mixBlendMode: "screen",
+              opacity: lq,
+            }}
+          />
+        </>
+      )}
       <div data-bg-line="top" className="absolute left-0 h-0 w-full" style={{ top: c.backY - y }} />
       <div data-bg-line="edge" className="absolute left-0 h-0 w-full" style={{ top: c.frontY - y }} />
     </div>
@@ -290,94 +351,33 @@ export function SearchBackdrop() {
   const s = backgroundState(gNow(t));
   return (
     <>
-      {s.doorway > SHOW && <SearchSurround opacity={s.doorway} driftPct={s.drift} quiet={s.quiet} push={s.quietPush} debug={debug} />}
+      {s.doorway > SHOW && <SearchSurround opacity={s.doorway} driftPct={s.drift} debug={debug} />}
       {s.ending > SHOW && <EndingSheet opacity={s.ending} />}
     </>
   );
 }
 
 /** B2 寻找段外围：浅色墙面 + 局部门框 + 纸白。横版 / 竖版按视口选；占位是平涂 */
-function SearchSurround({ opacity, driftPct, quiet, push, debug }: { opacity: number; driftPct: number; quiet: number; push: number; debug: boolean }) {
+function SearchSurround({ opacity, driftPct, debug }: { opacity: number; driftPct: number; debug: boolean }) {
   const H = BG.doorway;
-  const Q = H.quiet;
   const vp = useViewport();
-  const { reducedMotion } = useScene();
-  // 视口宽高比低于 portraitBelow（竖屏、窄窗口 860×1000）用竖版，否则横版
+  // 视口宽高比低于 portraitBelow 用竖版（没有竖版时用横版裁切），否则横版
   const portrait = vp.w / vp.h < H.portraitBelow;
   const src = portrait ? (H.srcPortrait ?? H.src) : H.src;
   // 没有竖版图时竖屏用横版裁切：focusPortrait 指向门口那一侧（保持比例，不拉伸）
   const f = portrait && !H.srcPortrait ? H.focusPortrait : H.focus;
   const pad = H.driftPct;
-  const [iw, ih] = H.size;
-  const vw = vp.w, vh = vp.h;
-  // 全景：容器比视口左右各宽 pad%，cover + object-position，加横向漂移（与原来的 object-cover 相同）
-  const cw = vw * (1 + (2 * pad) / 100);
-  const s0 = Math.max(cw / iw, vh / ih);
-  const full = { s: s0, x: (-pad / 100) * vw + (cw - iw * s0) * f[0] + (driftPct / 100) * vw, y: (vh - ih * s0) * f[1] };
-  // 声音留白段的桌角：横向只看 frame[0]..frame[1]，底边对齐 frame[2]，桌角贴在画面左边；段内再缓慢推近（以左下为原点）
-  const [qx0, qx1, qy1] = Q.frame;
-  const k = reducedMotion ? 0 : push;
-  const s1 = Math.max(vw / (qx1 - qx0), vh / Q.frameH) * (1 + Q.push * k);
-  const near = { s: s1, x: -qx0 * s1, y: vh - qy1 * s1 };
-  const q = quiet * quiet * (3 - 2 * quiet);
-  const cam = { s: full.s + (near.s - full.s) * q, x: full.x + (near.x - full.x) * q, y: full.y + (near.y - full.y) * q };
-  const pct = (b: number[]) => ({ left: `${(b[0] / iw) * 100}%`, top: `${(b[1] / ih) * 100}%`, width: `${(b[2] / iw) * 100}%`, height: `${(b[3] / ih) * 100}%` });
-  const L = Q.light;
-  const lx = L.from[0] + (L.to[0] - L.from[0]) * k, ly = L.from[1] + (L.to[1] - L.from[1]) * k;
   return (
     // 两段式：前一半铺满纸色（盖住阅读段的厨房），后一半在纸色上淡入图片，不叠两张厨房
-    <div aria-hidden data-bg="search" data-quiet={q.toFixed(2)} className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity: src ? 1 : opacity }}>
+    <div aria-hidden data-bg="search" className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity: src ? 1 : opacity }}>
       <div className="absolute inset-0" style={{ background: H.color, opacity: src ? Math.min(1, opacity * 2) : 1 }} />
-      {src && (
-        <div className="absolute" style={{ left: cam.x, top: cam.y, width: iw * cam.s, height: ih * cam.s, opacity: Math.max(0, opacity * 2 - 1) }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
-          {/* 墙上的柔和暖光：只在桌角段出现，随段内进度缓慢移动 */}
-          {q > 0.01 && (
-            <div
-              data-quiet-light
-              className="absolute"
-              style={{
-                left: `${((lx - L.r[0]) / iw) * 100}%`,
-                top: `${((ly - L.r[1]) / ih) * 100}%`,
-                width: `${((2 * L.r[0]) / iw) * 100}%`,
-                height: `${((2 * L.r[1]) / ih) * 100}%`,
-                background: `radial-gradient(closest-side, ${L.color}, rgba(255,236,196,0))`,
-                mixBlendMode: "screen",
-                opacity: q * 0.9,
-              }}
-            />
-          )}
-          {/* 桌角近景层：段内比墙面多放大一点（以左下为原点），形成纵深 */}
-          {q > 0.01 && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              data-quiet-corner
-              src={Q.corner.src}
-              alt=""
-              draggable={false}
-              className="absolute select-none"
-              style={{ ...pct(Q.corner.img), transformOrigin: "0% 100%", transform: `scale(${(1 + Q.cornerPush * k * q).toFixed(4)})` }}
-            />
-          )}
-        </div>
-      )}
-      {/* 斜向的窗光带（桌角段）：很淡，随段内进度缓慢平移，减少动态效果时停在起点 */}
-      {src && q > 0.01 && (
-        <div
-          data-quiet-band
-          className="absolute inset-y-0"
-          style={{
-            left: `${Q.band.from + (Q.band.to - Q.band.from) * k}%`,
-            width: `${Q.band.width}%`,
-            background: `linear-gradient(90deg, rgba(255,244,214,0), ${Q.band.color}, rgba(255,244,214,0))`,
-            transform: `skewX(${Q.band.angle}deg)`,
-            transformOrigin: "50% 100%",
-            mixBlendMode: "screen",
-            opacity: q * Math.max(0, opacity * 2 - 1),
-          }}
-        />
-      )}
+      {/* 比视口左右各宽 driftPct%，漂移时不露边 */}
+      <div className="absolute inset-y-0" style={{ left: `-${pad}%`, right: `-${pad}%`, transform: `translateX(${driftPct.toFixed(3)}vw)`, opacity: src ? Math.max(0, opacity * 2 - 1) : 1 }}>
+        {src && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none object-cover" style={{ objectPosition: `${f[0] * 100}% ${f[1] * 100}%` }} />
+        )}
+      </div>
       {debug && !src && (
         <span className="absolute bottom-6 left-6 rounded bg-white/70 px-2 py-1 font-mono text-[12px] text-[#5b4632]">
           {H.label}（{portrait ? "竖版" : "横版"}，{H.status}）
