@@ -37,5 +37,6 @@ export default function ScrollDriver() {
     };
   }, [beats, setTimeline]);
 
-  return <div aria-hidden style={{ height: `${totalVh(beats) + 100}vh` }} />;
+  // flexShrink: 0：body 是纵向 flex 容器，某些环境下占位会被压缩成一屏导致页面滚不动（kitchen-layers 报告）
+  return <div aria-hidden style={{ height: `${totalVh(beats) + 100}vh`, flexShrink: 0 }} />;
 }
