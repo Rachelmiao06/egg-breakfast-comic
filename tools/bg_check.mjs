@@ -73,7 +73,8 @@ const go = async (vh, settle = 700) => {
 };
 const beatOf = (vh) => { let b = beats[0]; for (const x of beats) if (vh >= starts[x.id]) b = x; return { id: b.id, p: (vh - starts[b.id]) / b.lengthVh }; };
 // 蛋在桌沿：drop 落定（动作阶段 0.15+0.6 = 0.75 之后，留 0.05 余量）→ catch 起跳（enter 0.22）之前
-const onTable = (vh) => vh >= at("drop", 0.8) && vh <= at("catch", 0.2);
+// 蛋在桌沿且应在画面里：drop 落桌 → hear 中段，以及 catch 18% → 起跳；hear 结尾到 catch 开头是 listen 停顿，镜头故意让蛋出画
+const onTable = (vh) => (vh >= at("drop", 0.8) && vh <= at("hear", 0.5)) || (vh >= at("catch", 0.18) && vh <= at("catch", 0.2));
 const afterHandoff = (vh) => vh >= at("handoff", 0.36);
 const inTablecall = (vh) => vh >= starts.tablecall && vh < starts.search;
 
