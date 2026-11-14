@@ -2,23 +2,27 @@
 /**
  * 把 1536×1024 的场景画布按 cover 铺满容器，children 用场景像素绝对定位。
  * 缩放比例暴露为 CSS 变量 --scene-scale，需要按屏幕像素做的效果可以读它。
+ *
+ * focus（可选）是一个简单的"镜头"：weight 0 = 默认居中裁切，1 = 尽量把场景点 (x, y)
+ * 放到视口的 (at.x, at.y) 比例位置，但永远不露出画布外的空白。用于飞行节拍让吐司完整入镜。
  */
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { FOCUS_Y, SCENE_H, SCENE_W } from "@/lib/scene";
 
-export default function SceneStage({ children, className = "" }: { children: ReactNode; className?: string }) {
+export type StageFocus = { x: number; y: number; weight: number; at?: { x: number; y: number } };
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+export default function SceneStage({ children, className = "", focus }: { children: ReactNode; className?: string; focus?: StageFocus }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [t, setT] = useState({ s: 1, x: 0, y: 0 });
+  const [box, setBox] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const update = () => {
       const { width: w, height: h } = el.getBoundingClientRect();
-      const s = Math.max(w / SCENE_W, h / SCENE_H);
-      const x = (w - SCENE_W * s) / 2;
-      const y = Math.min(0, Math.max(h - SCENE_H * s, h * 0.55 - FOCUS_Y * s));
-      setT({ s, x, y });
+      setBox({ w, h });
     };
     update();
     const ro = new ResizeObserver(update);
@@ -26,12 +30,33 @@ export default function SceneStage({ children, className = "" }: { children: Rea
     return () => ro.disconnect();
   }, []);
 
-  const outer = { "--scene-scale": t.s } as CSSProperties;
+  const { w, h } = box;
+  const s = w && h ? Math.max(w / SCENE_W, h / SCENE_H) : 1;
+  const minX = w - SCENE_W * s;
+  const minY = h - SCENE_H * s;
+  let x = minX / 2;
+  let y = clamp(h * 0.55 - FOCUS_Y * s, minY, 0);
+  if (focus && focus.weight > 0) {
+    const at = focus.at ?? { x: 0.4, y: 0.6 };
+    const fx = clamp(w * at.x - focus.x * s, minX, 0);
+    const fy = clamp(h * at.y - focus.y * s, minY, 0);
+    const k = clamp(focus.weight, 0, 1);
+    x += (fx - x) * k;
+    y += (fy - y) * k;
+  }
+
+  const outer = { "--scene-scale": s } as CSSProperties;
   return (
     <div ref={ref} className={`relative h-full w-full overflow-hidden ${className}`} style={outer}>
       <div
         className="absolute left-0 top-0 will-change-transform"
-        style={{ width: SCENE_W, height: SCENE_H, transform: `translate(${t.x}px, ${t.y}px) scale(${t.s})`, transformOrigin: "0 0" }}
+        style={{
+          width: SCENE_W,
+          height: SCENE_H,
+          transform: `translate(${x}px, ${y}px) scale(${s})`,
+          transformOrigin: "0 0",
+          transition: focus ? "transform 0.35s ease-out" : undefined,
+        }}
       >
         {children}
       </div>

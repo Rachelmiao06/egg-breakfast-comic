@@ -28,7 +28,7 @@ export const ANCHORS = {
   /** 吐司盘（前层） */
   toastBox: [0, 805, 440, 1024] as const,
   /** 蛋飞向吐司时的落点（脚底中心，吐司面黄油附近） */
-  toastLand: { x: 185, y: 905 },
+  toastLand: { x: 200, y: 905 },
 } as const;
 
 export type Box = readonly [number, number, number, number];
