@@ -58,12 +58,12 @@
 - chop 段去掉 chop 循环；前景在每次落刀接触帧派发 `kitchen:oneshot`（detail.sound = "chopHit"），混音器播 chop-hit.mp3 一次（AudioBuffer，每刀新节点，可重叠；静音 / 未解锁 / 后台丢弃不补播）。
 - 裁切改为解码后 atrim（mp3 输入寻址会吃掉第一帧约 24 ms），全部素材重建，接缝检查通过。
 
-## 寻找段由声音引导的停顿（2026-11-14 晚，未试听）
+## 寻找段脚步 + 接蛋前的声音铺垫（2026-11-14 晚，未试听）
 
-- audio-map 新增扩展字段 ramps / lowpass（段内定时，起止点写法同 at）；search / quiet / eggcall / return 的声音按集成会话转达的用户要求重写，细节和测量见 `public/assets/audio/README.md`。
-- 画外敲击：bowl-tap-1 / bowl-tap-2，从勺碰碗原档切出，声像偏左。eggCall 保持空位。
-- 单次音效越过规则：同一次更新越过多个只播最后一个；跨 40 vh 以上全部跳过。
-- 共享类型 OneShotSound 里没有 bowlTap1 / bowlTap2：声音分支内部用 MapOnlySound 转换。集成会话愿意的话可以把它们加进 beats.ts 的类型。
+- audio-map 扩展字段 ramps / lowpass（段内定时，起止点写法同 at）和 oncePerVisit（每进入一次只播一次）。寻找段的脚步按用户要求做：妈妈离开时接上、门口停下、回头后由远到近、回到碗前停下。
+- 用户纠正：声音停顿在接蛋前（新节拍 listen），不在寻找段。quiet 和敲碗声已撤回、文件已删；listen 用 hop-tap-1/2/3（chop 原档的木案板撞击 + 低通，声像偏右）。
+- 单次音效越过规则：同一次更新越过多个只播最后一个；跨 40 vh 以上全部跳过；oncePerVisit 的段（listen）段内倒滚不重播。
+- 共享类型 OneShotSound 里还有 bowlTap1 / bowlTap2（集成会话加的），现在不用：混音器里保持空位、不请求文件。建议集成会话把它们换成 hopTap1 / hopTap2 / hopTap3 或删掉；声音分支内部目前用 MapOnlySound 转换 hopTap。
 
 ## 需要集成会话改：
 

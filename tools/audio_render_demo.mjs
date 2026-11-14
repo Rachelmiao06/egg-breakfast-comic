@@ -30,7 +30,7 @@ const PHASES = ["enter", "action", "hold", "exit"];
 const LOOP_SOUNDS = ["room", "sizzle", "chop", "stirfry", "sauce", "steps"];
 const LOOP_FILES = { room: "room-loop.mp3", sizzle: "sizzle-loop.mp3", chop: "chop-loop.mp3", stirfry: "stirfry-loop.mp3", sauce: "sauce-stir-loop.mp3", steps: "footsteps-loop.mp3" };
 // [文件, 电平, 声像(-1 左 … 1 右，可省略)]；chopHit 由前景动画逐刀触发，离线渲染里没有
-const ONESHOTS = { stirfryIn: ["stirfry-in.mp3", 0.6], catch: ["catch.mp3", 0.6], bowlDown: ["bowl-down.mp3", 0.6], pour: ["pour.mp3", 0.5], momCall: ["mom-call.mp3", 0.6], eggCall: ["egg-call.mp3", 0.6], pop: ["pop.mp3", 0.5], eggSmall: ["egg-small.mp3", 0.5], bowlTap1: ["bowl-tap-1.mp3", 0.3, -0.6], bowlTap2: ["bowl-tap-2.mp3", 0.3, -0.6] };
+const ONESHOTS = { stirfryIn: ["stirfry-in.mp3", 0.6], catch: ["catch.mp3", 0.6], bowlDown: ["bowl-down.mp3", 0.6], pour: ["pour.mp3", 0.5], momCall: ["mom-call.mp3", 0.6], eggCall: ["egg-call.mp3", 0.6], pop: ["pop.mp3", 0.5], eggSmall: ["egg-small.mp3", 0.5], hopTap1: ["hop-tap-1.mp3", 0.2, 0.6], hopTap2: ["hop-tap-2.mp3", 0.2, 0.6], hopTap3: ["hop-tap-3.mp3", 0.2, 0.6] };
 const DEFAULT_PHASES = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 };
 
 const raw = JSON.parse(readFileSync(BEATS_PATH, "utf8"));
@@ -43,7 +43,7 @@ function resolveAt(phases, at, egg, events) {
   const ev = /^@(\w+)([+-]\d*\.?\d+)?$/.exec(String(at).trim());
   if (ev) {
     const off = ev[2] ? parseFloat(ev[2]) : 0;
-    if (events && ev[1] in events) return Math.min(1, Math.max(0, events[ev[1]] + off)); // 节拍里的 events（如 quiet 的 @tap1）
+    if (events && ev[1] in events) return Math.min(1, Math.max(0, events[ev[1]] + off)); // 节拍里的 events（如 listen 的 @tap1）
     if (!EGG_EVENTS[ev[1]] || EGG_EVENTS[ev[1]] !== egg) throw new Error(`事件 ${at} 与本段蛋模式 ${egg} 对不上`);
     return Math.min(1, Math.max(0, phases.enter + phases.action + off));
   }
