@@ -59,21 +59,23 @@ type Props = {
   mouse?: boolean;
   /** 镜头位移（场景像素），由页面按统一时间轴算出；各层按 DEPTH 系数错速。 */
   depth?: { x: number; y: number };
+  /** 直接映射滚动（progress、depth 不再缓动；只有鼠标视差保留轻微滞后，属于次级运动） */
+  direct?: boolean;
   /** Render the retired toast plate (only for overlay checks; off in the story). */
   showToast?: boolean;
   /** Dev only: layers to hide. */
   hide?: KitchenLayerName[];
 };
 
-export default function KitchenLayers({ mouse = false, showToast = false, hide = [], depth }: Props) {
+export default function KitchenLayers({ mouse = false, showToast = false, hide = [], depth, direct = false }: Props) {
   const { progress, activePanel, isTouch, reducedMotion } = useScene();
   const useMouse = mouse && !isTouch && !reducedMotion;
   const momOnStage = activePanel >= MOM_PANEL;
 
   const els = useRef<(HTMLDivElement | null)[]>([]);
-  const live = useRef({ progress, useMouse, reducedMotion, depth: depth ?? { x: 0, y: 0 } });
+  const live = useRef({ progress, useMouse, reducedMotion, depth: depth ?? { x: 0, y: 0 }, direct });
   useEffect(() => {
-    live.current = { progress, useMouse, reducedMotion, depth: depth ?? { x: 0, y: 0 } };
+    live.current = { progress, useMouse, reducedMotion, depth: depth ?? { x: 0, y: 0 }, direct };
   });
 
   // reveal only when every layer is decoded, so layers never pop in one by one
@@ -104,14 +106,14 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
       const dt = Math.min(1, (now - prev) / 1000);
       prev = now;
       const L = live.current;
-      shown += (L.progress - shown) * (L.reducedMotion ? 1 : ease(4, dt));
+      shown += (L.progress - shown) * (L.reducedMotion || L.direct ? 1 : ease(4, dt));
       const k = ease(4.5, dt);
       m.x += ((L.useMouse ? m.tx : 0) - m.x) * k;
       m.y += ((L.useMouse ? m.ty : 0) - m.y) * k;
 
       // 镜头景深位移也做平滑，避免滚动时一顿一顿
-      dz.x += (L.depth.x - dz.x) * (L.reducedMotion ? 1 : ease(6, dt));
-      dz.y += (L.depth.y - dz.y) * (L.reducedMotion ? 1 : ease(6, dt));
+      dz.x += (L.depth.x - dz.x) * (L.reducedMotion || L.direct ? 1 : ease(6, dt));
+      dz.y += (L.depth.y - dz.y) * (L.reducedMotion || L.direct ? 1 : ease(6, dt));
       const t: Record<Group, string> = { far: "", counter: "", mid: "", front: "" };
       let midVars: [number, number, number] = [0, 0, 1];
       let counterVars: [number, number] = [0, 0];

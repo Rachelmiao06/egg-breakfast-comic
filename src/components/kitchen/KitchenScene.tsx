@@ -20,6 +20,7 @@ export default function KitchenScene({
   foreground,
   camera,
   depth,
+  direct = false,
 }: {
   children?: ReactNode;
   base?: ReactNode;
@@ -28,6 +29,8 @@ export default function KitchenScene({
   camera?: StageFocus;
   /** 可选：镜头景深位移（场景像素），传给默认分层做远近错速 */
   depth?: { x: number; y: number };
+  /** 直接映射：镜头和分层都不再额外缓动（新版运动） */
+  direct?: boolean;
 }) {
   const { progress, flight, serve } = useScene();
   // 接蛋飞行时弱化退回很轻；放进饭碗（serve）时由 comic-scroll 的 progress 决定，可以重新弱化突出前景
@@ -40,11 +43,11 @@ export default function KitchenScene({
       : { x: ANCHORS.spatulaLand.x, y: ANCHORS.spatulaLand.y - 120, weight: ease(f), at: { x: 0.45, y: 0.62 } };
   return (
     <div
-      className="relative h-full w-full transition-[filter] duration-300"
+      className={`relative h-full w-full ${direct ? "" : "transition-[filter] duration-300"}`}
       style={{ filter: `contrast(${(1 - 0.22 * dim).toFixed(3)}) brightness(${(1 - 0.05 * dim).toFixed(3)}) saturate(${(1 - 0.18 * dim).toFixed(3)})` }}
     >
-      <SceneStage focus={camera ?? focus}>
-        {base ?? <KitchenLayers mouse depth={depth} />}
+      <SceneStage focus={camera ?? focus} instant={direct}>
+        {base ?? <KitchenLayers mouse depth={depth} direct={direct} />}
         {children}
         {foreground}
       </SceneStage>

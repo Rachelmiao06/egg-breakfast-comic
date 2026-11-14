@@ -14,19 +14,28 @@ import { handoffBox, landedEgg, landPoint, useSlots } from "./slots";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 
-export default function ScenePanels({ debug = false }: { debug?: boolean }) {
+export default function ScenePanels({ debug = false, flow = false }: { debug?: boolean; flow?: boolean }) {
   const { timeline: t, flight } = useScene();
   const { cfg } = useSlots();
   const slot = cfg.scene.catch;
   const [a0, a1] = slot.appearFlight ?? [0.2, 0.45];
   let k = 0;
-  if (t.beat.egg === "flight" && flight !== null) k = Math.min(1, Math.max(0, (flight - a0) / (a1 - a0)));
+  if (flow) {
+    // 新版：蛋在桌沿等着时，妈妈这一格先从下方升起；蛋随后起跳飞进来
+    if (t.beat.egg === "flight") k = t.phase === "enter" ? t.phaseP : 1;
+  } else if (t.beat.egg === "flight" && flight !== null) k = Math.min(1, Math.max(0, (flight - a0) / (a1 - a0)));
   const handIn = t.beat.id === "handoff" ? phaseProgress(t, "enter") : 0;
   // 交接：接蛋格先较快淡出，交接格稍后淡入，减少两格重叠的时间
   if (t.beat.id === "handoff") k = 1 - Math.min(1, handIn * 1.6);
   const handOp = Math.min(1, Math.max(0, (handIn - 0.25) / 0.75));
   const hb = handoffBox(cfg);
   const hand = cfg.scene.handoff;
+  // 交叉淡化完成后（只剩画里的蛋），交接格平滑移到画面内完整可读的位置
+  if (hb && t.beat.id === "handoff" && (t.phase === "hold" || t.phase === "exit")) {
+    const target = Math.min(hb[0], 1340 - hb[2]); // 1340 ≈ 接蛋镜头下可见的右边界（场景像素）
+    const k2 = t.phase === "hold" ? Math.min(1, t.phaseP / 0.35) : 1;
+    hb[0] = Math.round(hb[0] + (target - hb[0]) * (k2 * k2 * (3 - 2 * k2)));
+  }
   const handNode =
     hand && hb && handIn > 0 && t.beat.id === "handoff" ? (
       // eslint-disable-next-line @next/next/no-img-element
@@ -46,7 +55,7 @@ export default function ScenePanels({ debug = false }: { debug?: boolean }) {
     <>
       <div
         className="pointer-events-none absolute"
-        style={{ left: x, top: y, width: w, height: h, zIndex: Z.mom, opacity: Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * 70}px)` }}
+        style={{ left: x, top: y, width: w, height: h, zIndex: Z.mom, opacity: flow ? 1 : Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * (flow ? 560 : 70)}px)` }}
       >
         {slot.src ? (
           // eslint-disable-next-line @next/next/no-img-element

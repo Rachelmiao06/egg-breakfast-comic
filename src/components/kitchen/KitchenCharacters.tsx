@@ -6,14 +6,14 @@ import Flame from "./Flame";
 import PanOil from "./PanOil";
 import Steam from "./Steam";
 
-export default function KitchenCharacters({ eggAnchors }: { eggAnchors?: Partial<EggAnchors> }) {
+export default function KitchenCharacters({ eggAnchors, direct = false }: { eggAnchors?: Partial<EggAnchors>; direct?: boolean }) {
   return (
     <>
       <Flame />
       <PanOil />
       <Bubbles />
       <Steam />
-      <Egg anchors={eggAnchors} />
+      <Egg anchors={eggAnchors} direct={direct} />
     </>
   );
 }

@@ -12,6 +12,8 @@ import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
 import { SceneProvider, useScene } from "@/lib/scene-context";
 import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
+import { HallwayBackdrop, Paper } from "./Backdrops";
+import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
 import ScenePanels from "./ScenePanels";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig } from "./slots";
@@ -53,6 +55,72 @@ function AnchorEditor() {
   );
 }
 
+/** URL 参数：?motion=v1 旧版，默认新版；?clean=1 隐藏切换按钮（录屏用） */
+function useParam(name: string) {
+  return useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).get(name),
+    () => null,
+  );
+}
+
+function MotionToggle({ v2 }: { v2: boolean }) {
+  const go = (m: string) => {
+    const u = new URL(window.location.href);
+    u.searchParams.set("motion", m);
+    window.location.href = u.toString(); // 重新加载，从同一滚动起点开始
+  };
+  return (
+    <div className="fixed left-3 top-3 z-50 flex overflow-hidden rounded-full bg-white/80 font-mono text-[11px] text-[#5b4632] shadow ring-1 ring-black/10">
+      <button type="button" onClick={() => go("v1")} className={`px-3 py-1 ${!v2 ? "bg-[#5b4632] text-white" : ""}`}>旧版</button>
+      <button type="button" onClick={() => go("v2")} className={`px-3 py-1 ${v2 ? "bg-[#5b4632] text-white" : ""}`}>新版</button>
+    </div>
+  );
+}
+
+function StageV2() {
+  const { timeline: t, flight } = useScene();
+  const { cfg } = useSlots();
+  const vp = useViewport();
+  const debug = useParam("debug") !== null;
+  const clean = useParam("clean") !== null;
+  const g = gNow(t);
+  const anchors = { ...eggAnchorsFrom(cfg), tableWait: vp.portrait ? BG.anchors.portraitTableWait : BG.anchors.tableWait, eggAtTable: BG.anchors.eggAtTable };
+  // 接蛋动作阶段：镜头轻微跟随蛋（蛋位置按同一套锚点估算）
+  let eggPt: { x: number; y: number } | null = null;
+  if (t.beat.egg === "flight" && flight !== null && flight < 1) {
+    const A = anchors.tableWait, B = anchors.spatulaLand!;
+    eggPt = { x: A.x + (B.x - A.x) * flight, y: A.y + (B.y - A.y) * flight - 300 * Math.sin(Math.PI * flight) };
+  }
+  const cam = cameraV2(g, eggPt);
+  return (
+    <>
+      <div className="fixed inset-0 z-0">
+        <KitchenScene
+          direct
+          camera={{ x: cam.x, y: cam.y, weight: 1, zoom: cam.zoom, at: cam.at }}
+          depth={depthFromCamera(cam)}
+          foreground={
+            <>
+              <Paper />
+              <ScenePanels debug={debug} flow />
+            </>
+          }
+        >
+          <KitchenCharacters eggAnchors={anchors} direct />
+        </KitchenScene>
+      </div>
+      <HallwayBackdrop />
+      <ComicLayer flow />
+      <ScrollDriver smooth />
+      <SoundToggle />
+      <ScrollHint />
+      {!clean && <MotionToggle v2 />}
+      {debug && <Debug />}
+    </>
+  );
+}
+
 function Stage() {
   const { timeline: t } = useScene();
   const { cfg } = useSlots();
@@ -76,28 +144,43 @@ function Stage() {
       <ScrollHint />
       {debug && <Debug />}
       {debug && <AnchorEditor />}
+      {useParam("clean") === null && <MotionToggle v2={false} />}
     </>
   );
 }
 
+function Versioned() {
+  const v1 = useParam("motion") === "v1";
+  return v1 ? (
+    <SceneProvider key="v1" initialBeats={VISUAL_BEATS}>
+      <Stage />
+    </SceneProvider>
+  ) : (
+    <SceneProvider key="v2" initialBeats={V2_BEATS}>
+      <StageV2 />
+    </SceneProvider>
+  );
+}
+
 /** 竖屏手机：接蛋格缩到可见宽度内，落点随格子一起算，所以蛋仍落在铲面上 */
-function mobileSlots(cfg: SlotConfig, vw: number, vh: number): SlotConfig {
+function mobileSlots(cfg: SlotConfig, vw: number, vh: number, centerX = 700, zoom = 1): SlotConfig {
   const c = cfg.scene.catch;
-  const visW = 1024 * (vw / vh); // 竖屏时舞台按高度铺满，可见的场景宽度
+  const visW = (1024 * (vw / vh)) / zoom; // 竖屏时舞台按高度铺满，可见的场景宽度
   const w = Math.round(visW * 0.94);
   const h = Math.round((w * c.box[3]) / c.box[2]);
-  return { ...cfg, scene: { ...cfg.scene, catch: { ...c, box: [Math.round(700 - w / 2), Math.round(640 - h * 0.35), w, h] } } };
+  const k = w / c.box[2]; // 格子缩小多少，铲面上的蛋也按比例缩小（交接格随之对齐）
+  return { ...cfg, egg: { ...cfg.egg, onSpatulaScale: cfg.egg.onSpatulaScale * k }, scene: { ...cfg.scene, catch: { ...c, box: [Math.round(centerX - w / 2), Math.round(640 - h * 0.35), w, h] } } };
 }
 
 export default function VisualPreviewPage() {
   const [base, setCfg] = useState<SlotConfig>(DEFAULT_SLOTS);
   const vp = useViewport();
-  const cfg = vp.portrait ? mobileSlots(base, vp.w, vp.h) : base;
+  const v1 = useParam("motion") === "v1";
+  // 新版接蛋镜头焦点约 x 620、zoom 1.08（backgrounds.json camera.keys）
+  const cfg = vp.portrait ? (v1 ? mobileSlots(base, vp.w, vp.h) : mobileSlots(base, vp.w, vp.h, 625, 1.08)) : base;
   return (
     <SlotContext.Provider value={{ cfg, setCfg }}>
-      <SceneProvider initialBeats={VISUAL_BEATS}>
-        <Stage />
-      </SceneProvider>
+      <Versioned />
     </SlotContext.Provider>
   );
 }

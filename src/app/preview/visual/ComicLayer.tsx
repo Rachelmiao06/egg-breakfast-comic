@@ -137,15 +137,15 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
   );
 }
 
-/** 竖屏手机：本段各格按顺序纵向堆叠、居中，整体放得进一屏（保持原比例） */
-function stackPlaces(list: PanelSpec[], vw: number, vh: number): Record<string, Place> {
+/** 竖屏手机：本段各格按顺序纵向堆叠（保持原比例）；reserveBottom 给桌沿上的蛋留出底部空间 */
+function stackPlaces(list: PanelSpec[], vw: number, vh: number, reserveBottom = 0): Record<string, Place> {
   const sorted = [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const gapVh = 1.6;
   let w = 92; // vw
   const heightVh = (ww: number) => sorted.reduce((s, p) => s + ((ww * vw) / 100 / p.aspect / vh) * 100, 0) + gapVh * (sorted.length - 1);
-  const maxH = 90;
+  const maxH = 90 - reserveBottom;
   if (heightVh(w) > maxH) w = w * (maxH / heightVh(w));
-  let y = (100 - heightVh(w)) / 2;
+  let y = reserveBottom ? 4 : (100 - heightVh(w)) / 2;
   const out: Record<string, Place> = {};
   for (const p of sorted) {
     out[p.key] = { x: (100 - w) / 2, y, w };
@@ -154,7 +154,65 @@ function stackPlaces(list: PanelSpec[], vw: number, vh: number): Record<string, 
   return out;
 }
 
-export default function ComicLayer() {
+const outCubic = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+const inQuad = (t: number) => { const k = Math.min(1, Math.max(0, t)); return k * k; };
+
+/**
+ * 新版：漫画像一条连续的胶片向上流动。每格的位置由故事位置 g 直接映射：
+ * 从画面下方减速升入阅读位（读对白时完全静止、不透明），读完顺势加速向上离开；
+ * 前后两段的格子在交界处重叠流动，没有空白、没有淡入淡出、没有卡片收纳。
+ */
+function FlowLayer() {
+  const { timeline: t, beats } = useScene();
+  const vp = useViewport();
+  const g = t.index + t.p;
+  const index: Record<string, number> = {};
+  beats.forEach((b, i) => (index[b.id] = i));
+  const visible = PANELS.filter((p) => index[p.beat] !== undefined && g - index[p.beat] > -0.16 && g - index[p.beat] < 1.16);
+  const groups: Record<string, PanelSpec[]> = {};
+  for (const p of visible) (groups[p.beat] ??= []).push(p);
+  const places: Record<string, Place> = {};
+  if (vp.portrait) for (const list of Object.values(groups)) Object.assign(places, stackPlaces(list, vp.w, vp.h, 24));
+  return (
+    <div className="pointer-events-none fixed inset-0 z-10">
+      {visible.map((p) => {
+        const q = g - index[p.beat];
+        const i = p.order ?? 0;
+        const pos = places[p.key] ?? { x: p.x, y: p.y, w: p.w };
+        const hVh = ((pos.w * vp.w) / 100 / p.aspect / vp.h) * 100;
+        const enterOff = 100 - pos.y + 4;
+        const exitOff = pos.y + hVh + 4;
+        const s0 = -0.14 + i * 0.05, s1 = 0.34;
+        const e0 = 0.7 + i * 0.03, e1 = 1.14;
+        let dy = 0;
+        if (q < s1) dy = enterOff * (1 - outCubic((q - s0) / (s1 - s0)));
+        else if (q > e0) dy = -exitOff * inQuad((q - e0) / (e1 - e0));
+        return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
+      })}
+    </div>
+  );
+}
+
+function FlowPanel({ p, pos, dy }: { p: PanelSpec; pos: Place; dy: number }) {
+  const aspect = useNaturalAspect(p.src, p.aspect);
+  return (
+    <div className="absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)` }}>
+      {p.src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
+      ) : (
+        <Placeholder label={p.label ?? ""} />
+      )}
+    </div>
+  );
+}
+
+export default function ComicLayer({ flow = false }: { flow?: boolean }) {
+  if (flow) return <FlowLayer />;
+  return <SlideLayer />;
+}
+
+function SlideLayer() {
   const { timeline: t, beats } = useScene();
   const vp = useViewport();
   const beat = beats[t.index];
