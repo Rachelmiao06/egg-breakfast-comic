@@ -297,42 +297,40 @@ function FlowLayer() {
 }
 
 /**
- * 声音留白段的独立拟声字（不是对白泡）：画外从左边（饭桌、碗的方向；p5e 里妈妈向左回头）传来“嗒……”“嗒嗒”，停一拍，再是“妈！这里！”。
- * 横屏放在左侧三分之一的墙面上（避开左缘的瓶罐小角色），竖屏贴左。出现时刻读 quiet 段的 events（tap1 / tap2 / eggCall），声音的触发点读同一组值（audio-map "@tap1" 等）。
- * 全部由滚动直接决定，没有计时器：倒滚就退回，快速滚过不会堆积，停在原地也不会重复。声音关闭时靠这些字理解剧情。
+ * 接蛋前声音铺垫（listen 段）的画外拟声字：蛋在右侧桌沿、镜头外，两三下轻轻的跳动接触声从右边传来（hear 格里妈妈也看向右上）。
+ * 出现时刻读 listen 段的 events（tap1 / tap2 / tap3），跳动声读同一组值（audio-map "@tap1" 等）。不出现“妈！这里！”（那是寻找段的台词）。
+ * 全部由滚动直接决定：倒滚就退回，快速滚过不会堆积，停在原地不会重复。静音时靠这几个字和随后伸铲的漫画理解剧情。
  */
 function SoundText({ g, index, beats, portrait, aspect }: { g: number; index: Record<string, number>; beats: { id: string; events?: Record<string, number> }[]; portrait: boolean; aspect: number }) {
-  const qi = index["quiet"];
-  if (qi === undefined) return null;
-  const ev = beats[qi].events ?? {};
-  const at = (name: string) => qi + (ev[name] ?? 0.5);
-  const ei = index["eggcall"] ?? qi + 1;
-  // 每条字：从出现点开始 0.04 段内淡入，到 hideAt 段处淡出（落在下一格进场之前）
-  const items: { text: string; from: number; hideAt: number; x: number; y: number; size: number; rot: number; weight: number }[] = [
-    { text: "嗒……", from: at("tap1"), hideAt: qi + 0.92, x: portrait ? 7 : 14, y: portrait ? 40 : 33, size: 1.5, rot: -6, weight: 700 },
-    { text: "嗒嗒", from: at("tap2"), hideAt: qi + 0.92, x: portrait ? 13 : 19, y: portrait ? 47 : 39, size: 1.5, rot: 4, weight: 700 },
-    { text: "妈！这里！", from: at("eggCall"), hideAt: portrait ? ei - 0.02 : ei + 0.3, x: portrait ? 6 : 14, y: portrait ? 56 : 46, size: 2.3, rot: -3, weight: 800 }, // 竖屏漫画列满宽，回头格进场前淡出，不压格子
+  const li = index["listen"];
+  if (li === undefined) return null;
+  const ev = beats[li].events ?? {};
+  const at = (name: string) => li + (ev[name] ?? 0.5);
+  const hideAt = li + 0.9; // 伸铲格进场前收起
+  const items: { text: string; from: number; x: number; y: number; rot: number }[] = [
+    { text: "嗒……", from: at("tap1"), x: portrait ? 62 : 74, y: portrait ? 38 : 36, rot: 6 },
+    { text: "嗒", from: at("tap2"), x: portrait ? 72 : 81, y: portrait ? 45 : 43, rot: -5 },
+    { text: "嗒", from: at("tap3"), x: portrait ? 80 : 86, y: portrait ? 41 : 39, rot: 8 },
   ];
-  const k = portrait ? 3.2 : Math.min(1.6, Math.max(1, 1.6 / aspect)); // 竖屏、窄窗口按视口宽放大（与漫画格同一比例），保证可读
+  const k = portrait ? 3.2 : Math.min(1.6, Math.max(1, 1.6 / aspect)); // 竖屏、窄窗口按视口宽放大
   return (
     <>
-      {items.map((it) => {
-        const a = Math.min(Math.max((g - it.from) / 0.04, 0), 1) * (1 - Math.min(Math.max((g - it.hideAt) / 0.06, 0), 1));
+      {items.map((it, n) => {
+        const a = Math.min(Math.max((g - it.from) / 0.04, 0), 1) * (1 - Math.min(Math.max((g - hideAt) / 0.06, 0), 1));
         if (a <= 0.001) return null;
         return (
           <div
-            key={it.text}
+            key={n}
             aria-live="polite"
             className="absolute select-none whitespace-nowrap"
             style={{
               left: `${it.x}vw`,
               top: `${it.y}vh`,
-              fontSize: `max(${it.size * k}vw, ${portrait ? 18 : 15}px)`,
-              fontWeight: it.weight,
+              fontSize: `max(${1.5 * k}vw, ${portrait ? 18 : 15}px)`,
+              fontWeight: 700,
               fontFamily: '"PingFang SC", "Hiragino Sans GB", "Heiti SC", "Noto Sans SC", sans-serif',
               color: "#3a2418",
               letterSpacing: "0.06em",
-              // 淡淡的纸色光晕：压在后景小角色、瓶罐等细节上时仍清楚
               textShadow: "0 0 6px rgba(250,244,232,0.95), 0 0 14px rgba(250,244,232,0.8)",
               opacity: a,
               transform: `rotate(${it.rot}deg) translateY(${(1 - a) * 0.6}vh)`,
