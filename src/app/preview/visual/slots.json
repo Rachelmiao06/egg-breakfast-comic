@@ -307,8 +307,7 @@
    "aspect": 1.041,
    "from": "right",
    "order": 0,
-   "role": "hero",
-   "hideInFlow": true
+   "role": "hero"
   },
   {
    "key": "p5e",
@@ -316,13 +315,13 @@
    "src": "/assets/comic-v3/p5e.webp",
    "source": "05-looking-for-baby.png E 格",
    "dialogueInImage": false,
-   "x": 58,
-   "y": 12,
-   "w": 26,
+   "x": 56,
+   "y": 34,
+   "w": 22,
    "aspect": 0.947,
    "from": "left",
-   "order": 0,
-   "role": "hero"
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p5f",

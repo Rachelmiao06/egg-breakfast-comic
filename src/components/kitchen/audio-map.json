@@ -16,9 +16,10 @@
     "- v2 新增的 prejump / tablecall 沿用节拍表里的 audio（表里没写）；closeup 在这里覆盖：room 0.12，停留阶段 0.12→0.08，安静收尾（节拍表原值进入时会先回升到 0.14）。",
     "以上全部未经人耳试听；客观测量见 public/assets/audio/README.md。",
     "切菜格逐刀（2026-11-14，集成会话要求）：chop 段不再放 chop 循环。前景动画在每次落刀接触的那一帧派发 window 事件 kitchen:oneshot（detail.sound = \"chopHit\"），混音器收到就播 chop-hit.mp3 一次（从 chop-loop 同一原档切出的一刀，0.26 s，电平 0.5 = 原来循环里每一刀的电平）。触发时刻由动画决定，混音器不做节拍判断；静音、未解锁、后台标签页时丢弃，不补播；每刀新建一个 Web Audio 节点，快速连刀可以重叠。chop 循环文件保留但不再加载（不在 available 里）。",
-    "寻找段由声音引导的停顿（2026-11-14 集成会话转达用户要求，全部未试听）：search 开始时厨房声由 tablecall 的 room 0.14 退到 0.06、脚步在 p 0→0.10 接上（0→0.3），p5b 探头格落定、停留开始前后（enterEnd−0.04 → +0.04）停下；quiet（只有 v2 有）room 0.08，画外三下轻瓷器敲击 @tap1 / @tap2 / @tap3（bowlTap1、bowlTap2、bowlTap1，从勺碰碗的原档切出、4 kHz 低通、声像偏左 −0.6），停一拍后 @eggCall（空位，画面上是独立小字，不配合成对白）；eggcall 妈妈转身后（enterEnd 起）脚步由远到近：0→0.15，低通 700→3000 Hz；return 接着 0.15→0.3、低通开到 16 kHz，回到碗前（停留开始前后）脚步停下。",
+    "寻找段的脚步（2026-11-14，全部未试听）：search 开始时厨房声由 tablecall 的 room 0.14 退到 0.06、脚步在 p 0→0.10 接上（0→0.3），p5b 探头格落定、停留开始前后（enterEnd−0.04 → +0.04）停下；eggcall 妈妈转身后（enterEnd 起）脚步由远到近：0→0.15，低通 700→3000 Hz（「妈！这里！」eggCall 空位在 eggcall p=0.25，只靠画面 p5d）；return 接着 0.15→0.3、低通开到 16 kHz，回到碗前（停留开始前后）脚步停下。",
+    "接蛋前的声音铺垫 listen（2026-11-14 用户纠正：停顿在接蛋前，不在寻找段；全部未试听）：hear 之后 sizzle 在 listen 进入阶段从 0.3 退到 0.05、room 0.14，安静地铺垫；画外右侧两三下轻跳落在木台面上的「嗒」@tap1 / @tap2 / @tap3（hopTap1/2/3，从 chop 原档刀碰木案板的三下撞击切出、1.5 kHz 低通，声像 +0.6，电平 0.2）；oncePerVisit：段内倒滚再前进不重播，回到 hear 之后才重新允许。catch 进入阶段照旧把 sizzle 带回 0.3。",
     "ramps / lowpass 是声音分支的扩展字段：段内按进度定时的电平斜坡 / 低通截止频率（start、end 写法同 at：数字、阶段符号、@事件），比按阶段的 fades 更细；有斜坡的声音在这一段完全由斜坡决定，loops 值自动取最后一条的 to。",
-    "单次音效越过规则：同一次滚动更新越过多个只播最后一个；一次跨过 40 vh 以上（拖滚动条、跳转）全部跳过；倒滚不播、停在原地不重复。oncePerVisit: true 的段（只有 quiet）每进入一次只播一次：段内倒滚再前进不重播，时间轴回到这一段开始之前（例如回到 search）才重新允许；其它段倒滚后再前进仍会再播（例如 catch，用户接受过）。",
+    "单次音效越过规则：同一次滚动更新越过多个只播最后一个；一次跨过 40 vh 以上（拖滚动条、跳转）全部跳过；倒滚不播、停在原地不重复。oncePerVisit: true 的段（只有 listen）每进入一次只播一次：段内倒滚再前进不重播，时间轴回到这一段开始之前（例如回到 hear）才重新允许；其它段倒滚后再前进仍会再播（例如 catch，用户接受过）。",
     "available：真正有文件的声音 id。混音器只为这些声音创建 <audio> 并请求文件；不在列表里的空位不发请求、保持静音（避免 404）。以后补上文件：放进 public/assets/audio/、加到这个列表即可。"
   ],
   "available": [
@@ -31,8 +32,9 @@
     "steps",
     "pop",
     "chopHit",
-    "bowlTap1",
-    "bowlTap2"
+    "hopTap1",
+    "hopTap2",
+    "hopTap3"
   ],
   "scenes": {
     "opening": { "loops": { "room": 0.2, "sizzle": 0.45 }, "fades": [], "oneshots": [] },
@@ -44,14 +46,14 @@
     "sauce": { "loops": { "room": 0.2, "sizzle": 0.08, "sauce": 0.4 }, "fades": [], "oneshots": [] },
     "missing": { "loops": { "room": 0.25, "sizzle": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.2, "to": 0.04, "phase": "hold" } ], "oneshots": [] },
     "hear": { "loops": { "room": 0.18, "sizzle": 0.6 }, "fades": [ { "sound": "sizzle", "from": 0.6, "to": 0.3, "phase": "hold" } ], "oneshots": [ { "sound": "pop", "at": 0.35 } ] },
+    "listen": { "oncePerVisit": true, "loops": { "room": 0.14, "sizzle": 0.05 }, "fades": [], "oneshots": [ { "sound": "hopTap1", "at": "@tap1" }, { "sound": "hopTap2", "at": "@tap2" }, { "sound": "hopTap3", "at": "@tap3" } ] },
     "catch": { "loops": { "room": 0.18, "sizzle": 0.38 }, "fades": [ { "sound": "sizzle", "from": 0.3, "to": 0.38, "phase": "action" } ], "oneshots": [ { "sound": "catch", "at": "@eggOnSpatula" } ] },
     "handoff": { "loops": { "room": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.38, "to": 0, "phase": "enter" } ], "oneshots": [] },
     "bowl": { "loops": { "room": 0.2 }, "fades": [], "oneshots": [ { "sound": "bowlDown", "at": 0.25 }, { "sound": "pour", "at": 0.55 } ] },
     "yolk": { "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
     "call": { "loops": { "room": 0.2 }, "fades": [ { "sound": "room", "from": 0.2, "to": 0.14, "phase": "hold" } ], "oneshots": [ { "sound": "momCall", "at": 0.25 }, { "sound": "eggSmall", "at": 0.55 } ] },
     "search": { "loops": { "room": 0.06 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "steps", "from": 0, "to": 0.3, "start": 0, "end": 0.1 }, { "sound": "steps", "from": 0.3, "to": 0, "start": "enterEnd-0.04", "end": "enterEnd+0.04" } ] },
-    "quiet": { "oncePerVisit": true, "loops": { "room": 0.08 }, "fades": [], "oneshots": [ { "sound": "bowlTap1", "at": "@tap1" }, { "sound": "bowlTap2", "at": "@tap2" }, { "sound": "bowlTap1", "at": "@tap3" }, { "sound": "eggCall", "at": "@eggCall" } ] },
-    "eggcall": { "loops": { "room": 0.08 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "steps", "from": 0, "to": 0.15, "start": "enterEnd", "end": 1 } ], "lowpass": [ { "sound": "steps", "fromHz": 700, "toHz": 3000, "start": "enterEnd", "end": 1 } ] },
+    "eggcall": { "loops": { "room": 0.08 }, "fades": [], "oneshots": [ { "sound": "eggCall", "at": 0.25 } ], "ramps": [ { "sound": "steps", "from": 0, "to": 0.15, "start": "enterEnd", "end": 1 } ], "lowpass": [ { "sound": "steps", "fromHz": 700, "toHz": 3000, "start": "enterEnd", "end": 1 } ] },
     "return": { "loops": { "room": 0.2 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "steps", "from": 0.15, "to": 0.3, "start": 0, "end": "enterEnd-0.06" }, { "sound": "steps", "from": 0.3, "to": 0, "start": "enterEnd-0.02", "end": "enterEnd+0.04" } ], "lowpass": [ { "sound": "steps", "fromHz": 3000, "toHz": 16000, "start": 0, "end": "enterEnd-0.06" } ] },
     "recognize": { "loops": { "room": 0.2 }, "fades": [ { "sound": "room", "from": 0.2, "to": 0.14, "phase": "hold" } ], "oneshots": [] },
     "punchline": { "loops": { "room": 0.2 }, "fades": [ { "sound": "room", "from": 0.2, "to": 0.12, "phase": "hold" } ], "oneshots": [] },

@@ -26,7 +26,7 @@
  *   这样不用改共享的 beats.json；音量、触发点都在声音分支自己的文件里。
  *   触发点可写成阶段符号（"actionEnd" 等，见 resolveAt），按当前节拍表的 phases 换算成段内进度，新旧两版节拍共用一张表。
  * - 越过节拍表触发点的单次音效：同一次时间轴更新越过多个时只播最后一个；一次跨过 40 vh 以上（拖滚动条、跳转）全部跳过；
- *   停在原地不重复，倒滚不播。audio-map 里 oncePerVisit 的段（quiet）每进入一次只播一次：段内倒滚再前进不重播，
+ *   停在原地不重复，倒滚不播。audio-map 里 oncePerVisit 的段（listen）每进入一次只播一次：段内倒滚再前进不重播，
  *   回到这一段开始之前才重新允许。
  * - audio-map 的扩展：ramps（段内定时的电平斜坡）和 lowpass（段内定时的低通，目前给 steps 由远到近），见 MappedBeat。
  * - 动画逐帧触发的单次音效（目前只有切菜格的 chopHit）：监听 window 事件 "kitchen:oneshot"（detail.sound），收到就播一次。
@@ -54,11 +54,10 @@ const LOOP_FILES: Record<LoopSound, string> = {
  */
 type EventSound = "chopHit";
 /** 只在 audio-map 里用、由滚动越过触发点触发的单次音效（共享的 OneShotSound 类型里没有，运行时照样经节拍表的 oneshots 传递） */
-type MapOnlySound = "bowlTap1" | "bowlTap2";
-type ShotSound = OneShotSound | EventSound | MapOnlySound;
+type ShotSound = OneShotSound | EventSound;
 const EVENT_SOUNDS: readonly EventSound[] = ["chopHit"];
 /** 解码成 AudioBuffer 播放：每次触发新建节点，快速连续触发可以重叠，并可以带声像 */
-const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "bowlTap1", "bowlTap2"];
+const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3"];
 export const KITCHEN_ONESHOT_EVENT = "kitchen:oneshot";
 /** 单次音效：文件与播放音量（素材已统一到约 -18 LUFS，这里是相对电平） */
 const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number }> = {
@@ -72,10 +71,11 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number }
   eggSmall: { file: "egg-small.mp3", volume: 0.5 }, // 暂无素材：蛋小声"我在这儿……"
   // 切菜格逐刀：从 chop-loop 同一原档切出的一刀，0.26 s；电平 0.5 = 原来 chop 循环里每一刀的电平
   chopHit: { file: "chop-hit.mp3", volume: 0.5 },
-  // 寻找段留白（quiet）：画外"嗒……嗒嗒"，蛋轻敲碗沿。从勺碰碗的原档切出的两下轻瓷器接触，4 kHz 低通；
-  // 声像偏左（画面上"妈！这里！"从左边来）；很轻，room 0.08 之上刚好能听出
-  bowlTap1: { file: "bowl-tap-1.mp3", volume: 0.3, pan: -0.6 },
-  bowlTap2: { file: "bowl-tap-2.mp3", volume: 0.3, pan: -0.6 },
+  // 接蛋前的声音铺垫（listen）：画外右侧，蛋在桌沿台面上轻跳落下的"嗒"。从 chop 原档里刀碰木案板的三下撞击切出、
+  // 1.5 kHz 低通成软的小木头接触声；声像偏右（蛋在画外右侧，hear 格里妈妈也看向右上）；很轻
+  hopTap1: { file: "hop-tap-1.mp3", volume: 0.2, pan: 0.6 },
+  hopTap2: { file: "hop-tap-2.mp3", volume: 0.2, pan: 0.6 },
+  hopTap3: { file: "hop-tap-3.mp3", volume: 0.2, pan: 0.6 },
 };
 /** 可以写进节拍表 / audio-map 的单次音效（事件触发的不在其中） */
 const ONESHOT_SOUNDS = (Object.keys(ONESHOTS) as ShotSound[]).filter((n) => !(EVENT_SOUNDS as readonly string[]).includes(n));
@@ -94,7 +94,7 @@ type MapRamp = { sound: string; from: number; to: number; start: At; end: At };
 type MapLowpass = { sound: string; fromHz: number; toHz: number; start: At; end: At };
 /**
  * oncePerVisit：这一段的单次音效"每进入一次只播一次"。段内倒滚再前进不重播；只有时间轴回到这一段开始之前
- * （例如回到上一段）之后才重新允许。只给需要的段打开（quiet 的画外敲击）；其它段保持"倒滚后再前进可以再播"。
+ * （例如回到上一段）之后才重新允许。只给需要的段打开（listen 的画外轻跳）；其它段保持"倒滚后再前进可以再播"。
  */
 type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: At }[]; ramps?: MapRamp[]; lowpass?: MapLowpass[]; oncePerVisit?: boolean };
 type Ramp = { sound: LoopSound; from: number; to: number; start: number; end: number };
@@ -139,7 +139,7 @@ export function withAudioMap(beats: Beat[]): MappedBeat[] {
       if (!(ONESHOT_SOUNDS as string[]).includes(o.sound)) { warnOnce(`audio-map.json: 场景 ${b.id} 的单次音效 ${o.sound} 未登记`); continue; }
       const at = resolveAt(b, o.at);
       if (at === null) { warnOnce(`audio-map.json: 场景 ${b.id} 的触发点 ${String(o.at)} 不认识（数字、enterEnd/actionEnd/holdEnd±偏移，或本段存在的共享事件 @eggOnTable/@eggOnSpatula/@eggInBowl）`); continue; }
-      // MapOnlySound（bowlTap1/2）不在共享类型里：这里只做类型转换，运行时名字原样传给 crossedShots → fire
+      // hopTap1/2/3 已在共享类型 OneShotSound 里，名字原样传给 crossedShots → fire
       oneshots.push({ sound: o.sound as OneShotSound, at });
     }
     const resolveRamps = (list: { sound: string; from: number; to: number; start: At; end: At }[] | undefined, kind: string): Ramp[] => {

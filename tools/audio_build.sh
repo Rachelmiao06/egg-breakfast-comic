@@ -119,14 +119,14 @@ build() {
                       # 取 [1.177, 1.437]（起音前 2 ms），1 ms 淡入、尾部 0.08 s 淡出 → 0.26 s。供前景动画逐刀触发（kitchen:oneshot 事件）
       raw="$RAW/chop-loop.mp3"
       oneshot_trim "$raw" "$wav" 1.177 1.437 0.001 0.08; finalize "$wav" "$out" 3 192k ;;
-    bowl-tap-1)       # 寻找段留白里画外的"嗒"（蛋轻敲碗沿）。从 sauce-stir 原档（勺碰碗）取最轻、最孤立的一下：起音 11.5453 s，
-                      # 前 30 ms 在 -40 dB 左右，之后 110 ms 内平滑衰减到 -50 dB；取 [11.543, 11.663]，4 kHz 低通去掉勺子的金属亮度 → 0.12 s
-      raw="$RAW/sauce-stir-loop.mp3"
-      oneshot_trim "$raw" "$wav" 11.543 11.663 0.001 0.05 "lowpass=f=4000"; finalize "$wav" "$out" 3 192k ;;
-    bowl-tap-2)       # 第二下（"嗒嗒"），换一个起音，避免同一采样重复的机械感：起音 15.0393 s，前 30 ms 约 -50 dB；
-                      # 取 [15.037, 15.137]，4 kHz 低通，尾部 0.05 s 淡出（之后有勺子刮碗的残声，裁掉）→ 0.10 s
-      raw="$RAW/sauce-stir-loop.mp3"
-      oneshot_trim "$raw" "$wav" 15.037 15.137 0.001 0.05 "lowpass=f=4000"; finalize "$wav" "$out" 3 192k ;;
+    hop-tap-1|hop-tap-2|hop-tap-3)
+                      # 接蛋前的声音铺垫（listen）：画外右侧，蛋在桌沿台面上轻跳落下的"嗒"。从 chop-loop 原档里取刀碰木案板的撞击
+                      # （木头接触），从峰值前 2 ms 切到峰值后 90 ms，1.5 kHz 低通去掉刀的金属亮度 → 软的小"嗒"。
+                      # 1 = 5.850 s 那一下（最轻、前面最安静：峰值前 -35…-46 dB）；2 = 4.683 s；3 = 3.212 s。三下各不相同，避免同一采样重复
+      raw="$RAW/chop-loop.mp3"
+      local pk; case $name in hop-tap-1) pk=5.850 ;; hop-tap-2) pk=4.683 ;; hop-tap-3) pk=3.212 ;; esac
+      oneshot_trim "$raw" "$wav" "$(awk -v p=$pk 'BEGIN{printf "%.3f", p-0.002}')" "$(awk -v p=$pk 'BEGIN{printf "%.3f", p+0.090}')" 0.002 0.05 "lowpass=f=1500,lowpass=f=1500"
+      finalize "$wav" "$out" 3 192k ;;
     pop)              # 原档 1.04 s，起音 0.025 s、约 0.17 s 后衰减到底；取 [0.02, 0.30]，2 ms 淡入、尾部 0.1 s 淡出 → 0.28 s
       oneshot_trim "$raw" "$wav" 0.02 0.30 0.002 0.1; finalize "$wav" "$out" 3 192k ;;
     *) echo "未知文件 $name" >&2; exit 1 ;;
@@ -134,6 +134,6 @@ build() {
 }
 
 names=("$@")
-if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit bowl-tap-1 bowl-tap-2); fi
+if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3); fi
 for n in "${names[@]}"; do build "$n"; done
 echo "完成。测量：tools/audio_measure.sh"

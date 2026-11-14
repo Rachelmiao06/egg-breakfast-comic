@@ -222,6 +222,74 @@
    ],
    "scale": 1.1,
    "parallax": 0.2
+  },
+  "listen": {
+   "note": "listen（hear 和 catch 之间，接蛋前的声音停顿）：镜头推到阅读厨房左半边的台面和墙（camera.keys listen），蛋在右侧桌沿等着但不入画，漫画和妈妈都不在。这里只加光影和纵深：墙上一片暖光和一条很淡的斜向窗光带，段内整张图缓慢推近 push，台面前沿那一条（tools/prepare_listen.py 从原图裁出，上沿羽化）多推近 nearPush，近处比墙动得快；都只往外长，不露底。曲线 listenFocus 控制出现（hear 结尾进、catch 开头退，退完之前蛋已回到原位），listenPush 控制段内进度。图片像素（横版 / 竖版各一组）。",
+   "near": {
+    "src": "/assets/bg/friends-counter-front.png",
+    "img": [
+     0,
+     828,
+     1672,
+     113
+    ]
+   },
+   "nearPortrait": {
+    "src": "/assets/bg/friends-counter-front-portrait.png",
+    "img": [
+     0,
+     1742,
+     852,
+     104
+    ]
+   },
+   "push": 0.02,
+   "nearPush": 0.045,
+   "focus": [
+    680,
+    735
+   ],
+   "focusPortrait": [
+    230,
+    1620
+   ],
+   "light": {
+    "from": [
+     740,
+     520
+    ],
+    "to": [
+     800,
+     500
+    ],
+    "r": [
+     520,
+     300
+    ],
+    "color": "rgba(255,232,186,0.85)"
+   },
+   "lightPortrait": {
+    "from": [
+     280,
+     1330
+    ],
+    "to": [
+     320,
+     1300
+    ],
+    "r": [
+     300,
+     240
+    ],
+    "color": "rgba(255,232,186,0.85)"
+   },
+   "band": {
+    "from": 38,
+    "to": 46,
+    "angle": -24,
+    "width": 9,
+    "color": "rgba(255,244,214,0.4)"
+   }
   }
  },
  "paper": {
@@ -370,6 +438,24 @@
     1.18,
     0.55,
     0.64
+   ],
+   [
+    "listen",
+    0.2,
+    595,
+    840,
+    1.45,
+    0.5,
+    0.6
+   ],
+   [
+    "listen",
+    0.9,
+    605,
+    840,
+    1.45,
+    0.5,
+    0.6
    ],
    [
     "catch",
@@ -756,40 +842,6 @@
     0
    ]
   ],
-  "searchQuiet": [
-   [
-    "search",
-    0.72,
-    0
-   ],
-   [
-    "quiet",
-    0.2,
-    1
-   ],
-   [
-    "quiet",
-    0.9,
-    1
-   ],
-   [
-    "eggcall",
-    0.3,
-    0
-   ]
-  ],
-  "quietPush": [
-   [
-    "quiet",
-    0.15,
-    0
-   ],
-   [
-    "quiet",
-    0.92,
-    1
-   ]
-  ],
   "doorway": [
    [
     "tablecall",
@@ -833,9 +885,43 @@
     0.2,
     -1
    ]
+  ],
+  "listenFocus": [
+   [
+    "hear",
+    0.55,
+    0
+   ],
+   [
+    "listen",
+    0.2,
+    1
+   ],
+   [
+    "listen",
+    0.9,
+    1
+   ],
+   [
+    "catch",
+    0.15,
+    0
+   ]
+  ],
+  "listenPush": [
+   [
+    "listen",
+    0.2,
+    0
+   ],
+   [
+    "listen",
+    0.9,
+    1
+   ]
   ]
  },
- "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后纸面 + 桌沿带整体的垂直位移（场景像素，当前 0；B1 正式图到位后如需为饭桌微调桌面高度只改这里，正值向下）；bowl：环境段 tablecall 饭桌上的碗（B3）；doorway：寻找段外围不透明度；doorwayDrift：外围的横向漂移（乘 doorway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。 reading：阅读段主后景（厨房小角色）不透明度，有 reading.src 时替代 paper / table。 换场不叠两张厨房：drop 段先由纸面盖住旧厨房（0.55→0.78），再在纸面上淡入厨房小角色（0.78→bag 0.2）；寻找段和收尾的图层内部也是先铺满纸色、再淡入图片（前一半纸色、后一半图片）。 friendJar / friendSoy / friendLeaves：阅读厨房三个小角色的转动角度（度），只在进入 / 退出阶段变化。 searchQuiet：寻找段镜头从门口厨房全景推到左下桌角（0 = 全景，1 = 桌角），search 结尾推进、eggcall 开头拉回；quietPush：quiet 段内的缓慢推近和光影移动（0–1）。",
+ "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后纸面 + 桌沿带整体的垂直位移（场景像素，当前 0；B1 正式图到位后如需为饭桌微调桌面高度只改这里，正值向下）；bowl：环境段 tablecall 饭桌上的碗（B3）；doorway：寻找段外围不透明度；doorwayDrift：外围的横向漂移（乘 doorway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。 reading：阅读段主后景（厨房小角色）不透明度，有 reading.src 时替代 paper / table。 换场不叠两张厨房：drop 段先由纸面盖住旧厨房（0.55→0.78），再在纸面上淡入厨房小角色（0.78→bag 0.2）；寻找段和收尾的图层内部也是先铺满纸色、再淡入图片（前一半纸色、后一半图片）。 friendJar / friendSoy / friendLeaves：阅读厨房三个小角色的转动角度（度），只在进入 / 退出阶段变化。 listenFocus / listenPush：listen 段的光影、纵深出现量和段内进度（0–1）。",
  "ending": {
   "type": "color",
   "color": "#f6eee2",
@@ -871,48 +957,6 @@
    0.86,
    0.5
   ],
-  "quiet": {
-   "note": "声音留白段（quiet）：镜头不换图，推进到门口厨房左下的桌角（只取 x0..x1、底边对齐 y1 的这一块，避开左边层板上的小角色和右边门口）。桌角单独一层（tools/prepare_quiet.py 裁出），在段内比墙面多放大 cornerPush，像更近的一层；只往外长、盖住地板，不露底。墙上一片柔和暖光随段内进度缓慢移动。碗和声音在画外左边，和 p5e 妈妈向左回头一致。图片像素。 frame = [x0, x1, 底边 y]，frameH = 至少显示的高度（竖屏按它推近，桌角才不会太小）；band = 斜向的窗光带（视口宽 %，随段内进度从 from 移到 to）。",
-   "frame": [
-    262,
-    1112,
-    992
-   ],
-   "corner": {
-    "src": "/assets/bg/doorway-corner.png",
-    "img": [
-     0,
-     868,
-     361,
-     124
-    ]
-   },
-   "push": 0.03,
-   "cornerPush": 0.06,
-   "light": {
-    "from": [
-     640,
-     600
-    ],
-    "to": [
-     720,
-     570
-    ],
-    "r": [
-     560,
-     360
-    ],
-    "color": "rgba(255,232,186,0.85)"
-   },
-   "frameH": 620,
-   "band": {
-    "from": -6,
-    "to": 4,
-    "angle": -24,
-    "color": "rgba(255,244,214,0.42)",
-    "width": 16
-   }
-  },
   "source": "source/bg-v3/kitchen-doorway.png（桌面原件 new pics/hallway-landscape.png 的副本；内容是厨房门口，不是走廊）"
  }
 }
