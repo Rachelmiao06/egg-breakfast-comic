@@ -39,7 +39,7 @@ const LOOP_FILES: Record<LoopSound, string> = {
   chop: "chop-loop.mp3",
   stirfry: "stirfry-loop.mp3", // 暂无素材（刻意留空），保持静音
   sauce: "sauce-stir-loop.mp3",
-  steps: "footsteps-loop.mp3", // 暂无素材（寻找段的脚步），保持静音
+  steps: "footsteps-loop.mp3", // 寻找段：地毯上拖鞋慢走
 };
 /** 单次音效：文件与播放音量（素材已统一到约 -18 LUFS，这里是相对电平） */
 const ONESHOTS: Record<OneShotSound, { file: string; volume: number }> = {
@@ -49,7 +49,7 @@ const ONESHOTS: Record<OneShotSound, { file: string; volume: number }> = {
   pour: { file: "pour.mp3", volume: 0.5 }, // 暂无素材（刻意留空），保持静音
   momCall: { file: "mom-call.mp3", volume: 0.6 }, // 暂无素材："宝宝，来吃饭啦"
   eggCall: { file: "egg-call.mp3", volume: 0.6 }, // 暂无素材：蛋大声喊"妈！这里！"
-  pop: { file: "pop.mp3", volume: 0.6 }, // 暂无素材："啵！"（蛋从锅里蹦起的声音）
+  pop: { file: "pop.mp3", volume: 0.5 }, // "啵！"：蛋的轻快小声（峰值瞬时响度与 catch 相当，所以略低）
   eggSmall: { file: "egg-small.mp3", volume: 0.5 }, // 暂无素材：蛋小声"我在这儿……"
 };
 const ONESHOT_SOUNDS = Object.keys(ONESHOTS) as OneShotSound[];

@@ -111,11 +111,16 @@ build() {
       oneshot_trim "$raw" "$wav" 0.86 2.66 0.01 0.7; finalize "$wav" "$out" 6 192k ;;
     catch)            # 原档 4.8 s 有三声 plop，第一声起音 0.49 s、峰值 0.52 s；取 [0.47, 1.07]，尾部 0.15 s 淡出 → 0.6 s
       oneshot_trim "$raw" "$wav" 0.47 1.07 0.005 0.15; finalize "$wav" "$out" 3 192k ;;
+    footsteps-loop)   # 原档 29.86 s 单声道，地毯上穿拖鞋慢走，约 -42 LUFS；0.17–7.76 s 是 7 步均匀的一段（间隔约 1.27 s）。
+                      # 取 [0.80, 8.66]（两端都在步间），交叉淡化 0.3 s → 7.56 s 循环 = 6 步 + 回绕处一个 1.27 s 的步间
+      loop_seam "$raw" "$wav" 0.80 8.66 0.4 0.3;      finalize "$wav" "$out" 3 128k loop ;;
+    pop)              # 原档 1.04 s，起音 0.025 s、约 0.17 s 后衰减到底；取 [0.02, 0.30]，2 ms 淡入、尾部 0.1 s 淡出 → 0.28 s
+      oneshot_trim "$raw" "$wav" 0.02 0.30 0.002 0.1; finalize "$wav" "$out" 3 192k ;;
     *) echo "未知文件 $name" >&2; exit 1 ;;
   esac
 }
 
 names=("$@")
-if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch); fi
+if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop); fi
 for n in "${names[@]}"; do build "$n"; done
 echo "完成。测量：tools/audio_measure.sh"

@@ -33,7 +33,7 @@
 ## 进度（2026-11-14，分支 claude/kitchen-audio-e1e194，已合入 feat/visual-direction）
 
 - 七条已选音效已处理并接入：原档在 `tools/audio_raw/`，`tools/audio_build.sh` 重建、`tools/audio_measure.sh` 测量，处理与测量记在 `public/assets/audio/LICENSES.md`。状态均为 **已下载并处理（未经人耳试听）**。
-- 场景 → 声音对应表：`src/components/kitchen/audio-map.json`，覆盖新故事全部场景（v2 节拍 19 段含 drop，v1 18 段；含 search / eggcall / return / recognize / punchline），不改 beats 数据；文件 ↔ 场景 ↔ 状态表见 `public/assets/audio/README.md`。空位：stirfry、steps、pour、pop、momCall、eggCall、eggSmall。
+- 场景 → 声音对应表：`src/components/kitchen/audio-map.json`，覆盖新故事全部场景（v2 节拍 19 段含 drop，v1 18 段；含 search / eggcall / return / recognize / punchline），不改 beats 数据；文件 ↔ 场景 ↔ 状态表见 `public/assets/audio/README.md`。空位：stirfry（复用 sizzle）、pour、momCall、eggCall、eggSmall（用户决定保持）；steps、pop 已于 2026-11-14 接入。
 - 炒菜段：不另加翻炒循环，由 sizzle 0.45 承担持续底声 + stirfryIn 一声；是否需要真正的翻炒循环等人耳试听后再定。
 - 声音润色（2026-11-14 下午，均未经人耳试听）：hear 的渐变改到存在的阶段（hold）；对白留空间（idea 停留 sizzle 0.1→0.05；call/recognize/punchline 停留 room 0.2→0.14/0.14/0.12）；意外前的安静（missing 停留 sizzle 0.2→0.04，hear 进入阶段自动升回 0.6）；跨景由远到近（catch 动作阶段 sizzle 0.3→0.38 + 只给 sizzle 的低通随 flight 1.5 kHz→16 kHz，用 BiquadFilter 挂在现有 GainNode 后面，不改音频系统）；触发点 catch = `actionEnd`（阶段符号，混音器按当前节拍表换算：v1 0.78、v2 0.80）、bowlDown 0.25、pour 0.55。客观测量见 README「客观测量」。
 - v2 节拍（2026-11-14 晚，未经人耳试听）：新增 drop 段（蛋跳到桌沿、厨房转为纸面）room 0.2、sizzle 动作阶段 0.45→0.2 再到 bag 的 0.12，不加新声音；单次音效的 `at` 支持阶段符号 `enterEnd` / `actionEnd` / `holdEnd`（可带偏移），`withAudioMap` 与 `tools/audio_render_demo.mjs` 同步实现，两版节拍共用一张 audio-map。
@@ -46,12 +46,12 @@
 
 - room 回绕掉音已修（根因：限幅器 5 ms 前瞻在文件开头写入约 4 ms 静音，四个循环都有）。修法和 1 ms 分辨率的前后对比见 `public/assets/audio/README.md`「循环接缝」，验收命令 `node tools/audio_seam_check.mjs`。真实浏览器录音待素材会话重跑；人耳未试听。
 - 用户决定：翻炒复用 sizzle、不新增文件；pour 留空；momCall / eggCall / eggSmall 保留漫画文字、不加合成配音、留空。
-- steps / pop 候选（已核对许可页，**未下载、未试听**，下载需用户同意）：
+- steps / pop：2026-11-14 用户批准下载（非商用项目），已处理并接入，**未试听**。处理与测量见 LICENSES.md；电平：search 脚步 0.3，eggcall 退掉，return 进入 0→0.3、停留 0.3→0；pop 播放电平 0.5（hear p=0.35）。v2 的 closeup 在 audio-map 里覆盖为 room 0.12→0.08 安静收尾。
+- 当时的候选记录（已选第一项）：
   - steps：「01-24 Footsteps, Rug, Slippers, Slow Pace」，SpliceSound（Freesound）/ freesound_community，Pixabay Content License，30 s，地毯上穿拖鞋慢走。https://pixabay.com/sound-effects/film-special-effects-01-24-footsteps-rug-slippers-slow-pace-73912/
     备选（CC0，Freesound 下载需登录）：dynamique「Quiet footsteps indoors rubber shoes」18 s，https://freesound.org/people/dynamique/sounds/613723/ ；sturmankin「wood_03b_slippers_shuffle」36 s（拖鞋蹭地，非走路），https://freesound.org/people/sturmankin/sounds/273378/
   - pop：「Happy Pop 1」，floraphonic（与 sizzle、chop 同一作者），Pixabay Content License，约 1 s，可爱的小气泡「啵」。https://pixabay.com/sound-effects/film-special-effects-happy-pop-1-185286/
     备选：floraphonic「Jug Pop 1」约 1 s（口腔「啵」声）。
-  - 批准后的处理：steps 取一段做零交叉旋转 + 交叉淡化循环、电平按 search 段 0.5 起步再按听感调；pop 裁到起音、短淡出；两者加进 `available`、LICENSES.md / CREDITS.md 记一行。
 
 ## 需要集成会话改：
 
