@@ -248,7 +248,7 @@ function FlowLayer() {
   const g = t.index + t.p;
   const index: Record<string, number> = {};
   beats.forEach((b, i) => (index[b.id] = i));
-  const visible = PANELS.filter((p) => index[p.beat] !== undefined && g - index[p.beat] > -0.16 && g - index[p.beat] < 1.16);
+  const visible = PANELS.filter((p) => !p.hideInFlow && index[p.beat] !== undefined && g - index[p.beat] > -0.16 && g - index[p.beat] < 1.16);
   const groups: Record<string, PanelSpec[]> = {};
   for (const p of visible) if (p.role !== "closeup") (groups[p.beat] ??= []).push(p);
   const places: Record<string, Place> = {};
@@ -289,7 +289,56 @@ function FlowLayer() {
         if (p.key === "p3d") return <HearPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
         return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
       })}
+      <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} />
     </div>
+  );
+}
+
+/**
+ * 声音留白段的独立拟声字（不是对白泡）：画外从左边（饭桌、碗的方向；p5e 里妈妈向左回头）传来“嗒……”“嗒嗒”，停一拍，再是“妈！这里！”。
+ * 出现时刻读 quiet 段的 events（tap1 / tap2 / eggCall），声音的触发点读同一组值（audio-map "@tap1" 等）。
+ * 全部由滚动直接决定，没有计时器：倒滚就退回，快速滚过不会堆积，停在原地也不会重复。声音关闭时靠这些字理解剧情。
+ */
+function SoundText({ g, index, beats, portrait }: { g: number; index: Record<string, number>; beats: { id: string; events?: Record<string, number> }[]; portrait: boolean }) {
+  const qi = index["quiet"];
+  if (qi === undefined) return null;
+  const ev = beats[qi].events ?? {};
+  const at = (name: string) => qi + (ev[name] ?? 0.5);
+  const ei = index["eggcall"] ?? qi + 1;
+  // 每条字：从出现点开始 0.04 段内淡入，到 hideAt 段处淡出（落在下一格进场之前）
+  const items: { text: string; from: number; hideAt: number; x: number; y: number; size: number; rot: number; weight: number }[] = [
+    { text: "嗒……", from: at("tap1"), hideAt: qi + 0.92, x: 7, y: 40, size: 1.5, rot: -6, weight: 700 },
+    { text: "嗒嗒", from: at("tap2"), hideAt: qi + 0.92, x: 13, y: 47, size: 1.5, rot: 4, weight: 700 },
+    { text: "妈！这里！", from: at("eggCall"), hideAt: portrait ? ei - 0.02 : ei + 0.62, x: 6, y: 56, size: 2.3, rot: -3, weight: 800 }, // 竖屏漫画列满宽，回头格进场前淡出，不压格子
+  ];
+  const k = portrait ? 3.2 : 1; // 竖屏字号按视口宽放大，保证可读
+  return (
+    <>
+      {items.map((it) => {
+        const a = Math.min(Math.max((g - it.from) / 0.04, 0), 1) * (1 - Math.min(Math.max((g - it.hideAt) / 0.06, 0), 1));
+        if (a <= 0.001) return null;
+        return (
+          <div
+            key={it.text}
+            aria-live="polite"
+            className="absolute select-none whitespace-nowrap"
+            style={{
+              left: `${it.x}vw`,
+              top: `${it.y}vh`,
+              fontSize: `max(${it.size * k}vw, ${portrait ? 18 : 15}px)`,
+              fontWeight: it.weight,
+              fontFamily: '"PingFang SC", "Hiragino Sans GB", "Heiti SC", "Noto Sans SC", sans-serif',
+              color: "#3a2418",
+              letterSpacing: "0.06em",
+              opacity: a,
+              transform: `rotate(${it.rot}deg) translateY(${(1 - a) * 0.6}vh)`,
+            }}
+          >
+            {it.text}
+          </div>
+        );
+      })}
+    </>
   );
 }
 

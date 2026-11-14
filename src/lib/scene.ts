@@ -68,6 +68,7 @@ export const Z = {
   eggInPan: 40, // 锅里循环跳的蛋 + 影子（kitchen-scene）
   paper: 62, // 后景换场：浅纸面（盖住厨房，保留桌沿），在近景物件之上
   eggOnTable: 63, // 桌沿等待的蛋（在纸面之上、漫画之下）
+  catchPanel: 62, // 接蛋格（场景里的漫画格）：在纸面之上（同层、DOM 在后）、桌沿蛋之下，升起时不会盖住等待的蛋
   bowlFront: 64, // 环境段饭桌上碗的前沿遮挡层（后景会话提供），挡住碗里蛋的下半
   panRim: 50, // 红锅前沿遮挡层（layers）
   frontLeft: 60, // 吐司盘（layers）
