@@ -12,6 +12,7 @@
  */
 import gsap from "gsap";
 import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
+import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
 
 type Place = { x: number; y: number; w: number };
@@ -58,7 +59,7 @@ export function ChopPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place
     if (!el) return;
     stop();
     flag(true);
-    const contact = () => window.dispatchEvent(new CustomEvent("kitchen:oneshot", { detail: { sound: "chopHit" } }));
+    const contact = () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit" } }));
     const t = gsap.timeline({ delay: 0.3, onComplete: () => { tl.current = null; flag(false); } });
     for (let i = 0; i < 3; i++) {
       t.to(el, { rotation: -9, yPercent: -3, duration: 0.17, ease: "power2.out" }) // 抬刀（绕袖口）
