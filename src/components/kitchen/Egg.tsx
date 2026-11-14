@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
+import { beatById } from "@/lib/beats";
 import { ANCHORS, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import EggShadow from "./EggShadow";
@@ -18,6 +19,9 @@ const { eggRest: REST, eggSize: SIZE, panLaunch: START, spatulaLand: LAND, bowlL
 const JUMP_HEIGHT = 135;
 /** 接蛋弧线的控制点（二次贝塞尔）：先高高跳起，再落向前景铲面 */
 const CTRL = { x: 610, y: 260 };
+/** 触发后按秒播放的小动作时长，来自统一节拍表（先调滚动长度，再调这里） */
+const LAND_SQUASH_S = beatById("catch").seconds.landSquash ?? 0.7;
+const BOWL_SETTLE_S = beatById("serve").seconds.bowlSettle ?? 0.6;
 /** 放进饭碗时的小跳高度 */
 const SERVE_HOP = 110;
 
@@ -98,8 +102,8 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
     if (flight >= 1 && !landedRef.current && !reducedMotion) {
       landedRef.current = true;
       gsap.timeline({ delay: 0.2 })
-        .to(egg, { scaleX: S_SPAT * 1.18, scaleY: S_SPAT * 0.8, duration: 0.1, ease: "power1.out" })
-        .to(egg, { scaleX: S_SPAT, scaleY: S_SPAT, duration: 0.6, ease: "elastic.out(1, 0.45)" });
+        .to(egg, { scaleX: S_SPAT * 1.18, scaleY: S_SPAT * 0.8, duration: LAND_SQUASH_S * 0.15, ease: "power1.out" })
+        .to(egg, { scaleX: S_SPAT, scaleY: S_SPAT, duration: LAND_SQUASH_S * 0.85, ease: "elastic.out(1, 0.45)" });
     } else if (flight < 0.98) {
       landedRef.current = false;
     }
@@ -117,8 +121,8 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
     if (serve >= 1 && !servedRef.current && !reducedMotion) {
       servedRef.current = true;
       gsap.timeline({ delay: 0.2 })
-        .to(egg, { scaleX: S_BOWL * 1.12, scaleY: S_BOWL * 0.86, duration: 0.1, ease: "power1.out" })
-        .to(egg, { scaleX: S_BOWL, scaleY: S_BOWL, duration: 0.5, ease: "elastic.out(1, 0.5)" });
+        .to(egg, { scaleX: S_BOWL * 1.12, scaleY: S_BOWL * 0.86, duration: BOWL_SETTLE_S * 0.17, ease: "power1.out" })
+        .to(egg, { scaleX: S_BOWL, scaleY: S_BOWL, duration: BOWL_SETTLE_S * 0.83, ease: "elastic.out(1, 0.5)" });
     } else if (serve < 0.98) {
       servedRef.current = false;
     }

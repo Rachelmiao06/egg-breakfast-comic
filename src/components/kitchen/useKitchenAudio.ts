@@ -1,17 +1,19 @@
 "use client";
 /**
- * 厨房声音导演（docs/DESIGN.md §7）。素材库录音，不合成。
- * - 环境声 room-loop：打开声音后一直连续。
- * - 局部循环：按 activePanel 选一条，0.6 s 交叉淡化（切菜哒哒 / 翻炒 / 搅汁 / 煎蛋滋滋）。
- * - 单次音效：进入炒菜段"下锅滋啦"；flight 到 1"接蛋轻响"；serve 到 1"饭碗落桌"；进入结尾"淋汁"。
- *   回滚不重播，除非重新越过触发点。
+ * 厨房声音导演。素材库录音，不合成。**不自己定节奏**：所有音量和触发点来自统一节拍表
+ * （src/lib/beats.json，见 docs/BEATS.md），按 useScene().timeline 计算。
+ * - 循环声：每段 audio.loops 的稳定音量；进入阶段从上一段渐变过来；audio.fades 在指定阶段内渐变。
+ *   计算出的目标音量再经过一个很短的平滑（防止拖动滚动条时爆音）。
+ * - 单次音效：向下滚动越过 audio.oneshots.at 时播一次；回滚不播。
  * - 文件还没提供（404 / 解码失败）就保持静音；available 表示至少有一条能播。
  * - 浏览器拦截自动播放时，等下一次用户点击再试，不弹窗。
  */
 import { useEffect, useRef, useState } from "react";
+import { crossedOneShots, loopLevels, type LoopSound, type Timeline } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 
 const DIR = "/assets/audio/";
+/** 循环声文件。音量由节拍表 audio.loops 决定，这里的 volume 只是参考上限 */
 const LOOPS = {
   room: { file: "room-loop.mp3", volume: 0.25 },
   sizzle: { file: "sizzle-loop.mp3", volume: 0.55 },
@@ -25,22 +27,13 @@ const ONESHOTS = {
   bowlDown: { file: "bowl-down.mp3", volume: 0.6 },
   pour: { file: "pour.mp3", volume: 0.5 },
 } as const;
-type LoopName = keyof typeof LOOPS;
-type ShotName = keyof typeof ONESHOTS;
+type LoopName = LoopSound;
 
-/** 每个节拍的局部循环 */
-function localLoopFor(panel: number): LoopName | null {
-  if (panel === 1) return "chop";
-  if (panel === 2) return "stirfry";
-  if (panel === 3) return "sauce";
-  if (panel === 0 || (panel >= 4 && panel <= 6)) return "sizzle";
-  return null; // 7、8：只留环境声和单次音效
-}
-
-const FADE_PER_SEC = 1 / 0.6;
+/** 平滑速度：音量每秒最多变化这么多（满量程），只用于去掉跳变，节奏由节拍表决定 */
+const SLEW_PER_SEC = 2.5;
 
 export function useKitchenAudio() {
-  const { soundOn, activePanel, flight, serve } = useScene();
+  const { soundOn, timeline, beats } = useScene();
   const loops = useRef<Partial<Record<LoopName, HTMLAudioElement>>>({});
   const ok = useRef<Set<string>>(new Set());
   const targets = useRef<Partial<Record<LoopName, number>>>({});
@@ -81,21 +74,20 @@ export function useKitchenAudio() {
     };
   }, []);
 
-  // 目标音量：环境声 + 当前节拍的局部循环
+  // 目标音量：完全由节拍表推导
   useEffect(() => {
-    const local = localLoopFor(activePanel);
+    const levels = loopLevels(timeline, beats);
     for (const name of Object.keys(LOOPS) as LoopName[]) {
-      const on = soundOn && (name === "room" || name === local);
-      targets.current[name] = on ? LOOPS[name].volume : 0;
+      targets.current[name] = soundOn ? levels[name] : 0;
     }
-  }, [soundOn, activePanel]);
+  }, [soundOn, timeline, beats]);
 
   // 统一的淡入淡出循环；目标为 0 且音量到 0 时暂停
   useEffect(() => {
     let last = performance.now();
     const id = window.setInterval(() => {
       const now = performance.now();
-      const step = ((now - last) / 1000) * FADE_PER_SEC;
+      const step = ((now - last) / 1000) * SLEW_PER_SEC;
       last = now;
       for (const name of Object.keys(LOOPS) as LoopName[]) {
         const a = loops.current[name];
@@ -104,7 +96,7 @@ export function useKitchenAudio() {
         if (target > 0 && a.paused) {
           a.play().then(() => { unlocked.current = true; }).catch(() => {});
         }
-        const v = a.volume + Math.sign(target - a.volume) * Math.min(Math.abs(target - a.volume), step * LOOPS[name].volume);
+        const v = a.volume + Math.sign(target - a.volume) * Math.min(Math.abs(target - a.volume), step);
         a.volume = Math.min(1, Math.max(0, v));
         if (target === 0 && a.volume === 0 && !a.paused) a.pause();
       }
@@ -124,23 +116,20 @@ export function useKitchenAudio() {
     };
   }, []);
 
-  // 单次音效：越过触发点时播一次
-  const prev = useRef({ panel: activePanel, flight, serve });
+  // 单次音效：向下滚动越过节拍表里的触发点时播一次
+  const prevT = useRef<Timeline | null>(null);
   useEffect(() => {
-    const play = (name: ShotName) => {
+    const fired = crossedOneShots(prevT.current, timeline);
+    prevT.current = timeline;
+    if (!soundOn) return;
+    for (const name of fired) {
       const { file, volume } = ONESHOTS[name];
-      if (!soundOn || !ok.current.has(file)) return;
+      if (!ok.current.has(file)) continue;
       const a = new Audio(DIR + file);
       a.volume = volume;
       a.play().catch(() => {});
-    };
-    const p = prev.current;
-    if (activePanel === 2 && p.panel < 2) play("stirfryIn");
-    if (activePanel === 8 && p.panel < 8) play("pour");
-    if ((flight ?? 0) >= 1 && (p.flight ?? 0) < 1) play("catch");
-    if ((serve ?? 0) >= 1 && (p.serve ?? 0) < 1) play("bowlDown");
-    prev.current = { panel: activePanel, flight, serve };
-  }, [activePanel, flight, serve, soundOn]);
+    }
+  }, [timeline, soundOn]);
 
   return { available };
 }

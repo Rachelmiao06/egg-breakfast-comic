@@ -1,7 +1,9 @@
-# DESIGN.md — 共享设计规范与接口约定（第四版）
+# DESIGN.md — 共享设计规范与接口约定（第五版）
 
 三条并行分支都以这份文件为准。改这份文件只能在集成会话（main）上做。
-修订记录：v1 初稿 → v2 浮动漫画 → v3 妈妈前景 + 锅铲接蛋 → **v4（2026-11-13）菜品改为"妈妈的荷包蛋拌饭"，吐司结尾撤销，妈妈新素材到位**。
+修订记录：v1 初稿 → v2 浮动漫画 → v3 妈妈前景 + 锅铲接蛋 → v4 菜品改为"妈妈的荷包蛋拌饭" → **v5（2026-11-13）统一场景节拍表：所有节奏来自一份时间轴**。
+
+> **节奏的唯一来源是 `src/lib/beats.json`（可读版 `docs/BEATS.md`，调节页 `/dev/beats`）。** 下文 §1 的节拍内容、§7 的声音都以节拍表为准。
 
 ## 1. 故事节拍（固定）
 
@@ -34,22 +36,28 @@
 
 ## 3. 共享状态 `useScene()`（`src/lib/scene-context.tsx`）
 
-| 字段 | 谁写 | 谁读 | 含义 |
-|---|---|---|---|
-| `soundOn` | kitchen-scene | 全部 | 用户是否打开声音 |
-| `progress` 0–1 | comic-scroll | KitchenScene | 阅读弱化程度。0 = 厨房完整清晰，1 = 读前景漫画时的弱化 |
-| `activePanel` 0–8 | comic-scroll | 全部 | 当前节拍（§1），声音按它切换段落 |
-| `flight` null / 0–1 | comic-scroll | kitchen-scene、KitchenScene | null = 蛋在锅里循环跳；0→1 = 从锅里飞到锅铲上；1 = 已在锅铲上（触发接蛋轻响）。镜头随进度平移到锅铲 |
-| `serve` null / 0–1 | comic-scroll | kitchen-scene、KitchenScene | null = 还没放进碗；0→1 = 从铲面移到饭碗中央；1 = 已在饭上（触发饭碗落桌）。镜头对准饭碗 |
-| `reducedMotion` / `isTouch` | provider | 全部 | 减少动效时循环静止、飞行改淡入淡出；触屏关闭鼠标视差 |
+**只有一个节奏来源**：`<ScrollDriver>`（全站唯一的滚动监听）按滚动位置查节拍表，写入 `timeline`。其余字段都由 `derive(timeline)` 推导，**组件只读**。
+
+| 字段 | 来源 | 含义 |
+|---|---|---|
+| `timeline` | ScrollDriver | 当前段 `beat`、段内进度 `p`、阶段 `phase`（enter/action/hold/exit）、阶段内进度 `phaseP`、总进度 `overall` |
+| `activePanel` | derive | 当前段的 n（0–8） |
+| `progress` | derive | 厨房阅读弱化，按该段 `kitchenDim` 在进入/退出阶段插值 |
+| `flight` | derive | `egg: "flight"` 段 = 动作阶段进度；之前 null，之后 1 |
+| `serve` | derive | `egg: "serve"` 段 = 动作阶段进度；之前 null，之后 1 |
+| `soundOn` | SoundToggle | 用户是否打开声音 |
+| `beats` / `setBeats` | 调节页 | 临时替换节拍表试长度 |
+| `setProgress` 等 | 仅开发预览 | 手动覆盖，正式页面禁止调用 |
+
+推导工具（`src/lib/beats.ts`）：`envelope(t, id)` 段的显隐包络；`phaseProgress(t, phase)` 某阶段进度；`loopLevels(t)` 各循环声音量；`crossedOneShots(prev, cur)` 越过的单次音效。
 
 ## 4. 组件接口
 
 - `KitchenScene`（集成会话）：props `base?`（layers 交付后传 `<KitchenLayers/>`）、`children`（角色）、`foreground?`（前景妈妈）。负责阅读弱化和镜头。
 - `KitchenLayers`（layers 分支）：渲染 back / mid / panRim / frontLeft / frontRight 层（各用对应 `Z`），鼠标视差，随 `progress` 轻微景深漂移；吐司盘层默认隐藏（待替换）；`activePanel >= 5` 时 `momZone` 内的前景物件淡出给妈妈让位。不负责调暗。props：`{ mouse?: boolean }`。
 - 角色（kitchen-scene 分支，主会话）：`Egg`（循环跳 → 按 `flight` 从 `panLaunch` 飞到 `spatulaLand` 并缩到 `eggOnSpatula` → 按 `serve` 移到 `bowlLand` 并缩到 `eggInBowl`；z 从 40 切到 80）、`EggShadow`、`Flame`、`PanOil`、`Bubbles`、`Steam`、`SoundToggle`、`ScrollHint`、`useKitchenAudio`。
-- 漫画（comic-scroll 分支）：`ComicScroll`（页面层的滚动区和前景画格，写 `progress` / `activePanel` / `flight` / `serve`）+ `MomForeground`（场景层，z = 70：节拍 5–6 按 `MOM_SPATULA` 摆放锅铲妈妈，节拍 7 交叉淡化到 `MOM_SERVE` 端碗妈妈）。**不**渲染蛋本体，也不播放声音。
-- 动画统一 GSAP 3（`import gsap from "gsap"`，ScrollTrigger 从 `gsap/ScrollTrigger` 注册）。Canvas 粒子用原生 2D。不加新库。
+- 漫画（comic-scroll 分支）：`ComicScroll`（页面层、fixed 定位的前景画格，**只读 timeline**，用 `envelope` / `phaseProgress` 做进入、停留、退出；不定义滚动区高度、不注册 ScrollTrigger、不写共享状态）+ `MomForeground`（场景层，z = 70：节拍 5–6 按 `MOM_SPATULA` 摆放锅铲妈妈，节拍 7 交叉淡化到 `MOM_SERVE` 端碗妈妈）。**不**渲染蛋本体，也不播放声音。
+- 滚动驱动只有 `<ScrollDriver>`（集成会话）。GSAP 3 只用于被触发后按秒播放的小动作（时长写在节拍表 `seconds`），不用 ScrollTrigger。Canvas 粒子用原生 2D。不加新库。
 
 ## 5. 素材
 
@@ -82,19 +90,6 @@ public/assets/audio/                                       用户提供的录音
 不要 `npm install` 任何新包。每做完一个能看的阶段就 commit 到自己的分支并 push，不合并到 main。
 **开工前先 `git fetch origin && git merge origin/main`**，确保拿到这一版规范。
 
-## 7. 声音段落（主会话实现，comic-scroll 只负责在正确的滚动位置切换 `activePanel` / `flight` / `serve`）
+## 7. 声音
 
-背景环境声 `room-loop` 从用户打开声音起一直连续。局部音效随段落交叉淡化（0.6 s）：
-
-| 节拍 | 局部声音 | 文件 | 方式 |
-|---|---|---|---|
-| 0 开场 | 煎蛋滋滋（底声） | `sizzle-loop.mp3` | 循环 |
-| 1 切配菜 | 切菜哒哒 | `chop-loop.mp3` | 循环 |
-| 2 炒配菜 | 下锅滋啦 → 翻炒 | `stirfry-in.mp3` → `stirfry-loop.mp3` | 进入时单次 + 循环 |
-| 3 调汁 | 搅汁轻响 | `sauce-stir-loop.mp3` | 循环 |
-| 4–6 | 煎蛋滋滋回来 | `sizzle-loop.mp3` | 循环 |
-| 6 落在锅铲 | 接蛋轻响 | `catch.mp3` | `flight` 到 1 时单次 |
-| 7 放进碗 | 饭碗落桌 | `bowl-down.mp3` | `serve` 到 1 时单次 |
-| 8 结尾 | 淋汁（以后） | `pour.mp3` | 进入时单次（文件到了再接） |
-
-回滚时不重播单次音效，除非重新越过触发点。
+由主会话的 `useKitchenAudio` 按节拍表实现，见 `docs/BEATS.md` 每段的"循环声 / 渐变声 / 单次音效"。环境声 room 全程连续；局部循环声在每段进入阶段从上一段渐变过来；单次音效在向下滚过触发点时播一次，回滚不播。其他分支不播放声音。

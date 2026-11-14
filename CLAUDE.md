@@ -13,6 +13,11 @@ An interactive scroll-driven web comic ("荷包蛋的早餐"): a full-screen ani
 - `npm run lint` — ESLint (`eslint-config-next`)
 - No test runner is set up yet.
 
+## Rhythm (read before touching any animation or sound)
+
+- One source of truth for pacing: `src/lib/beats.json` (readable: `docs/BEATS.md`, live tuning: `/dev/beats`). `<ScrollDriver>` maps scroll → `useScene().timeline`; everything else is derived (`derive`, `envelope`, `phaseProgress`, `loopLevels` in `src/lib/beats.ts`). Never add another scroll listener or ScrollTrigger.
+- After editing beats.json run `node tools/beats_table.mjs` to regenerate `docs/BEATS.md`. Tune scroll lengths first, then `seconds`.
+
 ## Stack notes
 
 - Next.js 16 App Router, TypeScript, `src/app/` with `@/*` → `src/*`. This Next version differs from older training data: check `node_modules/next/dist/docs/` before using an API you are unsure of (see `AGENTS.md`, which `next dev` regenerates).
