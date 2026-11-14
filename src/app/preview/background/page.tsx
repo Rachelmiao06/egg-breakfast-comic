@@ -16,7 +16,7 @@ import KitchenScene from "@/components/kitchen/KitchenScene";
 import { flightPoint } from "@/components/kitchen/Egg";
 import { SCENE_H, SCENE_W } from "@/lib/scene";
 import { SceneProvider, useScene } from "@/lib/scene-context";
-import { backgroundState, HallwayBackdrop, Paper } from "../visual/Backdrops";
+import { backgroundState, SearchBackdrop, Paper } from "../visual/Backdrops";
 import ComicLayer from "../visual/ComicLayer";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, tableWaitFor } from "../visual/eggPath";
 import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "../visual/motion.v2";
@@ -113,7 +113,7 @@ function Hud({ narrow }: { narrow: boolean }) {
         {t.beat.n} {t.beat.id} · p {f(t.p)} · g {f(g)} · egg {t.beat.egg} · flight {flight === null ? "–" : f(flight)} · {narrow ? "窄布局" : "横版"}
       </div>
       <div>
-        后景 <b>{s.name}</b> · 纸面 {f(s.paper)} · 桌沿 {f(s.table)} · 饭桌下移 {s.lift.toFixed(0)} · 外围 {f(s.hallway)} 漂移 {s.drift.toFixed(2)}vw · 碗 {f(s.bowl)} · 厨房小角色 {f(s.reading)} · 收尾 {f(s.ending)}
+        后景 <b>{s.name}</b> · 纸面 {f(s.paper)} · 桌沿 {f(s.table)} · 饭桌下移 {s.lift.toFixed(0)} · 外围 {f(s.doorway)} 漂移 {s.drift.toFixed(2)}vw · 碗 {f(s.bowl)} · 厨房小角色 {f(s.reading)} · 收尾 {f(s.ending)}
       </div>
     </div>
   );
@@ -166,7 +166,7 @@ function Stage() {
           <KitchenCharacters eggAnchors={anchors} direct />
         </KitchenScene>
       </div>
-      <HallwayBackdrop />
+      <SearchBackdrop />
       {fg && <ComicLayer flow />}
       <ScrollDriver smooth />
       {!clean && <Hud narrow={!!cfg.narrow} />}

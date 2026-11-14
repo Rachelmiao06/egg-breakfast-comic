@@ -14,7 +14,7 @@ import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
 import { SceneProvider, useScene } from "@/lib/scene-context";
 import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
-import { HallwayBackdrop, Paper } from "./Backdrops";
+import { SearchBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, tableWaitFor } from "./eggPath";
@@ -130,7 +130,7 @@ function StageV2() {
           <KitchenCharacters eggAnchors={anchors} direct />
         </KitchenScene>
       </div>
-      <HallwayBackdrop />
+      <SearchBackdrop />
       <ComicLayer flow />
       <ScrollDriver smooth />
       <SoundToggle />

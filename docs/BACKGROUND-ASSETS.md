@@ -8,8 +8,8 @@
 | 源文件（new pics） | 实际内容（逐张打开确认） | 项目路径 | 组件 / 配置 | 出现段落 |
 |---|---|---|---|---|
 | `BG-kitchen-secret-friends.png` 1672×941 | 厨房台面、墙、窗。左边层板上有糖罐、酱油瓶两个小角色，右边菜篮旁有葱、胡萝卜两个小角色。台面大面积空着 | `source/bg-v3/BG-kitchen-secret-friends.png` → `public/assets/bg/kitchen-friends.webp`；拆层后 `kitchen-friends-base.webp`、`friends-soy.png`、`friends-jar.png`、`friends-scallion-leaves.png`、`friends-oil.png`、`friends-post.png` | `ReadingKitchen`（场景层，在纸面组里，跟随主体层视差，与蛋锁在一起）；`reading.src` / `srcBase` / `actors` / `occluders` / `window` | drop 78% 淡入 → bag … hear、catch、handoff … call、tablecall、return … punchline（寻找段被盖住）。横屏、4:3、860×1000 用它 |
-| `hallway-portrait.png` 852×1846 | **不是走廊**：是同一套厨房的竖版（窗、层板、糖罐、酱油瓶、葱、胡萝卜、台面），没有门口 | `public/assets/bg/kitchen-friends-portrait.webp` | `ReadingKitchen` 竖版；`reading.srcPortrait`（视口宽高比 < 0.6，即手机） | 同上，手机 |
-| `hallway-landscape.png` 1585×992 | 厨房 + 右边通往另一个房间的门口；小角色担心、“嘘”、思考 | `public/assets/bg/kitchen-doorway.webp` | `SearchSurround`（页面层，漫画之下）；`hallway.src`；竖屏按 `focusPortrait` 0.86 裁到门口一侧 | search、eggcall（tablecall 85% → search 25% 淡入，eggcall 70% → return 20% 淡出） |
+| `kitchen-friends-portrait.png` 852×1846（桌面原件 `hallway-portrait.png`）| **不是走廊**：是同一套厨房的竖版（窗、层板、糖罐、酱油瓶、葱、胡萝卜、台面），没有门口 | `public/assets/bg/kitchen-friends-portrait.webp` | `ReadingKitchen` 竖版；`reading.srcPortrait`（视口宽高比 < 0.6，即手机） | 同上，手机 |
+| `kitchen-doorway.png` 1585×992（桌面原件 `hallway-landscape.png`）| 厨房 + 右边通往另一个房间的门口；小角色担心、“嘘”、思考 | `public/assets/bg/kitchen-doorway.webp` | `SearchSurround`（页面层，漫画之下）；`doorway.src`；竖屏按 `focusPortrait` 0.86 裁到门口一侧 | search、eggcall（tablecall 85% → search 25% 淡入，eggcall 70% → return 20% 淡出） |
 | `BG-quiet-ending.png` 1672×941 | 淡出的厨房，小角色缩在两边角落，中间大片留白 | `public/assets/bg/quiet-ending.webp` | `EndingSheet`；`ending.src`，cover，focus (0.5, 0.7) | closeup（punchline 72% → closeup 40% 淡入） |
 | `table-band.png` 2172×724 | 一条空木板，有前缘线 | `source/bg-v3/table-band.png`（只存副本） | **未使用** | 阅读厨房自己有台面，再叠一条木板会出现两张桌子 |
 | `01–06 *.png`、`01-chopping-clean-plate.png`、`02-knife-arm-overlay-draft.png`、`03-mom-eyes-up.png`、`04-mom-puzzled.png` | 漫画页和格内表演素材 | 与项目里 `source/comic-v3/`、`source/comic-v3-perf/` 逐字节相同 | 前景（不归后景） | — |
@@ -44,7 +44,7 @@
 | 项目 | 为什么静态 | 要动起来需要补什么 |
 |---|---|---|
 | 胡萝卜（缩回菜篮） | 它背后是生菜和番茄，没有可用的底图，补不干净 | ①菜篮里**没有胡萝卜**的底图（生菜、玉米、番茄、篮沿完整）；②胡萝卜角色单独一张透明图（含两只扒在篮沿上的手）；③菜篮前沿单独一张透明遮挡层。三张都和 `BG-kitchen-secret-friends.png` 同尺寸、像素对齐 |
-| 竖版（手机）里的四个小角色 | 竖版没有拆层 | 同上的拆层，按 `hallway-portrait.png` 的尺寸：无角色的底图 + 每个角色透明层 + 遮挡物透明层 |
+| 竖版（手机）里的四个小角色 | 竖版没有拆层 | 同上的拆层，按 `kitchen-friends-portrait.png` 的尺寸：无角色的底图 + 每个角色透明层 + 遮挡物透明层 |
 | 寻找段（门口厨房）里的小角色 | 寻找段只出现约两屏，而且大部分被漫画格盖住，先不拆 | 需要的话同样补：无角色底图 + 角色透明层 |
 | 寻找段的竖版 | **缺图**：没有竖版的门口厨房 | 一张约 1200×2600 的竖版门口厨房（门口在画面中间偏右）。现在竖屏用横版裁切代替 |
 | 窗外远景 | 已做视差，但窗户在大部分节拍里只露出窗台 | 不需要补 |

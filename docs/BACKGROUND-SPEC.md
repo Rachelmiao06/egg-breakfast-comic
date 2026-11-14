@@ -1,6 +1,6 @@
 # 连续后景与蛋路径（技术条件）
 
-数据来源：镜头关键帧、换场曲线、占位色和图片槽位都在 `src/app/preview/visual/backgrounds.json`；节拍在 `beats.visual-v2.json`；漫画格位置在 `slots.json`。**正式图到位后只改 `backgrounds.json`（`table.src`、`hallway.src` / `srcPortrait`、`bowl.src` / `srcFront`），不改代码。**
+数据来源：镜头关键帧、换场曲线、占位色和图片槽位都在 `src/app/preview/visual/backgrounds.json`；节拍在 `beats.visual-v2.json`；漫画格位置在 `slots.json`。**正式图到位后只改 `backgrounds.json`（`table.src`、`doorway.src` / `srcPortrait`、`bowl.src` / `srcFront`），不改代码。**
 
 坐标约定：**场景坐标** = 原厨房画布 1536×1024 的像素；蛋的锚点是**脚底中心**。版位图在 `docs/bg-templates/`。
 
@@ -16,7 +16,7 @@
 |---|---|---|
 | 厨房分层（锅、灶） | opening、drop | 现有，复用 |
 | **阅读厨房**（台面 + 偷看的小角色） | drop 78% → punchline（寻找段除外） | **已替换**：`reading.src`（横版）、`srcPortrait`（手机）。台面前缘对齐桌沿线 y 995，蛋站在台面上；三个小角色有小动作 |
-| **寻找段：门口厨房** | search、eggcall | **已替换**：`hallway.src`。缺竖版，竖屏用横版裁切 |
+| **寻找段：门口厨房** | search、eggcall | **已替换**：`doorway.src`。缺竖版，竖屏用横版裁切 |
 | **收尾：安静的厨房** | closeup | **已替换**：`ending.src` |
 | B3 饭桌上的碗 | tablecall | 复用第 3 页 p3b 的碗，现在放在阅读厨房的台面上 |
 | 纸面、B1 桌沿带 | — | 保留为后备：`reading.src` 为空时才画；drop 换场时纸面先盖住旧厨房 |
@@ -35,7 +35,7 @@
 | catch | 桌沿 + 纸面 | 镜头移到 640,790、放大 1.08；蛋从桌沿等待点起跳飞进接蛋格 |
 | handoff … call | 饭桌（同一条桌沿） | `dinner` 曲线保留为位移旋钮（当前 0）：B1 正式图到位后如果桌面高度要为饭桌微调，只改这里 |
 | **tablecall**（环境段，无漫画格） | **空饭桌 + B3 碗**（复用 p3b 的碗）：后景是主体 | `bowl`：call 90% → tablecall 12% 碗淡入（蛋在 tablecall 进入阶段 40% 后才淡入，碗先在），search 15% → 30% 碗淡出（此时 B2 已盖满）。纸面保持干净，画面只有桌沿、碗和碗里喊话的蛋，突出“空”。镜头推到 700,880、放大 1.22 并跟随碗 |
-| search、eggcall | **B2 外围**，盖住全屏 | `hallway`：tablecall 85% → search 25% 淡入，eggcall 70% → return 20% 淡出。`hallwayDrift`：同一时段外围从右往左持续漂移 +2.5vw → −2.5vw（像镜头从饭桌转到家里另一处、再转回来） |
+| search、eggcall | **B2 外围**，盖住全屏 | `doorway`：tablecall 85% → search 25% 淡入，eggcall 70% → return 20% 淡出。`doorwayDrift`：同一时段外围从右往左持续漂移 +2.5vw → −2.5vw（像镜头从饭桌转到家里另一处、再转回来） |
 | return … punchline | 饭桌（B2 淡出后露回） | — |
 | closeup | **收尾平涂**，盖住全屏 | `ending`：punchline 72% → closeup 40% 淡入，之后安静停住 |
 
@@ -83,9 +83,9 @@
 
 ## 4. 接入方式（图到位后，只改 backgrounds.json）
 
-1. 文件放进 `public/assets/scene/`（B1 `table-band.webp`）和 `public/assets/bg/`（B2 `hallway-landscape.webp`、`hallway-portrait.webp`）。B3 已在 `public/assets/scene/bowl-body.png`、`bowl-front.png`（重跑 `python3 tools/prepare_bowl.py` 可重新生成）。
+1. 文件放进 `public/assets/scene/`（B1 `table-band.webp`）和 `public/assets/bg/`（B2 `search-backdrop-landscape.webp`、`search-backdrop-portrait.webp`）。B3 已在 `public/assets/scene/bowl-body.png`、`bowl-front.png`（重跑 `python3 tools/prepare_bowl.py` 可重新生成）。
 2. `backgrounds.json`：
    - `table.src` 填 B1 路径（`showBox` 已是 `[-232, 860, 2000, 400]`，图按它拉伸铺满；`topY` / `edgeY` 只在图的桌面高度和规格不同时改）；
-   - `hallway.src` 填 B2 横版，`hallway.srcPortrait` 填竖版；门框位置不同可调 `hallway.focus`（object-position，0–1）；视口宽高比低于 `hallway.portraitBelow`（1.0）用竖版；
+   - `doorway.src` 填 B2 横版，`doorway.srcPortrait` 填竖版；门框位置不同可调 `doorway.focus`（object-position，0–1）；视口宽高比低于 `doorway.portraitBelow`（1.0）用竖版；
    - B3 换图时：`bowl.src` / `bowl.srcFront` 换路径，`bowl.box`、`bowl.rim`、`bowl.rimFrontDy`、`bowl.baseDy` 按新图重算（相对 tableBowl，场景像素）。
 3. 不改镜头、蛋的锚点和漫画格。接入后跑 `node tools/bg_check.mjs`、`FLIGHT=1 node tools/bg_check.mjs` 和 `python3 tools/bg_tech.py`，再在 `/preview/background?guides=1` 截图复核。
