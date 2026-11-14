@@ -9,7 +9,7 @@ import data from "./beats.json";
 export const PHASES = ["enter", "action", "hold", "exit"] as const;
 export type Phase = (typeof PHASES)[number];
 export type LoopSound = "room" | "sizzle" | "chop" | "stirfry" | "sauce" | "steps";
-export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour" | "momCall" | "eggCall" | "pop" | "eggSmall";
+export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour" | "momCall" | "eggCall" | "pop" | "eggSmall" | "bowlTap1" | "bowlTap2";
 /** gone = 后景这颗蛋已交给漫画（漫画里画着蛋），后景隐藏，避免出现两颗蛋 */
 /**
  * 蛋在每段的状态（同一颗活动蛋）：
