@@ -4,7 +4,7 @@
  * 接蛋 / 饭碗的落点 = 格子 box + 格内相对位置 land，可在 ?debug=1 的定位点编辑器里现场微调。
  */
 import { createContext, useContext } from "react";
-import type { EggAnchors } from "@/components/kitchen/Egg";
+import type { EggAnchors, EggFaces } from "@/components/kitchen/Egg";
 import { ANCHORS } from "@/lib/scene";
 import data from "./slots.json";
 
@@ -52,7 +52,8 @@ export type HandoffSlot = {
 export type SlotConfig = {
   scene: { catch: SceneSlot; handoff?: HandoffSlot; bowl?: SceneSlot };
   /** onSpatulaTilt：停在铲面上的倾角（度，负 = 倒向左侧的妈妈，贴合铲面斜度）；flightLean：飞行中途额外前倾 */
-  egg: { onSpatulaScale: number; inBowlScale: number; onSpatulaTilt?: number; flightLean?: number };
+  /** faces：表情图（飞行期待 fly / 落稳安心 rest），与 egg.webp 同画布同轮廓；null = 未交付，用原图 */
+  egg: { onSpatulaScale: number; inBowlScale: number; onSpatulaTilt?: number; flightLean?: number; faces?: EggFaces };
   /** 运行时（page.tsx 按视口算）：接蛋镜头下可见的场景范围，交接格滑动以它为界 */
   view?: { x0: number; x1: number; y0: number; y1: number };
   /** 运行时：横版接蛋格放不下，已缩到可见宽度内（竖屏、窄窗口） */

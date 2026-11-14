@@ -48,10 +48,15 @@ export type EggAnchors = {
 };
 
 /**
- * 交接段（handoff enter 阶段进度）：先把活动蛋回正，再让交接格淡入（画里的蛋被上层的活动蛋盖住），
- * 最后活动蛋在很短的区间里淡出，避免两张脸长时间重叠。ScenePanels 读同一组数。
+ * 交接段（handoff enter 阶段进度）：先把活动蛋回正（下一格画里的蛋是直立的），交接格在活动蛋下方淡入——
+ * 两颗蛋按蛋黄中心对位，活动蛋整颗盖住画里的蛋（slots.json scene.handoff），所以这期间只看得到一颗蛋；
+ * 交接格完全不透明后，在 swap 这一点活动蛋瞬时消失（不淡化），画里的蛋接手。ScenePanels 读同一组数。
  */
-export const HANDOFF = { straighten: [0, 0.4], panelIn: [0.15, 0.5], eggOut: [0.5, 0.62] } as const;
+export const HANDOFF = { straighten: [0, 0.35], panelIn: [0.1, 0.45], swap: 0.5 } as const;
+
+/** 可选的表情图：与 egg.webp 同画布、同轮廓、同脚底锚点，只改脸。没给（null）就一直用原图 */
+export type EggFaces = { fly?: string | null; rest?: string | null };
+type Face = "base" | "fly" | "rest";
 const span = (v: number, [a, b]: readonly [number, number]) => clamp01((v - a) / (b - a));
 export const DEFAULT_EGG_ANCHORS: EggAnchors = {
   panLaunch: ANCHORS.panLaunch,
@@ -79,6 +84,7 @@ type Plan = {
   landing: Station | null; // 刚到达的站点（用于一次性落地回弹）
 };
 
+const b_isFlight = (b: Beat) => b.egg === "flight";
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
 const bez = (a: number, b: number, c: number, t: number) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -201,25 +207,46 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       const prev = beats[t.index - 1];
       const handingOff = !!prev && prev.egg === "flight"; // 只有接蛋之后的交接段淡出
       if (a.spatulaTilt !== undefined) {
-        // 回正 → 交接格淡入（被活动蛋盖住）→ 活动蛋短暂淡出
+        // 回正 → 交接格在下方淡入（画里的蛋被活动蛋整颗盖住）→ swap 点瞬时交接
         const e = t.phase === "enter" ? t.phaseP : 1;
         P.pose.rotation = a.spatulaTilt * (1 - smooth(span(e, HANDOFF.straighten)));
-        P.opacity = handingOff && t.phase === "enter" ? 1 - span(e, HANDOFF.eggOut) : 0;
+        P.opacity = handingOff && t.phase === "enter" && e < HANDOFF.swap ? 1 : 0;
       } else P.opacity = handingOff && t.phase === "enter" ? 1 - clamp01((t.phaseP - 0.25) / 0.75) : 0;
       return P;
     }
   }
 }
 
-export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = false }: { src?: string; anchors?: Partial<EggAnchors>; direct?: boolean }) {
+export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = false, faces }: { src?: string; anchors?: Partial<EggAnchors>; direct?: boolean; faces?: EggFaces }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const eggRef = useRef<HTMLImageElement>(null);
+  const eggRef = useRef<HTMLDivElement>(null); // 压缩回弹、原地小跳都作用在这一层（底图和表情图一起变形）
+  const baseImgRef = useRef<HTMLImageElement>(null);
+  const flyImgRef = useRef<HTMLImageElement>(null);
+  const restImgRef = useRef<HTMLImageElement>(null);
   const shadowRef = useRef<HTMLDivElement>(null);
   const { reducedMotion, timeline, beats } = useScene();
   const aKey = JSON.stringify(anchors ?? {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const a: EggAnchors = useMemo(() => ({ ...DEFAULT_EGG_ANCHORS, ...anchors }), [aKey]);
   const P = plan(timeline, beats, a);
+
+  // ---- 表情：直接切换（不做交叉淡化，任何时刻只显示一张脸） ----
+  // fly：接蛋飞行途中（滚动控制）；rest：由落铲那一次真实时间事件在压缩到底时切换，不跟滚动快慢走；其余用原图
+  const faceNow = useRef<Face>("base");
+  const restArmed = useRef(false); // 本次落铲事件已切到 rest
+  const setFace = (f: Face) => {
+    const want: Face = f !== "base" && !faces?.[f] ? "base" : f;
+    faceNow.current = want;
+    const els: [Face, HTMLImageElement | null][] = [["base", baseImgRef.current], ["fly", flyImgRef.current], ["rest", restImgRef.current]];
+    for (const [k, el] of els) if (el) el.style.visibility = k === want ? "visible" : "hidden";
+  };
+  const onSpatula = P.station === "spatula";
+  const flying = b_isFlight(timeline.beat) && P.station === null;
+  useEffect(() => {
+    if (flying) { restArmed.current = false; setFace("fly"); }
+    else if (onSpatula) { if (restArmed.current || reducedMotion) setFace("rest"); }
+    else { restArmed.current = false; setFace("base"); }
+  });
 
   // ---- 外层：位置（滚动控制或站点） ----
   const lastStation = useRef<Station | null>(null);
@@ -241,6 +268,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
         // 落铲：一次轻微压缩 → 小回弹 → 停稳（不连续弹跳，压缩量小，五官不变形）
         gsap.timeline()
           .to(s, { scaleX: 1.08, scaleY: 0.9, duration: LAND_SQUASH_S * 0.13, ease: "power2.out", transformOrigin: "50% 100%", overwrite: "auto" })
+          // 压缩到底的那一刻换成安心表情（同一次落地事件，真实时间；若此时已经被滚回飞行中就不换）
+          .call(() => { if (lastStation.current === "spatula") { restArmed.current = true; setFace("rest"); } })
           .to(s, { scaleX: 0.98, scaleY: 1.03, duration: LAND_SQUASH_S * 0.2, ease: "sine.out" })
           .to(s, { scaleX: 1, scaleY: 1, duration: LAND_SQUASH_S * 0.3, ease: "sine.inOut" });
       } else
@@ -248,7 +277,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           .to(s, { scaleX: 1.18, scaleY: 0.8, duration: LAND_SQUASH_S * 0.15, ease: "power1.out", transformOrigin: "50% 100%" })
           .to(s, { scaleX: 1, scaleY: 1, duration: LAND_SQUASH_S * 0.85, ease: "elastic.out(1, 0.45)" });
     }
-    lastLanding.current = P.landing;
+    // 停在同一站上（如接蛋停留 → 交接段）不算离开，来回滚动不会重播落地回弹；真正离开（飞起、换站）才重新计
+    if (P.landing || P.station !== lastLanding.current) lastLanding.current = P.landing;
   });
 
   // ---- 内层：站点上的自主小跳（真实时间） ----
@@ -352,8 +382,19 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
             transition: "opacity 0.2s",
           }}
         />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img ref={eggRef} data-active-egg src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none will-change-transform" />
+        <div ref={eggRef} className="absolute inset-0 will-change-transform">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img ref={baseImgRef} data-active-egg src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
+          {/* 表情图预先加载、默认隐藏；切换只改 visibility，同一帧内只有一张脸 */}
+          {faces?.fly && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img ref={flyImgRef} src={faces.fly} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" style={{ visibility: "hidden" }} />
+          )}
+          {faces?.rest && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img ref={restImgRef} src={faces.rest} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" style={{ visibility: "hidden" }} />
+          )}
+        </div>
       </div>
     </FollowMid>
   );
