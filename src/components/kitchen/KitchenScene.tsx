@@ -14,7 +14,8 @@ import { useScene } from "@/lib/scene-context";
 
 export default function KitchenScene({ children, base, foreground }: { children?: ReactNode; base?: ReactNode; foreground?: ReactNode }) {
   const { progress, flight, serve } = useScene();
-  const dim = flight !== null ? Math.min(progress, 0.15) : progress;
+  // 接蛋飞行时弱化退回很轻；放进饭碗（serve）时由 comic-scroll 的 progress 决定，可以重新弱化突出前景
+  const dim = flight !== null && serve === null ? Math.min(progress, 0.15) : progress;
   const f = flight ?? 0;
   const ease = (t: number) => t * t * (3 - 2 * t);
   const focus =
