@@ -92,13 +92,24 @@ function StageV2() {
     // 横版布局放不下时（竖屏、窄窗口）桌沿等待点也换成竖版的，免得蛋在镜头外等待
     tableWait: cfg.narrow ? BG.anchors.portraitTableWait : BG.anchors.tableWait,
     eggAtTable: BG.anchors.eggAtTable,
+    // 环境段 tablecall：饭桌上的碗（后景会话提供碗；这里只给蛋的脚底点和大小）
+    bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
+    eggInBowl: BG.anchors.eggInTableBowl,
     // 飞行最高点在接蛋格上框之上（格高的 12%）：蛋越过格框和对白泡，再落到铲面；再高在横屏会顶出画面上沿
     flightApexY: Math.round(box[1] - box[3] * 0.12),
   };
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;
   if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight);
-  const cam = cameraV2(g, eggPt);
+  // 环境段（蛋是主体）：镜头水平方向主要跟着蛋的站点，窄屏、竖屏也不会把蛋切出画面；进入和离开时按段内进度渐变
+  let follow: number | undefined;
+  const envEgg = t.beat.egg === "ready" ? anchors.tableWait : t.beat.egg === "inBowl" ? anchors.bowlLand : null;
+  if (envEgg) {
+    const w = t.phase === "enter" ? t.phaseP : t.phase === "exit" ? 1 - t.phaseP : 1;
+    eggPt = { x: envEgg.x, y: envEgg.y - 120 };
+    follow = 0.85 * (w * w * (3 - 2 * w));
+  }
+  const cam = cameraV2(g, eggPt, follow);
   return (
     <>
       <div className="fixed inset-0 z-0">

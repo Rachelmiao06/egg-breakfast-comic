@@ -37,11 +37,12 @@ export function curve(keys: [string, number, number][], g: number) {
 }
 
 /** 连续镜头：关键帧之间平滑插值；接蛋动作阶段额外轻微跟随蛋 */
-export function cameraV2(g: number, egg?: { x: number; y: number } | null): Cam {
+/** egg：要跟随的蛋位置；follow：跟随权重（默认 backgrounds.json 的 followEgg；环境段由页面传入较大的值，让蛋在任何视口都在画面里） */
+export function cameraV2(g: number, egg?: { x: number; y: number } | null, follow: number = bg.camera.followEgg): Cam {
   const K = bg.camera.keys as [string, number, number, number, number, number, number][];
   const ch = (j: number) => curve(K.map((k) => [k[0], k[1], k[j]] as [string, number, number]), g);
   const cam: Cam = { x: ch(2), y: ch(3), zoom: ch(4), at: { x: ch(5), y: ch(6) } };
-  if (egg) { cam.x += (egg.x - cam.x) * bg.camera.followEgg; cam.y += (egg.y - cam.y) * bg.camera.followEgg; }
+  if (egg) { cam.x += (egg.x - cam.x) * follow; cam.y += (egg.y - cam.y) * follow; }
   return cam;
 }
 
