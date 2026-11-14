@@ -6,7 +6,7 @@ import { ANCHORS } from "@/lib/scene";
 const W = 250;
 const H = 46;
 
-const EggShadow = forwardRef<HTMLDivElement, { zIndex?: number }>(function EggShadow({ zIndex }, ref) {
+const EggShadow = forwardRef<HTMLDivElement>(function EggShadow(_, ref) {
   return (
     <div
       ref={ref}
@@ -23,8 +23,6 @@ const EggShadow = forwardRef<HTMLDivElement, { zIndex?: number }>(function EggSh
           "radial-gradient(ellipse at center, rgba(70,42,18,0.5) 0%, rgba(70,42,18,0.22) 45%, rgba(70,42,18,0) 72%)",
         transformOrigin: "50% 50%",
         opacity: 0.45,
-        zIndex,
-        translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)",
       }}
     />
   );
