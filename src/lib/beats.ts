@@ -37,6 +37,8 @@ export type Beat = {
     oneshots: { sound: OneShotSound; at: number }[];
   };
   seconds: Record<string, number>;
+  /** 段内命名事件（0–1）：画面（拟声字等）和声音（audio-map 写 "@名字"）读同一个值，例如 quiet 段的 tap1 / eggCall */
+  events?: Record<string, number>;
 };
 
 /** 读入并校验节拍表：阶段比例和为 1、弱化三元组、长度为正。写错时在开发期直接报错。 */
@@ -87,6 +89,7 @@ export function phaseEdges(b: Beat) {
 export type EggEvent = "eggOnTable" | "eggOnSpatula" | "eggInBowl";
 export const EGG_EVENTS: Record<EggEvent, EggMode> = { eggOnTable: "toTable", eggOnSpatula: "flight", eggInBowl: "serve" };
 export function eventAt(b: Beat, ev: string): number | null {
+  if (b.events && ev in b.events) return b.events[ev];
   const mode = (EGG_EVENTS as Record<string, EggMode | undefined>)[ev];
   if (!mode || b.egg !== mode) return null;
   return phaseEdges(b)[2];
