@@ -52,7 +52,7 @@ await send("Runtime.enable");
 
 const MEASURE = `(() => {
   const eggs=[...document.images].filter(i=>i.src.includes('egg.webp'));
-  const img=eggs[0], wrap=img&&img.parentElement;
+  const img=eggs[0]; let wrap=img&&img.parentElement; if(wrap&&wrap.classList.contains('inset-0')) wrap=wrap.parentElement; // 蛋图外面多了一层表演用的 div，取真正带站点位移的外层
   let op=1; for(let e=wrap;e&&e!==document.body;e=e.parentElement){op*=+getComputedStyle(e).opacity;}
   const r=e=>{if(!e)return null;const b=e.getBoundingClientRect();return {x:+b.x.toFixed(1),y:+b.y.toFixed(1),w:+b.width.toFixed(1),h:+b.height.toFixed(1)}};
   const W=r(wrap);
@@ -73,7 +73,8 @@ const go = async (vh, settle = 700) => {
 };
 const beatOf = (vh) => { let b = beats[0]; for (const x of beats) if (vh >= starts[x.id]) b = x; return { id: b.id, p: (vh - starts[b.id]) / b.lengthVh }; };
 // 蛋在桌沿：drop 落定（动作阶段 0.15+0.6 = 0.75 之后，留 0.05 余量）→ catch 起跳（enter 0.22）之前
-const onTable = (vh) => vh >= at("drop", 0.8) && vh <= at("catch", 0.2);
+// 蛋在桌沿且应在画面里：drop 落桌 → hear 中段，以及 catch 18% → 起跳；hear 结尾到 catch 开头是 listen 停顿，镜头故意让蛋出画
+const onTable = (vh) => (vh >= at("drop", 0.8) && vh <= at("hear", 0.5)) || (vh >= at("catch", 0.18) && vh <= at("catch", 0.2));
 const afterHandoff = (vh) => vh >= at("handoff", 0.36);
 const inTablecall = (vh) => vh >= starts.tablecall && vh < starts.search;
 
@@ -127,8 +128,8 @@ if (process.env.FLIGHT) {
   const named = { 0: "1-launch", 0.3: "2-cross", 0.6: "2b-apex", 0.85: "3-descend", 1: "4-land" };
   const FM = `(() => { const egg=document.querySelector('img[data-active-egg]'); const pan=[...document.images].find(i=>i.src.includes('p3e'));
     const r=e=>{if(!e)return null;const b=e.getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height}};
-    let op=1; for(let e=egg&&egg.parentElement;e&&e!==document.body;e=e.parentElement){op*=+getComputedStyle(e).opacity;}
-    const wrap=egg&&egg.parentElement;
+    let wrap=egg&&egg.parentElement; if(wrap&&wrap.classList.contains('inset-0')) wrap=wrap.parentElement;
+    let op=1; for(let e=wrap;e&&e!==document.body;e=e.parentElement){op*=+getComputedStyle(e).opacity;}
     // 场景舞台（SceneStage 内层 1536×1024，transform = translate + scale）：屏幕坐标 → 场景坐标，排除镜头移动的影响
     const st=[...document.querySelectorAll('div')].find(d=>d.style.width==='1536px'&&d.style.transform.includes('scale('));
     const M=new DOMMatrix(getComputedStyle(st).transform); const toS=(b)=>b&&({x:(b.x-M.e)/M.a,y:(b.y-M.f)/M.a,w:b.w/M.a,h:b.h/M.a});
