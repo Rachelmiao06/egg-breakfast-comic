@@ -54,8 +54,7 @@ const LOOP_FILES: Record<LoopSound, string> = {
  */
 type EventSound = "chopHit";
 /** 只在 audio-map 里用、由滚动越过触发点触发的单次音效（共享的 OneShotSound 类型里没有，运行时照样经节拍表的 oneshots 传递） */
-type MapOnlySound = "hopTap1" | "hopTap2" | "hopTap3";
-type ShotSound = OneShotSound | EventSound | MapOnlySound;
+type ShotSound = OneShotSound | EventSound;
 const EVENT_SOUNDS: readonly EventSound[] = ["chopHit"];
 /** 解码成 AudioBuffer 播放：每次触发新建节点，快速连续触发可以重叠，并可以带声像 */
 const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3"];
@@ -77,9 +76,6 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number }
   hopTap1: { file: "hop-tap-1.mp3", volume: 0.2, pan: 0.6 },
   hopTap2: { file: "hop-tap-2.mp3", volume: 0.2, pan: 0.6 },
   hopTap3: { file: "hop-tap-3.mp3", volume: 0.2, pan: 0.6 },
-  // 共享类型 OneShotSound 里还登记着寻找段 quiet 的敲碗声；该段已撤回（用户纠正），这两项保持空位：不在 available 里、不请求文件
-  bowlTap1: { file: "bowl-tap-1.mp3", volume: 0.3, pan: -0.6 },
-  bowlTap2: { file: "bowl-tap-2.mp3", volume: 0.3, pan: -0.6 },
 };
 /** 可以写进节拍表 / audio-map 的单次音效（事件触发的不在其中） */
 const ONESHOT_SOUNDS = (Object.keys(ONESHOTS) as ShotSound[]).filter((n) => !(EVENT_SOUNDS as readonly string[]).includes(n));
@@ -143,7 +139,7 @@ export function withAudioMap(beats: Beat[]): MappedBeat[] {
       if (!(ONESHOT_SOUNDS as string[]).includes(o.sound)) { warnOnce(`audio-map.json: 场景 ${b.id} 的单次音效 ${o.sound} 未登记`); continue; }
       const at = resolveAt(b, o.at);
       if (at === null) { warnOnce(`audio-map.json: 场景 ${b.id} 的触发点 ${String(o.at)} 不认识（数字、enterEnd/actionEnd/holdEnd±偏移，或本段存在的共享事件 @eggOnTable/@eggOnSpatula/@eggInBowl）`); continue; }
-      // MapOnlySound（hopTap1/2/3）不在共享类型里：这里只做类型转换，运行时名字原样传给 crossedShots → fire
+      // hopTap1/2/3 已在共享类型 OneShotSound 里，名字原样传给 crossedShots → fire
       oneshots.push({ sound: o.sound as OneShotSound, at });
     }
     const resolveRamps = (list: { sound: string; from: number; to: number; start: At; end: At }[] | undefined, kind: string): Ramp[] => {
