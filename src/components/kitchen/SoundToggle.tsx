@@ -1,7 +1,10 @@
 "use client";
-/** 右下角的小声音开关。没有文字，只有图标；音效文件未提供时依旧可点（静音预览）。 */
+/**
+ * 右下角的小声音开关。没有文字，只有图标；音效文件未提供时依旧可点（静音预览）。
+ * 打开时在点击手势里同步解锁 AudioContext（iOS 只认手势里的启动）。
+ */
 import { useScene } from "@/lib/scene-context";
-import { useKitchenAudio } from "./useKitchenAudio";
+import { unlockKitchenAudio, useKitchenAudio } from "./useKitchenAudio";
 
 export default function SoundToggle() {
   const { soundOn, setSoundOn } = useScene();
@@ -10,7 +13,10 @@ export default function SoundToggle() {
   return (
     <button
       type="button"
-      onClick={() => setSoundOn(!soundOn)}
+      onClick={() => {
+        if (!soundOn) unlockKitchenAudio();
+        setSoundOn(!soundOn);
+      }}
       aria-label={label}
       aria-pressed={soundOn}
       title={available === false ? `${label}（音效待添加）` : label}
