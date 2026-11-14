@@ -72,13 +72,11 @@ def dark_region(dark_seeds, light_seeds, box, dark=85, open_k=7):
     return cv2.dilate(m, np.ones((3, 3), np.uint8)) & lim
 
 masks = {k: region(**v) for k, v in SPEC.items() if k != "soy"}
-masks["soy"] = dark_region(**SOY)
-# 酱油瓶是凸的：取凸包补上脸部靠边被切掉的部分（右眼、腮红），右边不越过层板立柱
-_cnts, _ = cv2.findContours(masks["soy"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-_hull = cv2.convexHull(np.vstack(_cnts))
-_m = np.zeros((H, W), np.uint8); cv2.fillPoly(_m, [_hull], 1)
-_m[:, SOY["box"][2] - 2:] = 0
-masks["soy"] = _m
+# 酱油瓶：瓶身和墨线、层板侧面一样暗，自动分割在右缘不可靠。按放大图逐点量出的轮廓画多边形（图片像素）：
+# 瓶盖 x 299–358（左边藏在油瓶后，油瓶在上层遮挡），瓶颈 x ≤ 348，瓶身最宽到 x 366（再往右是层板立柱，立柱在上层遮挡），脚到 y 678
+SOY_POLY = np.array([(299, 440), (359, 440), (359, 482), (349, 485), (349, 521), (358, 536), (364, 560), (367, 600), (366, 650), (362, 668), (356, 679), (299, 679)], np.int32)
+masks["soy"] = np.zeros((H, W), np.uint8)
+cv2.fillPoly(masks["soy"], [SOY_POLY], 1)
 occ = {k: region(**v) for k, v in OCCL.items()}
 # 遮挡物里不能带角色的像素（否则角色转动时那一小条留在原地）
 for k in occ:
@@ -111,6 +109,23 @@ hole[SPEC["scallion-leaves"]["ymax"] - 10:SPEC["scallion-leaves"]["ymax"] + 8, 1
 # 遮挡物本身不补（它们在最上层原样盖着）
 for m in occ.values(): hole &= (1 - m)
 base = cv2.inpaint(img, hole * 255, 7, cv2.INPAINT_TELEA)
+# 酱油瓶往左倒时，瓶盖、瓶颈右边会露出一条：这里本来是层板侧面（竖向木纹的深色板，在瓶子右缘和立柱 x 362 之间）。
+# 不用模糊的 inpaint：每一行取瓶子右缘外到立柱之间露在外面的原图像素（至少 3 列），往左来回镜像延续，木纹自然接上。
+POST_X = 362
+SIDE_REF = img[495:532, 350:361].copy()
+for y in range(436, 600):
+    xs = np.nonzero(masks["soy"][y, 280:POST_X])[0]
+    if len(xs) == 0: continue
+    xr = 280 + xs.max()
+    src = img[y, xr + 1:POST_X].copy()
+    # 露出来的侧面不够宽（瓶盖那几行、瓶身贴着立柱的几行）：用瓶颈旁边确认露在外面的一段侧面（x 350–361，y 495–532）按行循环
+    if len(src) < 6: src = SIDE_REF[(y - 495) % SIDE_REF.shape[0]]
+    n = len(src)
+    for x in range(xr, 296, -1):
+        if not hole[y, x]: break
+        d = xr - x
+        k = d % (2 * n)
+        base[y, x] = src[k if k < n else 2 * n - 1 - k]
 cv2.imwrite(f"{OUT}/kitchen-friends-base.png", base)
 from PIL import Image
 Image.open(f"{OUT}/kitchen-friends-base.png").save(f"{OUT}/kitchen-friends-base.webp", quality=90, method=6)
