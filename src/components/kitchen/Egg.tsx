@@ -66,7 +66,7 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
   const nextBeat = beats[timeline.index + 1];
   const settle =
     (timeline.beat.egg === "flight" && flight === null) ||
-    (nextBeat?.egg === "flight" && (timeline.phase === "hold" || timeline.phase === "exit"));
+    (nextBeat?.egg === "flight" && timeline.phase === "exit"); // 只在上一段退出阶段待命，"听见跳蛋"阅读时蛋仍在跳
   const settleRef = useRef(settle);
   const kickRef = useRef<(() => void) | null>(null);
   useEffect(() => {
