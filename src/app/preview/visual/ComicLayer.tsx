@@ -309,7 +309,7 @@ function SoundText({ g, index, beats, portrait }: { g: number; index: Record<str
   const items: { text: string; from: number; hideAt: number; x: number; y: number; size: number; rot: number; weight: number }[] = [
     { text: "嗒……", from: at("tap1"), hideAt: qi + 0.92, x: 7, y: 40, size: 1.5, rot: -6, weight: 700 },
     { text: "嗒嗒", from: at("tap2"), hideAt: qi + 0.92, x: 13, y: 47, size: 1.5, rot: 4, weight: 700 },
-    { text: "妈！这里！", from: at("eggCall"), hideAt: ei + 0.62, x: 6, y: 56, size: 2.3, rot: -3, weight: 800 },
+    { text: "妈！这里！", from: at("eggCall"), hideAt: portrait ? ei - 0.02 : ei + 0.62, x: 6, y: 56, size: 2.3, rot: -3, weight: 800 }, // 竖屏漫画列满宽，回头格进场前淡出，不压格子
   ];
   const k = portrait ? 3.2 : 1; // 竖屏字号按视口宽放大，保证可读
   return (
