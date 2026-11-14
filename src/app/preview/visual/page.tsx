@@ -17,6 +17,7 @@ import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import { SearchBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
+import { HEAR_CUE, usePerfEnabled } from "./PanelPerf";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, tableWaitFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
@@ -87,6 +88,7 @@ function StageV2() {
   const debug = useParam("debug") !== null;
   const clean = useParam("clean") !== null;
   const g = gNow(t);
+  const perfOn = usePerfEnabled();
   const anchors = {
     ...eggAnchorsFrom(cfg),
     // 桌沿等待点 = 起跳点：在铲面落点右侧（妈妈面朝右、锅铲向右伸，蛋从她右侧、铲面右上方飞来），按视口布局算（eggPath.ts）
@@ -103,6 +105,10 @@ function StageV2() {
     flightLean: cfg.egg.flightLean,
     // 交接：回正的同时以脚底为轴缩到画里那颗蛋的外轮廓宽度（slots.json scene.handoff / egg）；交接格按缩小后的蛋黄摆放
     handoffShrink: handoffShrinkFor(cfg),
+    // hear：与妈妈抬眼同一时刻触发的抬头一跳（PanelPerf HEAR_CUE）；蛋升到前景格右上方、她的视线里，再落回桌沿。表演关闭时不跳
+    ...(perfOn
+      ? { peek: { beat: "hear", start: HEAR_CUE.start, reset: HEAR_CUE.reset, leave: HEAR_CUE.leave, panelSelector: 'img[src*="/p3d"]', gazeFy: 0.12, margin: 14, rise: 0.8, hang: 0.22, fall: 0.5 } }
+      : {}),
   };
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;

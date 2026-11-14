@@ -17,6 +17,12 @@ import type { PanelSlot } from "./slots";
 
 type Place = { x: number; y: number; w: number };
 const START = 0.36, RESET = 0.3, LEAVE = 0.72;
+/**
+ * 听见格 p3d 的表演时机（段内 q 越过 start 时同时触发）：后景的蛋同一时刻起跳（Egg peek），
+ * eyesMs 时妈妈抬眼看向右上（蛋正在上升），蛋随后到达最高点，puzzMs 时露出疑惑（蛋已在下落）。
+ * 蛋和表情读同一组数，保证“蛋起跳 → 妈妈抬眼 → 蛋到高点”是同一段动作。
+ */
+export const HEAR_CUE = { start: START, reset: RESET, leave: LEAVE, eyesMs: 500, puzzMs: 1300 } as const;
 const P = "/assets/comic-v3/perf/";
 
 export function usePerfEnabled() {
@@ -129,8 +135,8 @@ export function HearPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place
     show(0);
     flag(true);
     timers.current = [
-      window.setTimeout(() => show(1), 500), // 先停住，再抬眼
-      window.setTimeout(() => { show(2); timers.current = []; flag(false); }, 1300), // 露出疑惑，停住
+      window.setTimeout(() => show(1), HEAR_CUE.eyesMs), // 蛋起跳后抬眼（蛋正在上升）
+      window.setTimeout(() => { show(2); timers.current = []; flag(false); }, HEAR_CUE.puzzMs), // 露出疑惑，停住
     ];
   };
   // 离开时：还没播完就直接落到结尾表情（疑惑），保证这一格的终态始终一致；
