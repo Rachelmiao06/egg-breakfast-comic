@@ -1,5 +1,5 @@
 {
- "note": "新版（v2）节拍表：同一套故事与画格，增加 drop（锅→桌沿），蛋在桌沿等待到接蛋；阅读段以流动为主（进入 34% / 停留 36% / 离开 30%），只有关键动作停留。场景编号与 v1 相同，另加 drop。",
+ "note": "新版（v2）节拍表：同一套故事与画格，增加 drop（锅→桌沿），蛋在桌沿等待到接蛋；阅读段以流动为主（进入 34% / 停留 36% / 离开 30%），只有关键动作停留。场景编号与 v1 相同，另加 drop。 结尾：punchline 读完后格子离开，closeup 为独立收尾镜头（妈妈表情特写 + 三个点，真实时间依次出现，不循环）；尾部空滚缩短。 环境段：missing 与 hear 之间的 prejump（蛋在桌沿蓄力准备跳），call 与 search 之间的 tablecall（空桌上碗里的蛋呼喊）；没有漫画格，后景是主体。总长基本不变（缩短普通阅读段换来）。",
  "beats": [
   {
    "id": "opening",
@@ -68,7 +68,7 @@
    "id": "bag",
    "n": 2,
    "title": "进门放下买菜袋：\"呼……\"",
-   "lengthVh": 130,
+   "lengthVh": 115,
    "pin": "prep",
    "phases": {
     "enter": 0.34,
@@ -96,7 +96,7 @@
    "id": "idea",
    "n": 3,
    "title": "\"今天给宝宝做点什么呢？\" \"先炒个配菜饭吧。\"",
-   "lengthVh": 140,
+   "lengthVh": 120,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -124,7 +124,7 @@
    "id": "chop",
    "n": 4,
    "title": "切菜：\"哒、哒、哒\"",
-   "lengthVh": 140,
+   "lengthVh": 130,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -153,7 +153,7 @@
    "id": "stirfry",
    "n": 5,
    "title": "下锅：\"滋啦——\"、翻炒",
-   "lengthVh": 135,
+   "lengthVh": 115,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -187,7 +187,7 @@
    "id": "sauce",
    "n": 6,
    "title": "调汁、盛饭",
-   "lengthVh": 125,
+   "lengthVh": 110,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -216,7 +216,7 @@
    "id": "missing",
    "n": 7,
    "title": "\"是不是还少点什么……\"",
-   "lengthVh": 120,
+   "lengthVh": 110,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -241,10 +241,46 @@
    }
   },
   {
-   "id": "hear",
+   "id": "prejump",
    "n": 8,
+   "title": "环境段：桌沿上的小蛋准备起跳（漫画格全部离开，后景成为主体）",
+   "lengthVh": 100,
+   "pin": null,
+   "phases": {
+    "enter": 0.3,
+    "action": 0,
+    "hold": 0.55,
+    "exit": 0.15
+   },
+   "kitchenDim": [
+    0,
+    0,
+    0
+   ],
+   "egg": "ready",
+   "audio": {
+    "loops": {
+     "room": 0.22,
+     "sizzle": 0.08
+    },
+    "fades": [
+     {
+      "sound": "sizzle",
+      "from": 0.12,
+      "to": 0.06,
+      "phase": "hold"
+     }
+    ],
+    "oneshots": []
+   },
+   "seconds": {},
+   "camera": "env"
+  },
+  {
+   "id": "hear",
+   "n": 9,
    "title": "\"嗯？\" \"啵！\"",
-   "lengthVh": 110,
+   "lengthVh": 100,
    "pin": "catch",
    "phases": {
     "enter": 0.35,
@@ -282,7 +318,7 @@
   },
   {
    "id": "catch",
-   "n": 9,
+   "n": 10,
    "title": "蛋主动飞向前景；\"哎？慢点！\" 她惊讶伸出空锅铲接住",
    "lengthVh": 210,
    "pin": "catch",
@@ -325,9 +361,9 @@
   },
   {
    "id": "handoff",
-   "n": 10,
+   "n": 11,
    "title": "\"正好，就差你了！\"（蛋交给漫画）",
-   "lengthVh": 120,
+   "lengthVh": 110,
    "pin": "catch",
    "phases": {
     "enter": 0.34,
@@ -359,9 +395,9 @@
   },
   {
    "id": "bowl",
-   "n": 11,
+   "n": 12,
    "title": "放进碗、淋汁",
-   "lengthVh": 130,
+   "lengthVh": 115,
    "pin": "bowl",
    "kitchenDim": [
     0,
@@ -395,7 +431,7 @@
   },
   {
    "id": "yolk",
-   "n": 12,
+   "n": 13,
    "title": "划开流黄",
    "lengthVh": 115,
    "pin": "bowl",
@@ -422,9 +458,9 @@
   },
   {
    "id": "call",
-   "n": 13,
+   "n": 14,
    "title": "\"宝宝，来吃饭啦！\" \"我在这儿……\"",
-   "lengthVh": 130,
+   "lengthVh": 115,
    "pin": "bowl",
    "kitchenDim": [
     0,
@@ -457,10 +493,43 @@
    }
   },
   {
+   "id": "tablecall",
+   "n": 15,
+   "title": "环境段：妈妈离开后，空饭桌上碗里的蛋试着呼喊",
+   "lengthVh": 100,
+   "pin": null,
+   "phases": {
+    "enter": 0.3,
+    "action": 0,
+    "hold": 0.55,
+    "exit": 0.15
+   },
+   "kitchenDim": [
+    0,
+    0,
+    0
+   ],
+   "egg": "inBowl",
+   "audio": {
+    "loops": {
+     "room": 0.14
+    },
+    "fades": [],
+    "oneshots": [
+     {
+      "sound": "eggSmall",
+      "at": 0.5
+     }
+    ]
+   },
+   "seconds": {},
+   "camera": "env"
+  },
+  {
    "id": "search",
-   "n": 14,
+   "n": 16,
    "title": "走去女儿房门口：\"宝宝？\"、空房间",
-   "lengthVh": 135,
+   "lengthVh": 125,
    "pin": "search",
    "kitchenDim": [
     0,
@@ -486,9 +555,9 @@
   },
   {
    "id": "eggcall",
-   "n": 15,
+   "n": 17,
    "title": "\"妈！这里！\"、回头",
-   "lengthVh": 125,
+   "lengthVh": 115,
    "pin": "search",
    "kitchenDim": [
     0,
@@ -518,9 +587,9 @@
   },
   {
    "id": "return",
-   "n": 16,
+   "n": 18,
    "title": "回到碗前",
-   "lengthVh": 120,
+   "lengthVh": 110,
    "pin": "reunion",
    "kitchenDim": [
     0,
@@ -552,9 +621,9 @@
   },
   {
    "id": "recognize",
-   "n": 17,
+   "n": 19,
    "title": "\"……宝宝？\" \"嗯！\"",
-   "lengthVh": 125,
+   "lengthVh": 115,
    "pin": "reunion",
    "kitchenDim": [
     0,
@@ -579,15 +648,15 @@
   },
   {
    "id": "punchline",
-   "n": 18,
+   "n": 20,
    "title": "\"那刚才把你戳破了怎么办？\" \"没事，是我拉稀了。\"",
-   "lengthVh": 180,
-   "pin": "reunion",
+   "lengthVh": 125,
+   "pin": null,
    "phases": {
     "enter": 0.3,
     "action": 0,
-    "hold": 0.7,
-    "exit": 0
+    "hold": 0.45,
+    "exit": 0.25
    },
    "kitchenDim": [
     0,
@@ -601,6 +670,44 @@
     },
     "fades": [],
     "oneshots": []
+   },
+   "camera": "full"
+  },
+  {
+   "id": "closeup",
+   "n": 21,
+   "title": "妈妈表情特写（眼神僵住、嘴一小横），脸旁依次出现三个点，安静结束",
+   "lengthVh": 90,
+   "pin": null,
+   "phases": {
+    "enter": 0.5,
+    "action": 0,
+    "hold": 0.5,
+    "exit": 0
+   },
+   "kitchenDim": [
+    0,
+    0,
+    0
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.12
+    },
+    "fades": [
+     {
+      "sound": "room",
+      "from": 0.2,
+      "to": 0.12,
+      "phase": "enter"
+     }
+    ],
+    "oneshots": []
+   },
+   "seconds": {
+    "dotDelay": 0.5,
+    "dotGap": 0.6
    },
    "camera": "full"
   }

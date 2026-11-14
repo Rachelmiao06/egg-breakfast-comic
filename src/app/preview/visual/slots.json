@@ -1,5 +1,5 @@
 {
- "note": "素材替换接口：换图只改这里的 src（必要时改 land / box）。比例按图片实际尺寸自动读取，aspect 只是图未加载前的占位比例，不是规格。x / y / w 是试验版位（vw / vh）。scene 下的接蛋格用场景像素，land 是铲面落点在格内的相对位置（0–1），蛋的落点由它算出。 scene.handoff 的位置不写死：按活动蛋在铲面上的位置和大小自动对齐。",
+ "note": "素材替换接口：换图只改这里的 src（必要时改 land / box）。比例按图片实际尺寸自动读取，aspect 只是图未加载前的占位比例，不是规格。x / y / w 是试验版位（vw / vh）。scene 下的接蛋格用场景像素，land 是铲面落点在格内的相对位置（0–1），蛋的落点由它算出。 scene.handoff 的位置不写死：按活动蛋在铲面上的位置和大小自动对齐。 role：hero = 本段主镜头（最大），support = 次要，insert = 过渡小格，closeup = 结尾独立特写；横屏按 x/y/w 摆放（中等阅读密度：普通格 20–30vw，大画面只给接蛋、蛋黄特写和结尾妈妈反应）（以 16:10 设计，其他比例整组等比收进安全区），竖屏按 role 排成主次分明的一列，超出可视高度时在停留阶段缓慢上移阅读。",
  "panels": [
   {
    "key": "p1a",
@@ -7,12 +7,13 @@
    "src": "/assets/comic-v3/p1a.webp",
    "source": "01-groceries-and-an-idea.png A 格",
    "dialogueInImage": false,
-   "x": 2,
-   "y": 6,
-   "w": 31,
+   "x": 8,
+   "y": 8,
+   "w": 44,
    "aspect": 1.967,
    "from": "seam",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p1b",
@@ -20,12 +21,13 @@
    "src": "/assets/comic-v3/p1b.webp",
    "source": "01-groceries-and-an-idea.png B 格",
    "dialogueInImage": true,
-   "x": 64,
-   "y": 30,
-   "w": 30,
+   "x": 60,
+   "y": 34,
+   "w": 22,
    "aspect": 1.028,
    "from": "right",
-   "order": 1
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p1c",
@@ -34,11 +36,12 @@
    "source": "01-groceries-and-an-idea.png C 格",
    "dialogueInImage": true,
    "x": 30,
-   "y": 3,
-   "w": 34,
+   "y": 6,
+   "w": 28,
    "aspect": 1.13,
    "from": "top",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p1d",
@@ -46,12 +49,13 @@
    "src": "/assets/comic-v3/p1d.webp",
    "source": "01-groceries-and-an-idea.png D 格",
    "dialogueInImage": true,
-   "x": 18,
-   "y": 51,
-   "w": 52,
+   "x": 52,
+   "y": 48,
+   "w": 34,
    "aspect": 1.893,
    "from": "bottom",
-   "order": 1
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p2a",
@@ -59,12 +63,13 @@
    "src": "/assets/comic-v3/p2a.webp",
    "source": "02-preparing-the-meal.png A 格",
    "dialogueInImage": false,
-   "x": 22,
-   "y": 3,
-   "w": 54,
+   "x": 26,
+   "y": 5,
+   "w": 44,
    "aspect": 2.154,
    "from": "top",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p2b",
@@ -72,12 +77,13 @@
    "src": "/assets/comic-v3/p2b.webp",
    "source": "02-preparing-the-meal.png B 格",
    "dialogueInImage": true,
-   "x": 18,
-   "y": 45,
-   "w": 32,
+   "x": 28,
+   "y": 44,
+   "w": 28,
    "aspect": 1.501,
    "from": "left",
-   "order": 1
+   "order": 1,
+   "role": "hero"
   },
   {
    "key": "p2c",
@@ -85,12 +91,13 @@
    "src": "/assets/comic-v3/p2c.webp",
    "source": "02-preparing-the-meal.png C 格",
    "dialogueInImage": false,
-   "x": 51,
-   "y": 45,
-   "w": 32,
+   "x": 62,
+   "y": 50,
+   "w": 20,
    "aspect": 1.513,
    "from": "right",
-   "order": 2
+   "order": 2,
+   "role": "insert"
   },
   {
    "key": "p2d",
@@ -98,12 +105,13 @@
    "src": "/assets/comic-v3/p2d.webp",
    "source": "02-preparing-the-meal.png D 格",
    "dialogueInImage": true,
-   "x": 10,
-   "y": 4,
-   "w": 80,
+   "x": 22,
+   "y": 8,
+   "w": 52,
    "aspect": 3.237,
    "from": "top",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p2e",
@@ -111,12 +119,13 @@
    "src": "/assets/comic-v3/p2e.webp",
    "source": "02-preparing-the-meal.png E 格",
    "dialogueInImage": false,
-   "x": 14,
-   "y": 46,
-   "w": 72,
+   "x": 36,
+   "y": 44,
+   "w": 40,
    "aspect": 2.473,
    "from": "bottom",
-   "order": 1
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p3a",
@@ -124,12 +133,13 @@
    "src": "/assets/comic-v3/p3a.webp",
    "source": "03-something-is-missing.png A 格",
    "dialogueInImage": false,
-   "x": 3,
+   "x": 28,
    "y": 8,
-   "w": 30,
+   "w": 26,
    "aspect": 1.141,
    "from": "left",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p3b",
@@ -137,12 +147,13 @@
    "src": "/assets/comic-v3/p3b.webp",
    "source": "03-something-is-missing.png B 格",
    "dialogueInImage": false,
-   "x": 64,
-   "y": 34,
-   "w": 31,
+   "x": 60,
+   "y": 40,
+   "w": 20,
    "aspect": 1.112,
    "from": "right",
-   "order": 1
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p3c",
@@ -150,12 +161,13 @@
    "src": "/assets/comic-v3/p3c.webp",
    "source": "03-something-is-missing.png C 格",
    "dialogueInImage": true,
-   "x": 4,
-   "y": 10,
-   "w": 32,
+   "x": 44,
+   "y": 14,
+   "w": 28,
    "aspect": 1.172,
    "from": "left",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p3d",
@@ -163,12 +175,13 @@
    "src": "/assets/comic-v3/p3d.webp",
    "source": "03-something-is-missing.png D 格",
    "dialogueInImage": true,
-   "x": 66,
-   "y": 18,
-   "w": 26,
+   "x": 62,
+   "y": 12,
+   "w": 22,
    "aspect": 0.848,
    "from": "right",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p4b",
@@ -176,12 +189,13 @@
    "src": "/assets/comic-v3/p4b.webp",
    "source": "04-catch-and-call.png B 格",
    "dialogueInImage": false,
-   "x": 6,
-   "y": 10,
-   "w": 40,
+   "x": 14,
+   "y": 8,
+   "w": 28,
    "aspect": 1.349,
    "from": "left",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p4c",
@@ -190,11 +204,12 @@
    "source": "04-catch-and-call.png C 格",
    "dialogueInImage": false,
    "x": 52,
-   "y": 30,
-   "w": 40,
+   "y": 44,
+   "w": 22,
    "aspect": 1.355,
    "from": "right",
-   "order": 1
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p4d",
@@ -202,12 +217,13 @@
    "src": "/assets/comic-v3/p4d.webp",
    "source": "04-catch-and-call.png D 格",
    "dialogueInImage": false,
-   "x": 8,
-   "y": 25,
-   "w": 84,
+   "x": 10,
+   "y": 26,
+   "w": 80,
    "aspect": 3.291,
    "from": "bottom",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p4e",
@@ -215,12 +231,13 @@
    "src": "/assets/comic-v3/p4e.webp",
    "source": "04-catch-and-call.png E 格",
    "dialogueInImage": true,
-   "x": 8,
+   "x": 16,
    "y": 8,
-   "w": 34,
+   "w": 26,
    "aspect": 1.084,
    "from": "left",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p4f",
@@ -228,12 +245,13 @@
    "src": "/assets/comic-v3/p4f.webp",
    "source": "04-catch-and-call.png F 格",
    "dialogueInImage": true,
-   "x": 56,
-   "y": 32,
-   "w": 32,
+   "x": 54,
+   "y": 36,
+   "w": 22,
    "aspect": 0.982,
    "from": "right",
-   "order": 1
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p5a",
@@ -241,12 +259,13 @@
    "src": "/assets/comic-v3/p5a.webp",
    "source": "05-looking-for-baby.png A 格",
    "dialogueInImage": false,
-   "x": 3,
-   "y": 6,
-   "w": 30,
+   "x": 8,
+   "y": 8,
+   "w": 18,
    "aspect": 0.998,
    "from": "left",
-   "order": 0
+   "order": 0,
+   "role": "insert"
   },
   {
    "key": "p5b",
@@ -254,12 +273,13 @@
    "src": "/assets/comic-v3/p5b.webp",
    "source": "05-looking-for-baby.png B 格",
    "dialogueInImage": true,
-   "x": 35,
-   "y": 30,
-   "w": 30,
+   "x": 29,
+   "y": 10,
+   "w": 28,
    "aspect": 1.0,
    "from": "bottom",
-   "order": 1
+   "order": 1,
+   "role": "hero"
   },
   {
    "key": "p5c",
@@ -267,12 +287,13 @@
    "src": "/assets/comic-v3/p5c.webp",
    "source": "05-looking-for-baby.png C 格",
    "dialogueInImage": false,
-   "x": 67,
-   "y": 12,
-   "w": 30,
+   "x": 61,
+   "y": 34,
+   "w": 27,
    "aspect": 1.039,
    "from": "right",
-   "order": 2
+   "order": 2,
+   "role": "hero"
   },
   {
    "key": "p5d",
@@ -280,12 +301,13 @@
    "src": "/assets/comic-v3/p5d.webp",
    "source": "05-looking-for-baby.png D 格",
    "dialogueInImage": true,
-   "x": 50,
-   "y": 6,
-   "w": 40,
+   "x": 14,
+   "y": 8,
+   "w": 30,
    "aspect": 1.041,
    "from": "right",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p5e",
@@ -293,25 +315,27 @@
    "src": "/assets/comic-v3/p5e.webp",
    "source": "05-looking-for-baby.png E 格",
    "dialogueInImage": false,
-   "x": 6,
-   "y": 8,
-   "w": 26,
+   "x": 56,
+   "y": 34,
+   "w": 22,
    "aspect": 0.947,
    "from": "left",
-   "order": 1
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p5f",
-   "beat": "eggcall",
+   "beat": "return",
    "src": "/assets/comic-v3/p5f.webp",
    "source": "05-looking-for-baby.png F 格",
    "dialogueInImage": false,
-   "x": 24,
-   "y": 52,
-   "w": 27,
+   "x": 10,
+   "y": 8,
+   "w": 22,
    "aspect": 0.957,
    "from": "bottom",
-   "order": 2
+   "order": 0,
+   "role": "support"
   },
   {
    "key": "p6a",
@@ -319,12 +343,13 @@
    "src": "/assets/comic-v3/p6a.webp",
    "source": "06-recognition-and-punchline.png A 格",
    "dialogueInImage": false,
-   "x": 12,
-   "y": 14,
-   "w": 76,
+   "x": 36,
+   "y": 46,
+   "w": 46,
    "aspect": 2.55,
    "from": "top",
-   "order": 0
+   "order": 1,
+   "role": "hero"
   },
   {
    "key": "p6b",
@@ -332,12 +357,13 @@
    "src": "/assets/comic-v3/p6b.webp",
    "source": "06-recognition-and-punchline.png B 格",
    "dialogueInImage": true,
-   "x": 6,
-   "y": 8,
-   "w": 42,
+   "x": 14,
+   "y": 10,
+   "w": 28,
    "aspect": 1.348,
    "from": "left",
-   "order": 0
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p6c",
@@ -345,12 +371,13 @@
    "src": "/assets/comic-v3/p6c.webp",
    "source": "06-recognition-and-punchline.png C 格",
    "dialogueInImage": true,
-   "x": 52,
-   "y": 34,
-   "w": 42,
+   "x": 54,
+   "y": 40,
+   "w": 24,
    "aspect": 1.348,
    "from": "right",
-   "order": 1
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p6d",
@@ -358,12 +385,13 @@
    "src": "/assets/comic-v3/p6d.webp",
    "source": "06-recognition-and-punchline.png D 格",
    "dialogueInImage": true,
-   "x": 17,
-   "y": 4,
-   "w": 66,
+   "x": 10,
+   "y": 6,
+   "w": 44,
    "aspect": 2.615,
    "from": "top",
-   "order": 0
+   "order": 0,
+   "role": "support"
   },
   {
    "key": "p6e",
@@ -371,25 +399,27 @@
    "src": "/assets/comic-v3/p6e.webp",
    "source": "06-recognition-and-punchline.png E 格",
    "dialogueInImage": true,
-   "x": 12,
-   "y": 48,
-   "w": 36,
+   "x": 24,
+   "y": 42,
+   "w": 30,
    "aspect": 1.36,
    "from": "left",
-   "order": 1
+   "order": 1,
+   "role": "hero"
   },
   {
    "key": "p6f",
-   "beat": "punchline",
+   "beat": "closeup",
    "src": "/assets/comic-v3/p6f.webp",
    "source": "06-recognition-and-punchline.png F 格",
    "dialogueInImage": false,
-   "x": 52,
-   "y": 48,
-   "w": 36,
+   "x": 0,
+   "y": 0,
+   "w": 0,
    "aspect": 1.384,
-   "from": "right",
-   "order": 2
+   "from": "bottom",
+   "order": 0,
+   "role": "closeup"
   }
  ],
  "scene": {
@@ -405,8 +435,8 @@
     512
    ],
    "land": {
-    "fx": 0.81,
-    "fy": 0.53
+    "fx": 0.775,
+    "fy": 0.49
    },
    "frameSrc": null,
    "occluderSrc": null,

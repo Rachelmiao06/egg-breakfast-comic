@@ -14,9 +14,10 @@ export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour" | "momCal
 /**
  * 蛋在每段的状态（同一颗活动蛋）：
  * loop 锅里自主跳（真实时间）· toTable 进入阶段收住跳跃、动作阶段由滚动从锅落到桌沿 · table 桌沿等待（真实时间轻跳）
- * flight 进入阶段收住、动作阶段由滚动飞到锅铲 · serve 锅铲→碗（滚动）· bowl 在碗里 · gone 已交给漫画（隐藏）
+ * ready 桌沿准备起跳（环境段，真实时间蓄力）· flight 进入阶段收住、动作阶段由滚动飞到锅铲 · serve 锅铲→碗（滚动）· bowl 在碗里
+ * inBowl 环境段：空饭桌上碗里的蛋试着呼喊（后景可见，漫画里不同时出现蛋）· gone 已交给漫画（隐藏）
  */
-export type EggMode = "loop" | "toTable" | "table" | "flight" | "serve" | "bowl" | "gone";
+export type EggMode = "loop" | "toTable" | "table" | "ready" | "flight" | "serve" | "bowl" | "inBowl" | "gone";
 /** 停留组：同组连续段落期间画面停住（sticky / pin），组结束后释放；null = 正常流动段 */
 export type PinGroup = "prep" | "catch" | "bowl" | "search" | "reunion";
 
@@ -161,7 +162,7 @@ export function derive(t: Timeline): Derived {
   const progress = t.phase === "enter" ? lerp(s, h, t.phaseP) : t.phase === "exit" ? lerp(h, e, t.phaseP) : h;
   const action = phaseProgress(t, "action");
   // 接蛋段的进入阶段蛋仍在锅里跳（null），动作阶段才起飞
-  const flight = b.egg === "loop" || b.egg === "toTable" || b.egg === "table" ? null : b.egg === "flight" ? (t.phase === "enter" ? null : action) : 1;
+  const flight = b.egg === "loop" || b.egg === "toTable" || b.egg === "table" || b.egg === "ready" || b.egg === "inBowl" ? null : b.egg === "flight" ? (t.phase === "enter" ? null : action) : 1;
   // gone：flight 仍为 1（蛋停在铲面位置），由 Egg 组件负责淡出隐藏
   const serve = b.egg === "serve" ? action : b.egg === "bowl" ? 1 : null;
   return { activePanel: b.n, progress, flight, serve };

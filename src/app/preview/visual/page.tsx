@@ -8,6 +8,8 @@ import { useState, useSyncExternalStore } from "react";
 import ScrollDriver from "@/components/ScrollDriver";
 import KitchenCharacters from "@/components/kitchen/KitchenCharacters";
 import KitchenScene from "@/components/kitchen/KitchenScene";
+import { flightPoint } from "@/components/kitchen/Egg";
+import { SCENE_H, SCENE_W } from "@/lib/scene";
 import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
 import { SceneProvider, useScene } from "@/lib/scene-context";
@@ -81,17 +83,24 @@ function MotionToggle({ v2 }: { v2: boolean }) {
 function StageV2() {
   const { timeline: t, flight } = useScene();
   const { cfg } = useSlots();
-  const vp = useViewport();
   const debug = useParam("debug") !== null;
   const clean = useParam("clean") !== null;
   const g = gNow(t);
-  const anchors = { ...eggAnchorsFrom(cfg), tableWait: vp.portrait ? BG.anchors.portraitTableWait : BG.anchors.tableWait, eggAtTable: BG.anchors.eggAtTable };
-  // 接蛋动作阶段：镜头轻微跟随蛋（蛋位置按同一套锚点估算）
+  const box = cfg.scene.catch.box;
+  const anchors = {
+    ...eggAnchorsFrom(cfg),
+    // 横版布局放不下时（竖屏、窄窗口）桌沿等待点也换成竖版的，免得蛋在镜头外等待
+    tableWait: cfg.narrow ? BG.anchors.portraitTableWait : BG.anchors.tableWait,
+    eggAtTable: BG.anchors.eggAtTable,
+    // 环境段 tablecall：饭桌上的碗（后景会话提供碗；这里只给蛋的脚底点和大小）
+    bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
+    eggInBowl: BG.anchors.eggInTableBowl,
+    // 飞行最高点在接蛋格上框之上（格高的 12%）：蛋越过格框和对白泡，再落到铲面；再高在横屏会顶出画面上沿
+    flightApexY: Math.round(box[1] - box[3] * 0.12),
+  };
+  // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;
-  if (t.beat.egg === "flight" && flight !== null && flight < 1) {
-    const A = anchors.tableWait, B = anchors.spatulaLand!;
-    eggPt = { x: A.x + (B.x - A.x) * flight, y: A.y + (B.y - A.y) * flight - 300 * Math.sin(Math.PI * flight) };
-  }
+  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight);
   const cam = cameraV2(g, eggPt);
   return (
     <>
@@ -162,22 +171,49 @@ function Versioned() {
   );
 }
 
-/** 竖屏手机：接蛋格缩到可见宽度内，落点随格子一起算，所以蛋仍落在铲面上 */
+/** 竖屏手机（旧版 v1）：接蛋格缩到可见宽度内，落点随格子一起算，所以蛋仍落在铲面上 */
 function mobileSlots(cfg: SlotConfig, vw: number, vh: number, centerX = 700, zoom = 1): SlotConfig {
-  const c = cfg.scene.catch;
   const visW = (1024 * (vw / vh)) / zoom; // 竖屏时舞台按高度铺满，可见的场景宽度
+  return fitCatchTo(cfg, centerX, visW);
+}
+
+/** 接蛋格缩到给定的可见宽度内并居中；铲面上的蛋按同样比例缩小（交接格随之对齐） */
+function fitCatchTo(cfg: SlotConfig, centerX: number, visW: number): SlotConfig {
+  const c = cfg.scene.catch;
   const w = Math.round(visW * 0.94);
   const h = Math.round((w * c.box[3]) / c.box[2]);
-  const k = w / c.box[2]; // 格子缩小多少，铲面上的蛋也按比例缩小（交接格随之对齐）
-  return { ...cfg, egg: { ...cfg.egg, onSpatulaScale: cfg.egg.onSpatulaScale * k }, scene: { ...cfg.scene, catch: { ...c, box: [Math.round(centerX - w / 2), Math.round(640 - h * 0.35), w, h] } } };
+  const k = w / c.box[2];
+  return { ...cfg, narrow: true, egg: { ...cfg.egg, onSpatulaScale: cfg.egg.onSpatulaScale * k }, scene: { ...cfg.scene, catch: { ...c, box: [Math.round(centerX - w / 2), Math.round(640 - h * 0.35), w, h] } } };
+}
+
+/**
+ * 新版接蛋镜头（backgrounds.json camera.keys 里 catch 落定时的关键帧）下，视口里能看到的场景范围（场景像素）。
+ * 算法与 SceneStage 相同：cover 缩放 × zoom，焦点放到 at，再夹住不露出画布外。
+ */
+function catchView(vw: number, vh: number) {
+  const key = (BG.camera.keys as [string, number, number, number, number, number, number][]).find((k) => k[0] === "catch" && k[1] >= 0.8)!;
+  const [, , fx, fy, zoom, ax, ay] = key;
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  const s = Math.max(vw / SCENE_W, vh / SCENE_H) * zoom;
+  const x = clamp(vw * ax - fx * s, vw - SCENE_W * s, 0);
+  const y = clamp(vh * ay - fy * s, vh - SCENE_H * s, 0);
+  return { x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s };
+}
+
+/** 新版：接蛋格整格放得进镜头就保持原位，放不下（竖屏、窄窗口）就缩到可见宽度内居中。交接格滑动也按这个可见范围 */
+function fitSlotsV2(cfg: SlotConfig, vw: number, vh: number): SlotConfig {
+  const v = catchView(vw, vh);
+  const [x, , w] = cfg.scene.catch.box;
+  const margin = 12;
+  const fitted = x >= v.x0 + margin && x + w <= v.x1 - margin ? cfg : fitCatchTo(cfg, (v.x0 + v.x1) / 2, v.x1 - v.x0);
+  return { ...fitted, view: v };
 }
 
 export default function VisualPreviewPage() {
   const [base, setCfg] = useState<SlotConfig>(DEFAULT_SLOTS);
   const vp = useViewport();
   const v1 = useParam("motion") === "v1";
-  // 新版接蛋镜头焦点约 x 620、zoom 1.08（backgrounds.json camera.keys）
-  const cfg = vp.portrait ? (v1 ? mobileSlots(base, vp.w, vp.h) : mobileSlots(base, vp.w, vp.h, 625, 1.08)) : base;
+  const cfg = v1 ? (vp.portrait ? mobileSlots(base, vp.w, vp.h) : base) : fitSlotsV2(base, vp.w, vp.h);
   return (
     <SlotContext.Provider value={{ cfg, setCfg }}>
       <Versioned />

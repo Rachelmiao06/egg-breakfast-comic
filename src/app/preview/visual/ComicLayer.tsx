@@ -156,39 +156,179 @@ function stackPlaces(list: PanelSpec[], vw: number, vh: number, reserveBottom = 
 
 const outCubic = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 const inQuad = (t: number) => { const k = Math.min(1, Math.max(0, t)); return k * k; };
+const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
+const hOf = (p: PanelSpec, w: number, vw: number, vh: number) => ((w * vw) / 100 / p.aspect / vh) * 100;
+
+/** 横屏：按 slots 的 x/y/w（以 16:10 设计）；整组超出安全区（上 3vh、下 top..bottom）时等比收拢，保留主次比例 */
+function fitPlaces(list: PanelSpec[], vw: number, vh: number, bottom: number): Record<string, Place> {
+  let minY = Infinity, maxY = -Infinity, minX = Infinity, maxX = -Infinity;
+  for (const p of list) {
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y + hOf(p, p.w, vw, vh));
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
+  }
+  const s = Math.min(1, (bottom - minY) / Math.max(1, maxY - minY));
+  const cx = (minX + maxX) / 2;
+  const out: Record<string, Place> = {};
+  for (const p of list) out[p.key] = { x: cx + (p.x - cx) * s, y: minY + (p.y - minY) * s, w: p.w * s };
+  return out;
+}
 
 /**
- * 新版：漫画像一条连续的胶片向上流动。每格的位置由故事位置 g 直接映射：
- * 从画面下方减速升入阅读位（读对白时完全静止、不透明），读完顺势加速向上离开；
- * 前后两段的格子在交界处重叠流动，没有空白、没有淡入淡出、没有卡片收纳。
+ * 竖屏：不是同宽机械竖排。主镜头 94vw，次要 80vw、过渡小格 66vw，左右交错；文字按原图 0.6 倍以上显示。
+ * 整列比可视区高时，返回 pan（vh）：停留阶段整列缓慢上移，像读条漫一样读完。
  */
+const PORTRAIT_W: Record<string, number> = { hero: 94, support: 80, insert: 66 };
+function columnPlaces(list: PanelSpec[], vw: number, vh: number, top: number, bottom: number): { places: Record<string, Place>; pan: number } {
+  const sorted = [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const gap = 2.2;
+  const out: Record<string, Place> = {};
+  let y = top, side = 0;
+  for (const p of sorted) {
+    const w = p.aspect > 1.8 ? 94 : PORTRAIT_W[p.role ?? "support"] ?? 80; // 宽格（横幅）在竖屏一律满宽，否则文字太小
+    const x = w >= 94 ? 3 : side++ % 2 === 0 ? 3 : 97 - w;
+    out[p.key] = { x, y, w };
+    y += hOf(p, w, vw, vh) + gap;
+  }
+  const total = y - gap - top, avail = bottom - top;
+  if (total < avail) for (const k in out) out[k].y += (avail - total) / 2; // 放得下就垂直居中
+  return { places: out, pan: Math.max(0, total - avail) };
+}
+
+/** 背景里的蛋还在桌沿（接蛋之前）时，竖屏底部留给桌沿和蛋 */
+const EGG_VISIBLE = new Set(["loop", "toTable", "table", "ready"]);
+
+type Rect = { x: number; y: number; w: number; h: number }; // vw / vh
+const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+/** 背景里活动蛋当前在屏幕上的范围（vw/vh）。只在蛋停在桌沿的段落读取；读不到就返回 null */
+function eggRectNow(vw: number, vh: number): Rect | null {
+  if (typeof document === "undefined") return null;
+  const el = document.querySelector("img[data-active-egg]");
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  if (r.width < 4 || r.bottom < 0 || r.top > vh) return null;
+  // 蛋图四周有透明边：取中间 70% 作为蛋身，再留 1.5 的间距
+  const m = 0.15;
+  return { x: ((r.left + r.width * m) / vw) * 100 - 1.5, y: ((r.top + r.height * m) / vh) * 100 - 1.5, w: ((r.width * (1 - 2 * m)) / vw) * 100 + 3, h: ((r.height * (1 - 2 * m)) / vh) * 100 + 3 };
+}
+/**
+ * 横屏：漫画格不能压在桌沿等待的蛋上（蛋不该从格子下面露出半个）。
+ * 依次尝试：移到蛋的右边 → 移到蛋的上方 → 等比缩小到蛋上方；都不和同组其他格重叠才采用。
+ */
+function avoidEgg(list: PanelSpec[], places: Record<string, Place>, egg: Rect, vw: number, vh: number) {
+  const rectOf = (p: PanelSpec, pl: Place): Rect => ({ x: pl.x, y: pl.y, w: pl.w, h: hOf(p, pl.w, vw, vh) });
+  for (const p of list) {
+    const pl = places[p.key];
+    if (!pl || !hit(rectOf(p, pl), egg)) continue;
+    const others = list.filter((o) => o.key !== p.key && places[o.key]).map((o) => rectOf(o, places[o.key]));
+    const ok = (c: Place) => c.x >= 2 && c.x + c.w <= 98 && c.y >= 2 && c.y + hOf(p, c.w, vw, vh) <= 97 && !hit(rectOf(p, c), egg) && others.every((r) => !hit(rectOf(p, c), r));
+    const h = hOf(p, pl.w, vw, vh);
+    const cands: Place[] = [
+      { ...pl, x: egg.x + egg.w + 1.5 },
+      { ...pl, y: egg.y - h - 1.5 },
+      { ...pl, x: egg.x + egg.w + 1.5, y: Math.min(pl.y, egg.y - 2) },
+    ];
+    for (let k = 0.9; k >= 0.6; k -= 0.1) { const w = pl.w * k; cands.push({ x: pl.x, w, y: egg.y - hOf(p, w, vw, vh) - 1.5 }, { x: egg.x + egg.w + 1.5, w, y: pl.y }); }
+    const c = cands.find(ok);
+    if (c) places[p.key] = c;
+  }
+}
+
 function FlowLayer() {
-  const { timeline: t, beats } = useScene();
+  const { timeline: t, beats, reducedMotion } = useScene();
   const vp = useViewport();
   const g = t.index + t.p;
   const index: Record<string, number> = {};
   beats.forEach((b, i) => (index[b.id] = i));
   const visible = PANELS.filter((p) => index[p.beat] !== undefined && g - index[p.beat] > -0.16 && g - index[p.beat] < 1.16);
   const groups: Record<string, PanelSpec[]> = {};
-  for (const p of visible) (groups[p.beat] ??= []).push(p);
+  for (const p of visible) if (p.role !== "closeup") (groups[p.beat] ??= []).push(p);
   const places: Record<string, Place> = {};
-  if (vp.portrait) for (const list of Object.values(groups)) Object.assign(places, stackPlaces(list, vp.w, vp.h, 24));
+  const pans: Record<string, number> = {};
+  const egg = EGG_VISIBLE.has(t.beat.egg) || EGG_VISIBLE.has(beats[t.index + 1]?.egg ?? "") ? eggRectNow(vp.w, vp.h) : null;
+  for (const [id, list] of Object.entries(groups)) {
+    const eggHere = egg && EGG_VISIBLE.has(beats[index[id]].egg) ? egg : null;
+    if (vp.portrait) {
+      // 竖屏：整列的下沿停在蛋的上方（蛋在下半屏时），放不下就在停留阶段缓慢上移阅读
+      const bottom = eggHere && eggHere.y > 30 ? eggHere.y - 1 : 95;
+      const r = columnPlaces(list, vp.w, vp.h, 4, bottom);
+      Object.assign(places, r.places);
+      pans[id] = r.pan;
+    } else {
+      Object.assign(places, fitPlaces(list, vp.w, vp.h, 96));
+      if (eggHere) avoidEgg(list, places, eggHere, vp.w, vp.h);
+    }
+  }
   return (
     <div className="pointer-events-none fixed inset-0 z-10">
       {visible.map((p) => {
         const q = g - index[p.beat];
+        if (p.role === "closeup") return <CloseupShot key={p.key} p={p} q={q} portrait={vp.portrait} vw={vp.w} reducedMotion={reducedMotion} seconds={beats[index[p.beat]].seconds} />;
         const i = p.order ?? 0;
         const pos = places[p.key] ?? { x: p.x, y: p.y, w: p.w };
-        const hVh = ((pos.w * vp.w) / 100 / p.aspect / vp.h) * 100;
-        const enterOff = 100 - pos.y + 4;
-        const exitOff = pos.y + hVh + 4;
+        const hVh = hOf(p, pos.w, vp.w, vp.h);
+        const pan = pans[p.beat] ?? 0;
         const s0 = -0.14 + i * 0.05, s1 = 0.34;
         const e0 = 0.7 + i * 0.03, e1 = 1.14;
-        let dy = 0;
+        // 竖屏整列较高时：停留阶段由滚动直接带动缓慢上移（读条漫），离场从上移后的位置继续
+        const panNow = pan * clamp01((q - s1) / (0.7 - s1));
+        const enterOff = 100 - pos.y + 4;
+        const exitOff = pos.y - pan + hVh + 4;
+        let dy = -panNow;
         if (q < s1) dy = enterOff * (1 - outCubic((q - s0) / (s1 - s0)));
-        else if (q > e0) dy = -exitOff * inQuad((q - e0) / (e1 - e0));
+        else if (q > e0) dy = -pan - exitOff * inQuad((q - e0) / (e1 - e0));
         return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
       })}
+    </div>
+  );
+}
+
+/**
+ * 结尾独立特写：笑点格离开后，妈妈的表情格单独停在画面中央（原图不放大超过 1.4 倍）。
+ * 进入阶段由滚动带动轻轻上浮落定；落定后（停留阶段）脸旁依次出现三个手绘感圆点，真实时间、只播一次、停在“…”；回滚到落定前就收起。
+ */
+function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelSpec; q: number; portrait: boolean; vw: number; reducedMotion: boolean; seconds: Record<string, number> }) {
+  const aspect = useNaturalAspect(p.src, p.aspect);
+  const nativeW = 515; // p6f.webp 原始宽度
+  // 结尾的妈妈反应是三个大画面之一：最多放大到原图 1.4 倍，避免发虚
+  const wPx = portrait ? Math.min(vw * 0.9, nativeW * 1.4) : Math.min(vw * 0.52, nativeW * 1.4);
+  const k = outCubic((q + 0.02) / 0.42); // 进入阶段 0.5：0.4 处已落定
+  const stable = q >= 0.42;
+  if (q < -0.05) return null;
+  return (
+    <div className="absolute left-1/2 top-1/2" style={{ width: wPx, aspectRatio: `${aspect}`, transform: `translate(-50%, calc(-50% + ${(1 - k) * 7}vh))`, opacity: k }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
+      {stable && <Dots key="dots" instant={reducedMotion} delay={seconds.dotDelay ?? 0.5} gap={seconds.dotGap ?? 0.6} portrait={portrait} />}
+    </div>
+  );
+}
+
+/** 三个点：一个、两个、三个，停在“…”。不循环。墨色取自线稿，形状略不规则（手绘感），每个点出现时只有一次轻微落笔。 */
+const DOT_PATHS = [
+  "M6.2 1.1C9.3 1.3 11.4 3.6 11.1 6.6 10.8 9.6 8.3 11.4 5.4 11 2.5 10.6 0.7 8.3 1 5.5 1.3 2.8 3.3 0.9 6.2 1.1Z",
+  "M5.8 0.9C8.9 0.7 11.2 2.9 11.3 5.9 11.4 9 9.1 11.3 6 11.2 2.9 11.1 0.8 8.8 0.9 5.8 1 3 2.9 1.1 5.8 0.9Z",
+  "M6.4 1.3C9.5 1.6 11.3 4 10.9 7 10.5 9.8 8 11.5 5.1 11.1 2.3 10.7 0.6 8.1 1.1 5.3 1.6 2.7 3.6 1 6.4 1.3Z",
+];
+function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: number; gap: number; portrait: boolean }) {
+  const [n, setN] = useState(instant ? 3 : 0);
+  useEffect(() => {
+    if (instant) return;
+    const ids = [0, 1, 2].map((i) => window.setTimeout(() => setN(i + 1), (delay + i * gap) * 1000));
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [instant, delay, gap]);
+  const size = portrait ? "4vw" : "clamp(14px, 1.35vw, 22px)";
+  return (
+    <div
+      aria-hidden
+      className="absolute flex items-center"
+      style={portrait ? { right: "4%", top: "calc(100% + 2.2vh)", gap: `calc(${size} * 0.9)` } : { left: "calc(100% + 1.6vw)", top: "40%", gap: `calc(${size} * 0.9)` }}
+    >
+      {DOT_PATHS.map((d, i) => (
+        <svg key={i} viewBox="0 0 12 12" style={{ width: size, height: size, opacity: i < n ? 1 : 0, transform: i < n ? "scale(1)" : "scale(0.55)", transition: instant ? "none" : "opacity 160ms ease-out, transform 220ms cubic-bezier(.3,1.6,.5,1)" }}>
+          <path d={d} fill="#3a2418" />
+        </svg>
+      ))}
+      <span className="sr-only">…</span>
     </div>
   );
 }
@@ -216,7 +356,8 @@ function SlideLayer() {
   const { timeline: t, beats } = useScene();
   const vp = useViewport();
   const beat = beats[t.index];
-  const list = PANELS.filter((p) => p.beat === beat.id);
+  const hasCloseup = beats.some((b) => b.id === "closeup");
+  const list = PANELS.filter((p) => (p.beat === "closeup" && !hasCloseup ? "punchline" : p.beat) === beat.id);
   const n = Math.max(1, list.length);
   const places = vp.portrait ? stackPlaces(list, vp.w, vp.h) : null;
   return (
