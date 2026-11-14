@@ -8,20 +8,24 @@ export const SCENE_H = 1024;
 /** cover 裁切时尽量保持在视口约 55% 高度处的那条线（锅和蛋附近）。 */
 export const FOCUS_Y = 600;
 
-/** 主图里关键区域（场景像素，目测值，拆层时请实测修正并更新这里）。 */
+/** 主图里关键区域（场景像素，feat/kitchen-layers 按分层结果实测，tools/split_scene.py 会打印这些值）。 */
 export const ANCHORS = {
-  /** 荷包蛋在原画中的包围盒 [x0, y0, x1, y1] */
-  eggBox: [525, 150, 915, 525] as const,
-  /** 蛋静止落在锅面时的脚底中心 */
-  eggRest: { x: 720, y: 560 },
-  /** 锅内油面区域，油泡和影子在这里 */
-  panBox: [430, 540, 1050, 650] as const,
+  /** 原画里跳起的荷包蛋包围盒 [x0, y0, x1, y1]（分层里已不含蛋，仅作姿态参考） */
+  eggBox: [530, 148, 915, 522] as const,
+  /** 锅内起跳点：蛋站在锅里时的脚底中心。比锅沿线低约 8px，脚会被 pan-rim 层挡住，看起来在锅里 */
+  eggRest: { x: 742, y: 666 },
+  /** 锅内可见的煎面（深色油面）包围盒，油泡和影子在这里 */
+  panBox: [360, 502, 1109, 661] as const,
+  /** 煎面椭圆：中心与半轴。下半弧就是 pan-rim 遮挡层的上沿：y = cy + ry·√(1-((x-cx)/rx)²) */
+  panInner: { cx: 743, cy: 579, rx: 398, ry: 78 },
+  /** pan-rim 遮挡层（锅前沿 + 红色锅身前半）包围盒 */
+  panRimBox: [358, 601, 1119, 747] as const,
   /** 锅底火苗 */
-  flameBox: [600, 735, 830, 790] as const,
+  flameBox: [580, 729, 879, 800] as const,
   /** 水壶嘴，蒸汽起点 */
-  kettleSpout: { x: 1200, y: 330 },
-  /** 吐司盘（前层） */
-  toastBox: [0, 820, 440, 1024] as const,
+  kettleSpout: { x: 1192, y: 312 },
+  /** 吐司盘（前景层） */
+  toastBox: [0, 808, 450, 1024] as const,
 } as const;
 
 export type Box = readonly [number, number, number, number];

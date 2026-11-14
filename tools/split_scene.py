@@ -549,7 +549,9 @@ def stove_body_mask():
 
 
 def rgba(rgb, a):
-    return np.dstack([np.clip(rgb, 0, 255), np.clip(a, 0, 1) * 255]).astype(np.uint8)
+    a8 = np.round(np.clip(a, 0, 1) * 255)
+    rgb = np.where((a8 > 0)[..., None], np.clip(rgb, 0, 255), 0)  # empty pixels compress to nothing
+    return np.dstack([rgb, a8]).astype(np.uint8)
 
 
 def debug_masks(img, M, path):
