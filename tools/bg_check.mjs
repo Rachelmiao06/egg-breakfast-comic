@@ -137,7 +137,8 @@ if (process.env.FLIGHT) {
     const foot={x:wrap.offsetLeft+wrap.offsetWidth/2+WM.e+(fm[0]||0), y:wrap.offsetTop+wrap.offsetHeight+WM.f+(fm[1]||0)};
     // 蛋身（不含旋转后图片外接框的透明角）：以脚底为基准、宽 = 388 × 当前缩放，取 80% 宽、85% 高
     const sc=Math.hypot(WM.a,WM.b), bw=388*sc; const body={x:foot.x-bw*0.4,y:foot.y-bw*0.85,w:bw*0.8,h:bw*0.85};
-    return {foot, body, egg:toS(r(egg)), wrap:toS(r(wrap)), panel:toS(r(pan)), eggScreen:r(egg), panelOp: pan?+getComputedStyle(pan).opacity:0, eggOp:op, eggs:document.querySelectorAll('img[src*="egg.webp"]').length, vw:innerWidth, vh:innerHeight}; })()`;
+    const panelZ=pan?+getComputedStyle(pan.parentElement).zIndex:0, eggZ=+getComputedStyle(wrap.parentElement).zIndex;
+    return {foot, body, panelZ, eggZ, egg:toS(r(egg)), wrap:toS(r(wrap)), panel:toS(r(pan)), eggScreen:r(egg), panelOp: pan?+getComputedStyle(pan).opacity:0, eggOp:op, eggs:document.querySelectorAll('img[src*="egg.webp"]').length, vw:innerWidth, vh:innerHeight}; })()`;
   const all = {};
   const ffails = [];
   for (const [w, h] of sizes) {
@@ -152,7 +153,7 @@ if (process.env.FLIGHT) {
       await go(at("catch", p), 700);
       const m = await evalJs(FM);
       const P0 = m.panel;
-      const b = m.body; const covered = P0 && m.panelOp > 0.05 && b.x + b.w > P0.x && b.x < P0.x + P0.w && b.y + b.h > P0.y && b.y < P0.y + P0.h;
+      const b = m.body; const covered = P0 && m.panelOp > 0.05 && m.panelZ > m.eggZ && b.x + b.w > P0.x && b.x < P0.x + P0.w && b.y + b.h > P0.y && b.y < P0.y + P0.h;
       pre.push({ p, covered: !!covered, eggOp: m.eggOp });
       if (p === 0.1) { const shot = await send("Page.captureScreenshot", { format: "jpeg", quality: 72 }); writeFileSync(`${out}/shots/flight-${key}-0-ready.jpg`, Buffer.from(shot.result.data, "base64")); }
     }
