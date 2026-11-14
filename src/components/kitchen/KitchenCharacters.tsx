@@ -1,19 +1,19 @@
 "use client";
 /** 厨房里所有会动的东西，按前后顺序叠放。由 KitchenScene 作为 children 使用。 */
 import Bubbles from "./Bubbles";
-import Egg, { type EggAnchors } from "./Egg";
+import Egg, { type EggAnchors, type EggFaces } from "./Egg";
 import Flame from "./Flame";
 import PanOil from "./PanOil";
 import Steam from "./Steam";
 
-export default function KitchenCharacters({ eggAnchors, direct = false }: { eggAnchors?: Partial<EggAnchors>; direct?: boolean }) {
+export default function KitchenCharacters({ eggAnchors, eggFaces, direct = false }: { eggAnchors?: Partial<EggAnchors>; eggFaces?: EggFaces; direct?: boolean }) {
   return (
     <>
       <Flame />
       <PanOil />
       <Bubbles />
       <Steam />
-      <Egg anchors={eggAnchors} direct={direct} />
+      <Egg anchors={eggAnchors} faces={eggFaces} direct={direct} />
     </>
   );
 }

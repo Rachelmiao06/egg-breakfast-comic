@@ -127,7 +127,7 @@ function StageV2() {
             </>
           }
         >
-          <KitchenCharacters eggAnchors={anchors} direct />
+          <KitchenCharacters eggAnchors={anchors} eggFaces={cfg.egg.faces} direct />
         </KitchenScene>
       </div>
       <HallwayBackdrop />

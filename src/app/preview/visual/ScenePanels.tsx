@@ -28,7 +28,7 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
   const handIn = t.beat.id === "handoff" ? phaseProgress(t, "enter") : 0;
   // 交接：接蛋格先较快淡出，交接格稍后淡入，减少两格重叠的时间
   if (t.beat.id === "handoff") k = 1 - Math.min(1, handIn * 1.6);
-  // 交接格淡入时画里的蛋被上层的活动蛋盖住；活动蛋随后在很短的区间淡出（Egg.tsx HANDOFF），不长时间出现两张脸
+  // 交接格在活动蛋下方淡入，画里的蛋被活动蛋整颗盖住；交接格不透明后活动蛋在 HANDOFF.swap 瞬时消失（Egg.tsx），不出现两张脸
   const handOp = Math.min(1, Math.max(0, (handIn - HANDOFF.panelIn[0]) / (HANDOFF.panelIn[1] - HANDOFF.panelIn[0])));
   const hb = handoffBox(cfg);
   const hand = cfg.scene.handoff;
