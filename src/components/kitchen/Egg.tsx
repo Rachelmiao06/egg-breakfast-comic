@@ -34,6 +34,8 @@ export type EggAnchors = {
   eggAtTable: number;
   eggOnSpatula: number;
   eggInBowl: number;
+  /** 可选：接蛋飞行的最高点（脚底的场景 y）。给了就越过接蛋格上框再落到铲面；不给用旧的固定抬升 */
+  flightApexY?: number;
 };
 export const DEFAULT_EGG_ANCHORS: EggAnchors = {
   panLaunch: ANCHORS.panLaunch,
@@ -84,6 +86,21 @@ function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number,
   };
 }
 
+/**
+ * 接蛋飞行路径（脚底中心，场景像素）：二次贝塞尔，最高点正好到 apexY，最高点的 x 落在全程的 apexAt 处，
+ * 所以蛋从桌沿起跳后很快升到格子上框之上，再从上方落到铲面，不在妈妈头部和对白泡上方停留。
+ * 镜头跟随（page.tsx）读同一条路径。
+ */
+export function flightPoint(A: Pt, B: Pt, apexY: number, t: number, apexAt = 0.6): Pt {
+  const k = clamp01(t);
+  const H = Math.min(apexY, Math.min(A.y, B.y) - 40);
+  const cy = H - Math.sqrt((A.y - H) * (B.y - H)); // 让曲线最高点 = H
+  const ts = (A.y - cy) / (A.y + B.y - 2 * cy); // 最高点所在的 t
+  const X = A.x + apexAt * (B.x - A.x);
+  const cx = (X - (1 - ts) ** 2 * A.x - ts ** 2 * B.x) / (2 * (1 - ts) * ts);
+  return { x: bez(A.x, cx, B.x, k), y: bez(A.y, cy, B.y, k) };
+}
+
 /** 本段之前，蛋最后停在哪一站（决定 flight 从哪起飞） */
 function lastStationBefore(beats: Beat[], index: number): Station {
   for (let i = index - 1; i >= 0; i--) {
@@ -127,7 +144,15 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
     case "flight": {
       const from = lastStationBefore(beats, t.index);
       if (before) return { ...base(from, from === "pan" ? "pan" : "table", from === "pan" ? Z.eggInPan : Z.eggOnTable), settle: true };
-      if (travelling) return { pose: arc(from, "spatula", actionP, a, 380, -18), station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null };
+      if (travelling) {
+        const pose = arc(from, "spatula", actionP, a, 380, -18);
+        if (a.flightApexY !== undefined) {
+          const f = flightPoint(from === "pan" ? a.panLaunch : a.tableWait, a.spatulaLand, a.flightApexY, actionP);
+          pose.x = f.x - REST.x;
+          pose.y = f.y - REST.y;
+        }
+        return { pose, station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null };
+      }
       return { ...base("spatula", null, Z.eggFlying), landing: "spatula" };
     }
     case "serve": {

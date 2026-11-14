@@ -47,7 +47,14 @@ export type HandoffSlot = {
   eggCenter: { fx: number; fy: number };
   eggWidthFrac: number;
 };
-export type SlotConfig = { scene: { catch: SceneSlot; handoff?: HandoffSlot; bowl?: SceneSlot }; egg: { onSpatulaScale: number; inBowlScale: number } };
+export type SlotConfig = {
+  scene: { catch: SceneSlot; handoff?: HandoffSlot; bowl?: SceneSlot };
+  egg: { onSpatulaScale: number; inBowlScale: number };
+  /** 运行时（page.tsx 按视口算）：接蛋镜头下可见的场景范围，交接格滑动以它为界 */
+  view?: { x0: number; x1: number; y0: number; y1: number };
+  /** 运行时：横版接蛋格放不下，已缩到可见宽度内（竖屏、窄窗口） */
+  narrow?: boolean;
+};
 
 /** 活动蛋落在铲面上时的中心与宽度（场景像素）。蛋图 388×388，脚底在 land 点。 */
 export function landedEgg(cfg: SlotConfig) {
