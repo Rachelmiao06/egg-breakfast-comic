@@ -54,7 +54,7 @@
 ## 4. 组件接口
 
 - `KitchenScene`（集成会话）：props `base?`（layers 交付后传 `<KitchenLayers/>`）、`children`（角色）、`foreground?`（前景妈妈）。负责阅读弱化和镜头。
-- `KitchenLayers`（layers 分支）：渲染 back / mid / panRim / frontLeft / frontRight 层（各用对应 `Z`），鼠标视差，随 `progress` 轻微景深漂移；吐司盘层默认隐藏（待替换）；`activePanel >= 5` 时 `momZone` 内的前景物件淡出给妈妈让位。不负责调暗。props：`{ mouse?: boolean }`。
+- `KitchenLayers`（layers 分支）：渲染 back / mid / pan-rim / front-toast / front-right 五层（各用对应 `Z`；front-toast 默认不渲染，`showToast` 仅供叠合检查），鼠标视差，随 `progress` 轻微景深漂移；吐司盘层默认隐藏（待替换）；`activePanel >= 5` 时 `momZone` 内的前景物件淡出给妈妈让位。不负责调暗。props：`{ mouse?: boolean }`。
 - 角色（kitchen-scene 分支，主会话）：`Egg`（循环跳 → 按 `flight` 从 `panLaunch` 飞到 `spatulaLand` 并缩到 `eggOnSpatula` → 按 `serve` 移到 `bowlLand` 并缩到 `eggInBowl`；z 从 40 切到 80）、`EggShadow`、`Flame`、`PanOil`、`Bubbles`、`Steam`、`SoundToggle`、`ScrollHint`、`useKitchenAudio`。
 - 漫画（comic-scroll 分支）：`ComicScroll`（页面层、fixed 定位的前景画格，**只读 timeline**，用 `envelope` / `phaseProgress` 做进入、停留、退出；不定义滚动区高度、不注册 ScrollTrigger、不写共享状态）+ `MomForeground`（场景层，z = 70：节拍 5–6 按 `MOM_SPATULA` 摆放锅铲妈妈，节拍 7 交叉淡化到 `MOM_SERVE` 端碗妈妈）。**不**渲染蛋本体，也不播放声音。
 - 滚动驱动只有 `<ScrollDriver>`（集成会话）。GSAP 3 只用于被触发后按秒播放的小动作（时长写在节拍表 `seconds`），不用 ScrollTrigger。Canvas 粒子用原生 2D。不加新库。
@@ -71,7 +71,7 @@ source/storyboard-v2.png、comic-page-{1,2}.png  旧素材，停用
 
 public/assets/scene/kitchen-clean.webp, egg.webp           集成会话（tools/prepare_assets.py）
 public/assets/mom/{chop,stirfry,sauce,serve,spatula}.webp  集成会话（tools/prepare_mom.py：柔边收紧、去色污染、按组裁切）
-public/assets/scene/{back,mid,pan-rim,front-left,front-right}.png   layers 分支（由 kitchen-clean 拆出，1536×1024 透明）
+public/assets/scene/{back,mid,pan-rim,front-toast,front-right}.png   layers 分支（由 kitchen-clean 拆出，1536×1024 透明）
 public/assets/scene/{flame,oil}.png                        kitchen-scene 分支（从原图抽出）
 public/assets/comic/                                       comic 分支（结尾占位等）
 public/assets/audio/                                       用户提供的录音 + LICENSES.md
@@ -82,7 +82,7 @@ public/assets/audio/                                       用户提供的录音
 | 分支 | 只能改 | 不能改 |
 |---|---|---|
 | feat/kitchen-scene（主会话） | `src/components/kitchen/` 下除 `KitchenScene.tsx`、`KitchenLayers.tsx` 外的组件和 hook（含全部声音）、`src/app/dev/scene/`、`public/assets/scene/{flame,oil}.png`、`tools/extract_fx.py` | 其余 |
-| kitchen-layers 分支 | `src/components/kitchen/KitchenLayers.tsx`、`tools/split_scene.py`、`public/assets/scene/{back,mid,pan-rim,front-left,front-right}.png`、`src/app/dev/layers/` | 其余 |
+| kitchen-layers 分支 | `src/components/kitchen/KitchenLayers.tsx`、`tools/split_scene.py`、`public/assets/scene/{back,mid,pan-rim,front-toast,front-right}.png`、`src/app/dev/layers/` | 其余 |
 | comic-scroll 分支 | `src/components/comic/**`（含 `MomForeground.tsx`）、`tools/split_comic.py`、`public/assets/comic/`、`src/app/dev/comic/` | 其余 |
 | 集成会话（main） | `src/app/page.tsx`、`layout.tsx`、`globals.css`、`KitchenScene.tsx`、`SceneStage.tsx`、`src/lib/*`、`package.json`、lockfile、`docs/`、`SPEC.md`、`source/`、`tools/prepare_assets.py`、`tools/prepare_mom.py`、`public/assets/scene/{kitchen-clean,egg}.webp`、`public/assets/mom/` | — |
 

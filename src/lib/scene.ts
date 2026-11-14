@@ -15,20 +15,24 @@ export const FOCUS_Y = 600;
 export const ANCHORS = {
   /** 荷包蛋在原画中的包围盒 [x0, y0, x1, y1] */
   eggBox: [525, 150, 915, 525] as const,
-  /** 蛋静止落在锅底时的脚底中心（锅底中心 y≈590，锅前沿 y≈648） */
-  eggRest: { x: 720, y: 618 },
+  /** 蛋静止落在锅里时的脚底中心。x=720 处锅沿遮挡线 y=657，脚底在其下 13px，被 pan-rim 层挡住（kitchen-layers 实测） */
+  eggRest: { x: 720, y: 670 },
   /** 蛋图（public/assets/scene/egg.webp）在场景里的显示尺寸 */
   eggSize: { w: 388, h: 388 },
   /** 锅内可见锅底区域（内沿椭圆的外接框），油泡和影子在这里 */
-  panBox: [370, 505, 1105, 648] as const,
+  panBox: [360, 502, 1109, 661] as const,
+  /** 锅底椭圆（kitchen-layers 实测）。下半弧就是锅沿遮挡线：y = cy + ry·√(1−((x−cx)/rx)²) */
+  panInner: { cx: 743, cy: 579, rx: 398, ry: 77 },
+  /** pan-rim 遮挡层包围盒 */
+  panRimBox: [358, 601, 1119, 747] as const,
   /** 锅底火苗 */
-  flameBox: [600, 735, 830, 790] as const,
+  flameBox: [580, 729, 879, 800] as const,
   /** 水壶嘴，蒸汽起点 */
-  kettleSpout: { x: 1200, y: 330 },
+  kettleSpout: { x: 1192, y: 312 },
   /** 吐司盘（前层）：故事已改为拌饭，吐司**待替换**（docs/ASSET-REQUESTS.md 第四版 K1），不作为任何终点 */
   toastBox: [0, 805, 440, 1024] as const,
-  /** 蛋从锅里起跳的点（脚底中心）。kitchen-layers 实测建议 (742, 666) 配合锅沿遮挡层，集成锅沿层时再切换 */
-  panLaunch: { x: 720, y: 618 },
+  /** 蛋从锅里起跳的点（脚底中心），与 eggRest 一致 */
+  panLaunch: { x: 720, y: 670 },
   /** 前景妈妈锅铲铲面上蛋的落点（脚底中心），由 MOM_SPATULA 摆放 + 铲面实测算出（tools/prepare_mom.py） */
   spatulaLand: { x: 537, y: 773 },
   /** 蛋落在锅铲上时的缩放（相对 eggSize），按铲面长度算 */

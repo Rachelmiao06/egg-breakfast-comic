@@ -14,7 +14,8 @@ const EggShadow = forwardRef<HTMLDivElement, { zIndex?: number }>(function EggSh
       className="pointer-events-none absolute"
       style={{
         left: ANCHORS.eggRest.x - W / 2,
-        top: ANCHORS.eggRest.y - H / 2 - 4,
+        // 影子落在锅底上：锅沿遮挡线（x=720 处 y≈657）以上，否则会被 pan-rim 层挡住
+        top: ANCHORS.eggRest.y - 23 - H / 2,
         width: W,
         height: H,
         borderRadius: "50%",

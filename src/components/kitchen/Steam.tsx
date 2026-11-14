@@ -6,7 +6,7 @@ import { useScene } from "@/lib/scene-context";
 import { useCanvasLoop } from "./useCanvasLoop";
 
 const BOX = { x: 1020, y: 60, w: 300, h: 280 };
-const SPOUT = { x: ANCHORS.kettleSpout.x - BOX.x - 6, y: ANCHORS.kettleSpout.y - BOX.y - 14 };
+const SPOUT = { x: ANCHORS.kettleSpout.x - BOX.x, y: ANCHORS.kettleSpout.y - BOX.y };
 
 type Puff = { x: number; y: number; r: number; life: number; ttl: number; vx: number; seed: number };
 
