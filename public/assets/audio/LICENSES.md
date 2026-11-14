@@ -5,12 +5,12 @@
 
 | 文件 | 原始标题 | 来源 | 作者 | 许可 | 处理 |
 |---|---|---|---|---|---|
-| room-loop.mp3 | Kitchen room tone day | https://pixabay.com/sound-effects/film-special-effects-kitchen-room-tone-day-61809/ | freesound_community | Pixabay Content License | 取前 40.5 s，旋转 1 s + 0.5 s 等功率交叉淡化接缝 → 40.0 s 循环；+27.2 dB；128 kbps。成品 -18.4 LUFS，-4.6 dBTP |
-| sizzle-loop.mp3 | Frying Pan Hot Sizzle Loop 1 | https://pixabay.com/sound-effects/film-special-effects-frying-pan-hot-sizzle-loop-1-200912/ | floraphonic | Pixabay Content License | 取前 20.5 s，旋转 1 s + 0.5 s 交叉淡化接缝 → 20.0 s 循环；+4.4 dB 并限幅。成品 -19.8 LUFS，+0.4 dBTP（限幅上限待降到 -2 dBFS） |
-| chop-loop.mp3 | Knife Cut Veggies Foley 4 | https://pixabay.com/sound-effects/household-knife-cut-veggies-foley-4-211705/ | floraphonic | Pixabay Content License | 末尾补 0.29 s 静音使首尾刀声间隔≈1.05 s，旋转 0.5 s + 0.1 s 交叉淡化（接缝在静音段内）→ 6.53 s 循环；+2.5 dB。成品 -25.9 LUFS，-1.3 dBTP，首尾 60 ms 电平差 2.7 dB |
+| room-loop.mp3 | Kitchen room tone day | https://pixabay.com/sound-effects/film-special-effects-kitchen-room-tone-day-61809/ | freesound_community | Pixabay Content License | 取前 40.5 s，旋转 1 s + 0.5 s 等功率交叉淡化接缝 → 40.0 s 循环；+27.2 dB；128 kbps。成品 -18.4 LUFS，-4.6 dBTP，首尾 60 ms 电平差 0.8 dB |
+| sizzle-loop.mp3 | Frying Pan Hot Sizzle Loop 1 | https://pixabay.com/sound-effects/film-special-effects-frying-pan-hot-sizzle-loop-1-200912/ | floraphonic | Pixabay Content License | 取前 20.5 s，旋转 1 s + 0.5 s 交叉淡化接缝 → 20.0 s 循环；+4.4 dB 并限幅。成品 -20.2 LUFS，-0.6 dBTP |
+| chop-loop.mp3 | Knife Cut Veggies Foley 4 | https://pixabay.com/sound-effects/household-knife-cut-veggies-foley-4-211705/ | floraphonic | Pixabay Content License | 末尾补 0.29 s 静音使首尾刀声间隔≈1.05 s，旋转 0.5 s + 0.1 s 交叉淡化（接缝在静音段内）→ 6.53 s 循环；+2.5 dB。成品 -26.3 LUFS，-2.1 dBTP，首尾 60 ms 电平差 5.1 dB（两端都在静音段内） |
 | stirfry-in.mp3 | sizzle4-water-into-hot-pan | https://pixabay.com/sound-effects/film-special-effects-sizzle4-water-into-hot-pan-42578/ | freesound_community | Pixabay Content License | 取 [0.86, 2.66]（起音 0.88 s，之前为静音）一声爆发，尾部 0.7 s 淡出 → 1.8 s；+1.7 dB。成品 -18.3 LUFS，-4.6 dBTP |
-| sauce-stir-loop.mp3 | Spoon Stir in Bowl | https://pixabay.com/sound-effects/household-spoon-stir-in-bowl-437705/ | u_xg7ssi08yr | Pixabay Content License | 取 [0.80, 18.70]（两端都在勺声间隙），旋转 0.6 s + 0.2 s 交叉淡化 → 17.7 s 循环；+2.0 dB（受峰值限制）。成品 -29.6 LUFS，-0.7 dBTP |
-| catch.mp3 | soft plop | https://pixabay.com/sound-effects/film-special-effects-soft-plop-97691/ | freesound_community | Pixabay Content License | 取第一声 plop [0.47, 1.07]（起音 0.49 s、峰值 0.52 s），尾部 0.15 s 淡出 → 0.6 s；+6.9 dB。成品 -18.8 LUFS，-1.3 dBTP |
+| sauce-stir-loop.mp3 | Spoon Stir in Bowl | https://pixabay.com/sound-effects/household-spoon-stir-in-bowl-437705/ | u_xg7ssi08yr | Pixabay Content License | 取 [0.80, 18.70]（两端都在勺声间隙），旋转 0.6 s + 0.2 s 交叉淡化 → 17.7 s 循环；+2.0 dB（受峰值限制）。成品 -30.3 LUFS，-1.6 dBTP，首尾 60 ms 电平差 4.7 dB |
+| catch.mp3 | soft plop | https://pixabay.com/sound-effects/film-special-effects-soft-plop-97691/ | freesound_community | Pixabay Content License | 取第一声 plop [0.47, 1.07]（起音 0.49 s、峰值 0.52 s），尾部 0.15 s 淡出 → 0.6 s；+6.9 dB。成品 -19.3 LUFS，-2.2 dBTP |
 | bowl-down.mp3 | Bowl placed on table（Mixkit 条目 1799） | https://mixkit.co/free-sound-effects/kitchen/ | Mixkit | Mixkit Sound Effects Free License | 原档 WAV 16-bit 44.1 kHz，用 ffmpeg 转成 mp3 192 kbps（1.1 s） |
 
 ## 尚无素材

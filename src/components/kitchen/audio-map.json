@@ -1,0 +1,28 @@
+{
+  "_doc": [
+    "按场景编号（beats.json 的 id）覆盖每段的 audio 字段，由 useKitchenAudio 读取；表里没有的场景沿用节拍数据里原来的值。",
+    "混音原则：任何时刻 = 很轻的环境底声 room + 一个当前主要动作声（sizzle / chop / stirfry / sauce / steps 之一）+ 必要的单次音效。",
+    "进入阶段的渐变由 loopLevels 自动从上一段的稳定音量过渡，所以这里只写每段的稳定音量；fades 用于段内渐变。",
+    "没有音源的声音（stirfry、steps、pour、pop、momCall、eggCall、eggSmall）是空位，保持静音，不用不相关的声音填补。见 public/assets/audio/README.md 的对应表。"
+  ],
+  "scenes": {
+    "opening":   { "loops": { "room": 0.25, "sizzle": 0.55 }, "fades": [], "oneshots": [] },
+    "bag":       { "loops": { "room": 0.25, "sizzle": 0.35 }, "fades": [], "oneshots": [] },
+    "idea":      { "loops": { "room": 0.25, "sizzle": 0.35 }, "fades": [], "oneshots": [] },
+    "chop":      { "loops": { "room": 0.25, "sizzle": 0.15, "chop": 0.5 }, "fades": [], "oneshots": [] },
+    "stirfry":   { "loops": { "room": 0.25, "sizzle": 0.15, "stirfry": 0.5 }, "fades": [], "oneshots": [{ "sound": "stirfryIn", "at": 0.2 }] },
+    "sauce":     { "loops": { "room": 0.25, "sizzle": 0.15, "sauce": 0.45 }, "fades": [], "oneshots": [] },
+    "missing":   { "loops": { "room": 0.25, "sizzle": 0.3 }, "fades": [], "oneshots": [] },
+    "hear":      { "loops": { "room": 0.25, "sizzle": 0.55 }, "fades": [], "oneshots": [{ "sound": "pop", "at": 0.6 }] },
+    "catch":     { "loops": { "room": 0.25, "sizzle": 0.5 }, "fades": [{ "sound": "sizzle", "from": 0.5, "to": 0.2, "phase": "action" }], "oneshots": [{ "sound": "catch", "at": 0.85 }] },
+    "handoff":   { "loops": { "room": 0.25, "sizzle": 0.1 }, "fades": [], "oneshots": [] },
+    "bowl":      { "loops": { "room": 0.25 }, "fades": [{ "sound": "sizzle", "from": 0.1, "to": 0, "phase": "enter" }], "oneshots": [{ "sound": "bowlDown", "at": 0.5 }, { "sound": "pour", "at": 0.8 }] },
+    "yolk":      { "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
+    "call":      { "loops": { "room": 0.2 }, "fades": [], "oneshots": [{ "sound": "momCall", "at": 0.3 }, { "sound": "eggSmall", "at": 0.75 }] },
+    "search":    { "loops": { "room": 0.1, "steps": 0.4 }, "fades": [], "oneshots": [] },
+    "eggcall":   { "loops": { "room": 0.15 }, "fades": [], "oneshots": [{ "sound": "eggCall", "at": 0.3 }] },
+    "return":    { "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
+    "recognize": { "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
+    "punchline": { "loops": { "room": 0.25 }, "fades": [], "oneshots": [] }
+  }
+}

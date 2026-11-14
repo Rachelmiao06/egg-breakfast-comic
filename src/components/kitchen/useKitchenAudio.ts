@@ -17,10 +17,13 @@
  *   （play 后立刻 pause，iOS 要求每个媒体元素各自在手势里 play 过）。
  * - 页面切到后台：全部暂停；回到前台恢复循环；后台期间越过的触发点不补播。
  * - 文件还没提供（404 / 解码失败）就保持静音；available 表示至少有一条能播。
+ * - 场景 → 声音的对应表在 audio-map.json（按场景编号 id 覆盖节拍数据的 audio 字段，表里没有的场景沿用原值）。
+ *   这样不用改共享的 beats.json；音量、触发点都在声音分支自己的文件里。
  */
-import { useEffect, useRef, useState } from "react";
-import { crossedOneShots, loopLevels, LOOP_SOUNDS, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { crossedOneShots, loopLevels, LOOP_SOUNDS, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
+import audioMap from "./audio-map.json";
 
 const DIR = "/assets/audio/";
 /** 循环声文件（音量完全由节拍表 audio.loops 决定） */
@@ -44,6 +47,29 @@ const ONESHOTS: Record<OneShotSound, { file: string; volume: number }> = {
   eggSmall: { file: "egg-small.mp3", volume: 0.5 }, // 暂无素材：蛋小声"我在这儿……"
 };
 const ONESHOT_SOUNDS = Object.keys(ONESHOTS) as OneShotSound[];
+
+type SceneAudio = Beat["audio"];
+const SCENE_AUDIO = (audioMap as { scenes: Record<string, SceneAudio> }).scenes;
+const warned = new Set<string>();
+/** 用 audio-map.json 覆盖节拍表每段的 audio；检查声音名是否已登记（没登记的忽略并在开发期提示一次） */
+export function withAudioMap(beats: Beat[]): Beat[] {
+  return beats.map((b) => {
+    const m = SCENE_AUDIO[b.id];
+    if (!m) return b;
+    const loops: SceneAudio["loops"] = {};
+    for (const [k, v] of Object.entries(m.loops)) {
+      if ((LOOP_SOUNDS as string[]).includes(k)) loops[k as LoopSound] = v;
+      else warnOnce(`audio-map.json: 场景 ${b.id} 的循环声 ${k} 未登记`);
+    }
+    const fades = m.fades.filter((f) => (LOOP_SOUNDS as string[]).includes(f.sound) || !warnOnce(`audio-map.json: 场景 ${b.id} 的渐变声 ${f.sound} 未登记`));
+    const oneshots = m.oneshots.filter((o) => (ONESHOT_SOUNDS as string[]).includes(o.sound) || !warnOnce(`audio-map.json: 场景 ${b.id} 的单次音效 ${o.sound} 未登记`));
+    return { ...b, audio: { loops, fades, oneshots } };
+  });
+}
+function warnOnce(msg: string) {
+  if (!warned.has(msg)) { warned.add(msg); if (process.env.NODE_ENV !== "production") console.warn(msg); }
+  return true;
+}
 
 /** 平滑速度：音量每秒最多变化这么多（满量程），只用于去掉跳变，节奏由节拍表决定 */
 const SLEW_PER_SEC = 2.5;
@@ -257,7 +283,10 @@ class KitchenMixer {
 }
 
 export function useKitchenAudio() {
-  const { soundOn, timeline, beats } = useScene();
+  const { soundOn, timeline: rawTimeline, beats: rawBeats } = useScene();
+  // 套上声音分支自己的场景对应表；时间轴里的 beat 也换成带新 audio 的那一份
+  const beats = useMemo(() => withAudioMap(rawBeats), [rawBeats]);
+  const timeline = useMemo<Timeline>(() => ({ ...rawTimeline, beat: beats[rawTimeline.index] ?? rawTimeline.beat }), [rawTimeline, beats]);
   const mixer = useRef<KitchenMixer | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
 
