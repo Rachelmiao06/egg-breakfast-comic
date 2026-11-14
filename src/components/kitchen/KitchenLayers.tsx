@@ -1,14 +1,16 @@
 "use client";
 /**
- * Kitchen environment layers (kitchen-layers, design v3).
+ * Kitchen environment layers (kitchen-layers, design v4).
  *
  * Five 1536×1024 layers cut from source/kitchen-clean.png, rendered as siblings inside
  * <SceneStage> so they interleave with the character layers through the shared Z order:
  *   back (Z.back)        wall, tiles, back counter, yellow pot, jars, kettle
  *   mid (Z.mid)          wooden table, green stove, red skillet body + floor
  *   pan-rim (Z.panRim)   front lip + red outer wall of the skillet → hides the egg's feet
- *   front-left (Z.frontLeft)    toast plate
- *   front-right (Z.frontRight)  eggshells, gingham cloth; fades out at activePanel >= 4 for mom
+ *   front-toast (Z.frontLeft)   toast plate — NOT rendered by default (toast left the story;
+ *                               the table behind it is rebuilt in `mid`), `showToast` for checks
+ *   front-right (Z.frontRight)  eggshells, gingham cloth (+ their table shadows), all inside
+ *                               ANCHORS.momZone; fades out in 0.5 s at activePanel >= 5 for mom
  *
  * Motion (scene px, eased, frame-rate independent):
  * - mouse parallax: front ±10, mid + pan-rim ±5 (identical values), back ±2; off on touch.
@@ -26,7 +28,10 @@ import { useEffect, useRef, useState } from "react";
 import { FOCUS_Y, SCENE_H, SCENE_W, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
-export type KitchenLayerName = "back" | "mid" | "pan-rim" | "front-left" | "front-right";
+export type KitchenLayerName = "back" | "mid" | "pan-rim" | "front-toast" | "front-right";
+
+/** activePanel from which mom's spatula occupies momZone (docs/DESIGN.md §1, beat 5) */
+const MOM_PANEL = 5;
 
 const SRC = "/assets/scene";
 const ORIGIN_X = SCENE_W / 2;
@@ -39,21 +44,23 @@ const LAYERS: { name: KitchenLayerName; z: number; group: Group }[] = [
   { name: "back", z: Z.back, group: "back" },
   { name: "mid", z: Z.mid, group: "mid" },
   { name: "pan-rim", z: Z.panRim, group: "mid" },
-  { name: "front-left", z: Z.frontLeft, group: "front" },
+  { name: "front-toast", z: Z.frontLeft, group: "front" },
   { name: "front-right", z: Z.frontRight, group: "front" },
 ];
 
 type Props = {
   /** Mouse parallax (ignored on touch devices). */
   mouse?: boolean;
+  /** Render the retired toast plate (only for overlay checks; off in the story). */
+  showToast?: boolean;
   /** Dev only: layers to hide. */
   hide?: KitchenLayerName[];
 };
 
-export default function KitchenLayers({ mouse = false, hide = [] }: Props) {
+export default function KitchenLayers({ mouse = false, showToast = false, hide = [] }: Props) {
   const { progress, activePanel, isTouch, reducedMotion } = useScene();
   const useMouse = mouse && !isTouch && !reducedMotion;
-  const momOnStage = activePanel >= 4;
+  const momOnStage = activePanel >= MOM_PANEL;
 
   const els = useRef<(HTMLDivElement | null)[]>([]);
   const live = useRef({ progress, useMouse, reducedMotion });
@@ -63,7 +70,7 @@ export default function KitchenLayers({ mouse = false, hide = [] }: Props) {
 
   // reveal only when every layer is decoded, so layers never pop in one by one
   const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
-  const ready = loaded.size >= LAYERS.length;
+  const ready = LAYERS.every(({ name }) => (name === "front-toast" && !showToast) || loaded.has(name));
   const markLoaded = (name: string) => setLoaded((s) => (s.has(name) ? s : new Set(s).add(name)));
 
   useEffect(() => {
@@ -129,6 +136,7 @@ export default function KitchenLayers({ mouse = false, hide = [] }: Props) {
   return (
     <>
       {LAYERS.map(({ name, z }, i) => {
+        if (name === "front-toast" && !showToast) return null;
         const fadeForMom = name === "front-right" && momOnStage;
         return (
           <div

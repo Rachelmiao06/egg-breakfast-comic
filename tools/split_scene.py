@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Split the clean kitchen painting into depth layers (kitchen-layers, design v3).
+"""Split the clean kitchen painting into depth layers (kitchen-layers, design v4).
 
 Input : source/kitchen-clean.png (falls back to ~/Desktop/Clean watercolor kitchen with red skillet.png)
 
@@ -7,8 +7,8 @@ Outputs (all 1536x1024 RGBA, same canvas, same coordinates, see docs/DESIGN.md Z
   public/assets/scene/back.png         Z.back   wall, tiles, back counter, yellow pot, jars, kettle (opaque)
   public/assets/scene/mid.png          Z.mid    wooden table, green stove, red skillet body + handle + floor
   public/assets/scene/pan-rim.png      Z.panRim front half of the skillet: front lip + red outer wall
-  public/assets/scene/front-left.png   Z.frontLeft  toast plate with toast
-  public/assets/scene/front-right.png  Z.frontRight eggshells + gingham cloth (fades out for mom)
+  public/assets/scene/front-toast.png  Z.frontLeft  toast plate (not rendered by default: toast left the story)
+  public/assets/scene/front-right.png  Z.frontRight eggshells + gingham cloth (inside momZone, fades out for mom)
   tools/check_overlay.png              five layers recomposited vs the clean source + |diff|
   tools/layers_preview.png             contact sheet of the five layers
 
@@ -172,8 +172,18 @@ def build_masks(img: np.ndarray) -> dict[str, np.ndarray]:
         (1236, 795), (1244, 762), (1262, 746), (1330, 730), (1420, 705), (1536, 676), (1536, 940),
         (1500, 912), (1460, 888), (1420, 862), (1380, 850), (1335, 846), (1290, 826), (1250, 810)],
         band=7, inner=18)
+    # the plate's rim where it crosses the stove's left edge is missed by GrabCut (same tones)
+    M["plate"] |= poly_mask([(322, 880), (350, 880), (350, 945), (322, 945)]) & dil(M["plate"], 30)
     for k in ("plate", "shells", "cloth", "pot", "jars", "kettle"):
         M[k] = dil(M[k], 2)  # keep the whole painted outline with its object
+    # contact / cast shadows painted on the table belong to the object that casts them, so
+    # they disappear with it (front-right fades out for mom)
+    L = img.mean(2)
+    darker = L < cv2.medianBlur(np.clip(L, 0, 255).astype(np.uint8), 41).astype(np.float32) - 18
+    for k, r in (("shells", 16), ("cloth", 18)):
+        sh = dil(M[k], r) & ~M[k] & darker & M["table"]
+        sh = cv2.morphologyEx(sh.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)) > 0
+        M[k] = M[k] | dil(sh, 2)
     return M
 
 
@@ -300,7 +310,7 @@ def pushpull(v: np.ndarray, m: np.ndarray) -> np.ndarray:
     return val
 
 
-def finish(img, hole, out, acc, ring=4):
+def finish(img, hole, out, acc, ring=4, ring_ok=None):
     """Write quilted pixels into hole and remove colour drift: the mismatch measured on a
     thin ring just outside the hole is diffused smoothly across it (membrane correction)."""
     res = img.copy()
@@ -308,6 +318,8 @@ def finish(img, hole, out, acc, ring=4):
     q = img.copy()
     q[have] = out[have] / acc[have][:, None]
     rim = dil(hole, ring) & ~hole & have
+    if ring_ok is not None:
+        rim &= ring_ok
     d = np.zeros_like(img)
     d[rim] = img[rim] - q[rim]
     corr = pushpull(cv2.GaussianBlur(d, (0, 0), 1.5), rim)
@@ -518,7 +530,7 @@ def reflect_fill(img, hole, ok, y0, y1, bh=28, overlap=10, min_w=90, max_dy=160)
         if best is None:
             continue
         sy, (sa, sb) = best
-        sa, sb = sa + 2, sb - 2
+        sa, sb = sa + 10, sb - 10  # keep outline pixels at the run ends out of the mirror seams
         wspan = sb - sa
         xs = np.arange(W)
         t = np.mod(xs - sa, 2 * wspan)
@@ -531,13 +543,94 @@ def reflect_fill(img, hole, ok, y0, y1, bh=28, overlap=10, min_w=90, max_dy=160)
     return out, acc
 
 
+def stove_full_mask():
+    """Front stove incl. feet (the plate hides its lower-left corner and left foot)."""
+    return poly_mask([(352, 705), (372, 688), (1085, 688), (1103, 705), (1112, 790), (1120, 820),
+                      (1120, 925), (1102, 946), (1092, 946), (1092, 978), (1008, 978), (1008, 946),
+                      (525, 946), (525, 978), (441, 978), (441, 946), (352, 946), (331, 925),
+                      (331, 820), (344, 790)])
+
+
+def row_match(res, hole, ref_ok, reach=220, smooth=15):
+    """Per-row colour match: shift each hidden row toward the mean of visible reference
+    pixels in the same row (within `reach` px), offsets smoothed vertically."""
+    off = np.zeros((H, 3), np.float32)
+    have = np.zeros(H, bool)
+    for y in np.nonzero(hole.any(1))[0]:
+        xs = np.nonzero(hole[y])[0]
+        lo, hi = max(0, xs.min() - reach), min(W, xs.max() + reach)
+        ref = ref_ok[y, lo:hi]
+        if ref.sum() > 30:
+            off[y] = res[y, lo:hi][ref].mean(0) - res[y, xs].mean(0)
+            have[y] = True
+    if not have.any():
+        return res
+    ys = np.arange(H)
+    for c in range(3):
+        off[:, c] = np.interp(ys, ys[have], off[have, c])
+    off = cv2.GaussianBlur(off.reshape(H, 1, 3), (1, 0), smooth).reshape(H, 3) if False else \
+        cv2.blur(off.reshape(H, 1, 3), (1, 2 * smooth + 1)).reshape(H, 3)
+    out = res.copy()
+    yy, xx = np.nonzero(hole)
+    out[yy, xx] += off[yy]
+    return out
+
+
 def build_main(img, M):
     main_m = M["pan"] | M["stove_top"] | M["table"]
     occl = dil(M["plate"] | M["shells"] | M["cloth"], 3)
-    hole = M["table"] & occl
-    ok = M["table"] & ~occl & ~dil(M["stove_top"] | M["pan"], 2) & ~dil(stove_body_mask(), 3)
-    out, acc = reflect_fill(img, dil(hole, 6), ok, 754, H)
-    main = finish(img, hole, out, acc)
+    # the layer's feathered edge reaches ~3px past the table mask: fill that band too
+    hole = dil(M["table"], 3) & occl
+    stove = stove_full_mask()
+    st_hole = hole & stove
+    wood_hole = hole & ~stove
+    res = img.copy()
+
+    # 1) stove corner under the plate: mirror the visible right edge strip (x 1071-1126 →
+    #    x 325-380, the stove's sides are vertical and its bottom edge is level), then
+    #    continue the stove face row by row, then mirror the left foot about its own centre.
+    yy, xx = np.nonzero(st_hole)
+    for y, x in zip(yy, xx):
+        if x < 382 and y <= 946:
+            sx = 1451 - x
+        elif 436 <= x <= 456 and y > 944:
+            sx = 966 - x  # left foot spans ~443-523
+        else:
+            sx = None
+            for dx in range(80, 420, 8):
+                if x + dx < W and stove[y, x + dx] and not hole[y, x + dx]:
+                    sx = x + dx
+                    break
+        # mirrored sources (edge strip, foot) read the original painting directly
+        if sx is not None and (x < 382 or y > 944 or not hole[y, sx]):
+            res[y, x] = img[y, sx]
+    # the stove's cast shadow (rows 946-1000) continues under the plate: copy it sideways
+    sh_hole = hole & ~stove & (np.arange(H)[:, None] >= 944) & (np.arange(H)[:, None] < 1000) \
+        & (np.arange(W)[None, :] >= 333) & (np.arange(W)[None, :] < 445)
+    for y, x in zip(*np.nonzero(sh_hole)):
+        res[y, x] = img[y, x + 230]  # x 563-675: shadow band between the feet
+    shadow_copy = res.copy()
+    st_only = st_hole
+    # soften the joins of the stove patch
+    q = res.copy()
+    blurm = dil(st_only, 2) & ~dil(~stove, 1)
+    q[blurm] = cv2.GaussianBlur(res, (0, 0), 0.7)[blurm]
+    res[st_only] = q[st_only]
+
+    # 2) wood: mirror-extend visible grain, then match colour row by row and at the rim
+    ok = M["table"] & ~occl & ~dil(M["stove_top"] | M["pan"], 2) & ~dil(stove, 3)
+    ok &= ~poly_mask([(425, 940), (1125, 940), (1125, 1004), (425, 1004)])  # cast shadow under the stove
+    out, acc = reflect_fill(res, dil(wood_hole, 6), ok, 754, H, min_w=130, max_dy=280)
+    have = acc > 1e-3
+    q = res.copy()
+    q[have] = out[have] / acc[have][:, None]
+    q = row_match(q, wood_hole, ok)
+    acc2 = np.where(have, 1.0, 0.0).astype(np.float32)
+    main = finish(res, wood_hole, q * acc2[..., None], acc2, ring_ok=ok)
+    # lay the continued stove shadow over the wood, fading out toward the stove's left edge
+    ys, xs = np.nonzero(sh_hole)
+    a = (np.clip((xs - 333) / 12.0, 0, 1) * np.clip((1000 - ys) / 22.0, 0, 1))[:, None]
+    main[ys, xs] = a * shadow_copy[ys, xs] + (1 - a) * main[ys, xs]
     return main, main_m
 
 
@@ -642,7 +735,7 @@ def main():
         "back": rgba(back, np.ones((H, W), np.float32)),
         "mid": rgba(mid_rgb, soft(mid_m)),
         "pan-rim": rgba(img, soft(rim_m, grow=0, feather=0.8)),
-        "front-left": rgba(img, soft(M["plate"])),
+        "front-toast": rgba(img, soft(M["plate"])),
         "front-right": rgba(img, soft(M["shells"] | M["cloth"])),
     }
     OUT.mkdir(parents=True, exist_ok=True)
