@@ -6,6 +6,7 @@
  * 下一段（handoff）进入时，这一格和后景的蛋一起淡出，由画着蛋的下一格漫画接手，全程只有一颗蛋。
  * 锅铲前沿遮挡层（occluderSrc）目前缺图，蛋压在铲面上方。
  */
+import { useEffect } from "react";
 import { HANDOFF } from "@/components/kitchen/Egg";
 import { Z } from "@/lib/scene";
 import { phaseProgress } from "@/lib/beats";
@@ -19,6 +20,16 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
   const { timeline: t, flight } = useScene();
   const { cfg } = useSlots();
   const slot = cfg.scene.catch;
+  // 预先解码接蛋格、交接格（含遮罩）和蛋的表情图：这些图到接蛋段才第一次挂载，首次解码会在伸铲格出现那一帧卡顿约 0.3 秒
+  const warm = [slot.src, cfg.scene.handoff?.src, cfg.scene.handoff?.eggHoleMask, cfg.egg.faces?.fly, cfg.egg.faces?.rest].filter(Boolean).join("|");
+  useEffect(() => {
+    for (const src of warm.split("|")) {
+      if (!src) continue;
+      const im = new Image();
+      im.src = src;
+      im.decode?.().catch(() => {});
+    }
+  }, [warm]);
   const [a0, a1] = slot.appearFlight ?? [0.2, 0.45];
   let k = 0;
   if (flow) {
