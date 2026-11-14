@@ -119,7 +119,7 @@ export function useKitchenAudio() {
   // 单次音效：向下滚动越过节拍表里的触发点时播一次
   const prevT = useRef<Timeline | null>(null);
   useEffect(() => {
-    const fired = crossedOneShots(prevT.current, timeline);
+    const fired = crossedOneShots(prevT.current, timeline, beats);
     prevT.current = timeline;
     if (!soundOn) return;
     for (const name of fired) {
@@ -129,7 +129,7 @@ export function useKitchenAudio() {
       a.volume = volume;
       a.play().catch(() => {});
     }
-  }, [timeline, soundOn]);
+  }, [timeline, soundOn, beats]);
 
   return { available };
 }

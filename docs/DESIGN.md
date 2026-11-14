@@ -1,4 +1,4 @@
-# DESIGN.md — 共享设计规范与接口约定（第五版）
+# DESIGN.md — 共享设计规范与接口约定（第六版）
 
 三条并行分支都以这份文件为准。改这份文件只能在集成会话（main）上做。
 修订记录：v1 初稿 → v2 浮动漫画 → v3 妈妈前景 + 锅铲接蛋 → v4 菜品改为"妈妈的荷包蛋拌饭" → **v5（2026-11-13）统一场景节拍表：所有节奏来自一份时间轴**。
@@ -77,18 +77,25 @@ public/assets/comic/                                       comic 分支（结尾
 public/assets/audio/                                       用户提供的录音 + LICENSES.md
 ```
 
-## 6. 文件所有权（避免冲突）
+## 6. 文件所有权（v6，2026-11-13：三路并行）
 
-| 分支 | 只能改 | 不能改 |
-|---|---|---|
-| feat/kitchen-scene（主会话） | `src/components/kitchen/` 下除 `KitchenScene.tsx`、`KitchenLayers.tsx` 外的组件和 hook（含全部声音）、`src/app/dev/scene/`、`public/assets/scene/{flame,oil}.png`、`tools/extract_fx.py` | 其余 |
-| kitchen-layers 分支 | `src/components/kitchen/KitchenLayers.tsx`、`tools/split_scene.py`、`public/assets/scene/{back,mid,pan-rim,front-toast,front-right}.png`、`src/app/dev/layers/` | 其余 |
-| comic-scroll 分支 | `src/components/comic/**`（含 `MomForeground.tsx`）、`tools/split_comic.py`、`public/assets/comic/`、`src/app/dev/comic/` | 其余 |
-| 集成会话（main） | `src/app/page.tsx`、`layout.tsx`、`globals.css`、`KitchenScene.tsx`、`SceneStage.tsx`、`src/lib/*`、`package.json`、lockfile、`docs/`、`SPEC.md`、`source/`、`tools/prepare_assets.py`、`tools/prepare_mom.py`、`public/assets/scene/{kitchen-clean,egg}.webp`、`public/assets/mom/` | — |
+**一条规则：同一个文件同一时间只有一个分支在改。** 需要别人的文件改动，写到自己任务文件末尾"需要集成会话改"，由主会话处理。各分支完成后只报告和给预览，**不合并 main**。
 
-需要共享文件改动时，在自己分支的 `docs/tasks/<任务>.md` 末尾写"需要集成会话改：…"，不要自己改。
-不要 `npm install` 任何新包。每做完一个能看的阶段就 commit 到自己的分支并 push，不合并到 main。
-**开工前先 `git fetch origin && git merge origin/main`**，确保拿到这一版规范。
+| 分支 / 会话 | 负责 | 只能改 | 预览 |
+|---|---|---|---|
+| 主会话（main，集成） | 节拍表、共享状态、滚动驱动、舞台与镜头、首页接线、厨房角色（蛋、火苗、油、油泡、蒸汽）、妈妈素材整理 | `src/lib/*`（含 `beats.json`、`scroll-velocity.ts`）、`src/components/ScrollDriver.tsx`、`SceneStage.tsx`、`kitchen/KitchenScene.tsx`、`kitchen/{Egg,EggShadow,Flame,PanOil,Bubbles,Steam,ScrollHint,KitchenCharacters,useCanvasLoop}.*`、`src/app/page.tsx`、`layout.tsx`、`globals.css`、`src/app/dev/{beats,scene}/`、`docs/{DESIGN,BEATS,ASSET-REQUESTS}.md`、`SPEC.md`、`source/`、`tools/{prepare_assets,prepare_mom,extract_fx,beats_table}.*`、`public/assets/{scene/kitchen-clean,scene/egg,scene/flame,scene/oil,mom}`、`package.json`、lockfile | `/dev/beats` |
+| comic-scroll（已有，分支 `claude/comic-scroll-d12d36`） | **布局**：妈妈漫画画格的裁切、版式、位置、进入/退出包络（读 timeline） | `src/components/comic/**`（含 `MomForeground.tsx`）、`src/app/dev/comic/`、`public/assets/comic/`、`tools/split_comic.py`、`docs/tasks/comic-scroll.md` | `/dev/comic` |
+| feat/scroll-motion-demo（新） | **运动**：悬挂倾斜、分层推进、跨景接蛋三段动效小样 | `src/app/demo/scroll-motion/**`（小样的全部组件、路由级节拍子集、调试面板都放这里）、`public/assets/demo/**`（占位图）、`docs/tasks/scroll-motion-demo.md` | `/demo/scroll-motion` |
+| feat/kitchen-audio（新） | **声音**：真实音效搜集、许可记录、循环接缝处理、接入现有声音接口 | `public/assets/audio/**`（音频文件、`README.md`、`LICENSES.md`）、`src/components/kitchen/useKitchenAudio.ts`、`src/components/kitchen/SoundToggle.tsx`、`tools/audio_*`、`docs/tasks/kitchen-audio.md` | `/dev/beats`（打开右下角声音） |
+| kitchen-layers（已完成并合并） | 厨房分层 | 冻结：`kitchen/KitchenLayers.tsx`、`tools/split_scene.py`、`public/assets/scene/{back,mid,pan-rim,front-toast,front-right}.png` 暂不改 | — |
+
+共享接口（主会话维护，其他分支只读）：
+- `useScene()`：`timeline`、`activePanel`、`progress`、`flight`、`serve`、`soundOn`、`beats`。
+- `src/lib/beats.ts`：`envelope`、`phaseProgress`、`derive`、`loopLevels`、`crossedOneShots`。
+- `src/lib/scroll-velocity.ts`：`getScrollVelocity()`（vh/s，已平滑，停下衰减到 0），由唯一的 `<ScrollDriver>` 写入。
+- `<SceneProvider initialBeats>`：路由级节拍子集，仍用同一个 `<ScrollDriver>`。
+- `<KitchenScene camera>`：路由自定义镜头；`StageFocus.zoom` 推近，舞台上有 CSS 变量 `--cam-zoom`、`--kl-mid-x/y`。
+- 没有 Lenis 或其他平滑滚动库，**不要引入**；不要新增滚动监听或 ScrollTrigger。
 
 ## 7. 声音
 

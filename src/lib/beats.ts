@@ -36,7 +36,7 @@ function validate(beats: Beat[]) {
     if (Math.abs(sum - 1) > 1e-6) throw new Error(`beats.json: ${b.id} 的 phases 之和是 ${sum}，应为 1`);
     if (b.kitchenDim.length !== 3) throw new Error(`beats.json: ${b.id} 的 kitchenDim 必须是 3 个数`);
     if (!(b.lengthVh > 0)) throw new Error(`beats.json: ${b.id} 的 lengthVh 必须为正`);
-    if (b.n !== i) throw new Error(`beats.json: ${b.id} 的 n 应为 ${i}`);
+    if (b.n !== i) throw new Error(`beats.json: ${b.id} 的 n 应为 ${i}`); // 只校验完整故事表；路由子集不经过 validate
   });
   return beats;
 }
@@ -132,7 +132,8 @@ export function derive(t: Timeline): Derived {
   const [s, h, e] = b.kitchenDim;
   const progress = t.phase === "enter" ? lerp(s, h, t.phaseP) : t.phase === "exit" ? lerp(h, e, t.phaseP) : h;
   const action = phaseProgress(t, "action");
-  const flight = b.egg === "loop" ? null : b.egg === "flight" ? action : 1;
+  // 接蛋段的进入阶段蛋仍在锅里跳（null），动作阶段才起飞
+  const flight = b.egg === "loop" ? null : b.egg === "flight" ? (t.phase === "enter" ? null : action) : 1;
   const serve = b.egg === "serve" ? action : b.egg === "bowl" ? 1 : null;
   return { activePanel: b.n, progress, flight, serve };
 }
@@ -159,13 +160,13 @@ export function loopLevels(t: Timeline, beats: Beat[] = BEATS): Record<LoopSound
 }
 
 /** 从 prev 到 cur 之间越过的单次音效（只在向下滚动时触发） */
-export function crossedOneShots(prev: Timeline | null, cur: Timeline): OneShotSound[] {
+export function crossedOneShots(prev: Timeline | null, cur: Timeline, beats: Beat[] = BEATS): OneShotSound[] {
   if (!prev) return [];
   const pos = (t: Timeline) => t.index + t.p;
   if (pos(cur) <= pos(prev)) return [];
   const fired: OneShotSound[] = [];
   for (let i = prev.index; i <= cur.index; i++) {
-    const b = BEATS[i];
+    const b = beats[i];
     for (const o of b.audio.oneshots) {
       const at = i + o.at;
       if (at > pos(prev) && at <= pos(cur)) fired.push(o.sound);

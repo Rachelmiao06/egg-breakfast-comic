@@ -49,10 +49,14 @@ type SceneState = Derived & {
 
 const Ctx = createContext<SceneState | null>(null);
 
-export function SceneProvider({ children }: { children: ReactNode }) {
+/**
+ * initialBeats：路由级节拍表（如动效小样只用其中几段）。仍由同一个 <ScrollDriver> 驱动，不是第二套节奏。
+ * 每段的 n 必须是它在完整故事里的节拍号，这样 derive() 和声音能正确识别段落。
+ */
+export function SceneProvider({ children, initialBeats = BEATS }: { children: ReactNode; initialBeats?: Beat[] }) {
   const [soundOn, setSoundOn] = useState(false);
-  const [beats, setBeats] = useState<Beat[]>(BEATS);
-  const [timeline, setTimeline] = useState<Timeline>(() => locate(0, BEATS));
+  const [beats, setBeats] = useState<Beat[]>(initialBeats);
+  const [timeline, setTimeline] = useState<Timeline>(() => locate(0, initialBeats));
   const [overrides, setOverrides] = useState<Partial<Derived>>({});
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const isTouch = useMediaQuery("(hover: none)");

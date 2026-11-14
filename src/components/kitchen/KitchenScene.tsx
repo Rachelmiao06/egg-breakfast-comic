@@ -8,12 +8,23 @@
  *   镜头随飞行进度平移到前景锅铲；放进饭碗时（serve 非 null）对准饭碗中央。
  */
 import type { ReactNode } from "react";
-import SceneStage from "@/components/SceneStage";
+import SceneStage, { type StageFocus } from "@/components/SceneStage";
 import KitchenLayers from "@/components/kitchen/KitchenLayers";
 import { ANCHORS } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
-export default function KitchenScene({ children, base, foreground }: { children?: ReactNode; base?: ReactNode; foreground?: ReactNode }) {
+export default function KitchenScene({
+  children,
+  base,
+  foreground,
+  camera,
+}: {
+  children?: ReactNode;
+  base?: ReactNode;
+  foreground?: ReactNode;
+  /** 可选：路由自定义镜头（如动效小样的推近）。不传时按 flight / serve 自动跟随 */
+  camera?: StageFocus;
+}) {
   const { progress, flight, serve } = useScene();
   // 接蛋飞行时弱化退回很轻；放进饭碗（serve）时由 comic-scroll 的 progress 决定，可以重新弱化突出前景
   const dim = flight !== null && serve === null ? Math.min(progress, 0.15) : progress;
@@ -28,7 +39,7 @@ export default function KitchenScene({ children, base, foreground }: { children?
       className="relative h-full w-full transition-[filter] duration-300"
       style={{ filter: `brightness(${1 - 0.18 * dim}) saturate(${1 - 0.15 * dim}) blur(${1.5 * dim}px)` }}
     >
-      <SceneStage focus={focus}>
+      <SceneStage focus={camera ?? focus}>
         {base ?? <KitchenLayers mouse />}
         {children}
         {foreground}
