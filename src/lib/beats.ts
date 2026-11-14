@@ -11,12 +11,15 @@ export type Phase = (typeof PHASES)[number];
 export type LoopSound = "room" | "sizzle" | "chop" | "stirfry" | "sauce";
 export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour";
 export type EggMode = "loop" | "flight" | "serve" | "bowl";
+/** 停留组：同组连续段落期间画面停住（sticky / pin），组结束后释放；null = 正常流动段 */
+export type PinGroup = "prep" | "catch" | "bowl";
 
 export type Beat = {
   id: string;
   n: number;
   title: string;
   lengthVh: number;
+  pin: PinGroup | null;
   phases: Record<Phase, number>;
   kitchenDim: [number, number, number];
   foreground: string;
@@ -173,4 +176,35 @@ export function crossedOneShots(prev: Timeline | null, cur: Timeline, beats: Bea
     }
   }
   return fired;
+}
+
+/**
+ * 停留 / 流动状态（sticky 叙事用）。
+ * - 停留组内：pinned = true，groupP = 整组进度 0–1（组内所有段落按长度连起来），内容由 timeline 推动，位置不随滚动移动。
+ * - 流动段：pinned = false，flowVh = 本段已经滚过的距离（vh），内容应随滚动 1:1 上移（translateY = -flowVh vh），像普通文档流。
+ * releaseVh：刚离开上一个停留组多少 vh（流动段里用来让上一组的内容自然被"推走"）；不在流动段时为 0。
+ */
+export type PinState = {
+  group: PinGroup | null;
+  pinned: boolean;
+  groupP: number;
+  flowVh: number;
+  releaseVh: number;
+};
+
+export function pinState(t: Timeline, beats: Beat[] = BEATS): PinState {
+  const b = t.beat;
+  if (b.pin) {
+    let total = 0, before = 0;
+    let i = t.index;
+    while (i > 0 && beats[i - 1].pin === b.pin) i--;
+    for (let j = i; j < beats.length && beats[j].pin === b.pin; j++) {
+      if (j < t.index) before += beats[j].lengthVh;
+      total += beats[j].lengthVh;
+    }
+    return { group: b.pin, pinned: true, groupP: clamp01((before + t.p * b.lengthVh) / total), flowVh: 0, releaseVh: 0 };
+  }
+  const flowVh = t.p * b.lengthVh;
+  const prevPinned = t.index > 0 && !!beats[t.index - 1].pin;
+  return { group: null, pinned: false, groupP: 0, flowVh, releaseVh: prevPinned ? flowVh : 0 };
 }

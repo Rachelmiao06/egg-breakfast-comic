@@ -1,36 +1,51 @@
-# 任务：feat/scroll-motion-demo — 三段滚动动效小样（运动）
+# 任务：feat/scroll-motion-demo — 温暖、从容的停留式厨房叙事（运动粗版）
 
-开工前：确认在自己的独立 worktree，分支名 `feat/scroll-motion-demo`（若 app 起的名字不同，先 `git branch -m feat/scroll-motion-demo`），从最新 main 开始。读 `docs/DESIGN.md` 第六版（§6 所有权和共享接口）、`docs/BEATS.md`、`src/lib/beats.ts`、`src/lib/scroll-velocity.ts`、`src/components/ScrollDriver.tsx`、`src/components/SceneStage.tsx`、`src/components/kitchen/KitchenScene.tsx`、`src/components/kitchen/KitchenLayers.tsx`、`src/app/dev/beats/`（集成替身是很好的起点）。
+开工前：确认在自己的独立 worktree，分支名 `feat/scroll-motion-demo`（若 app 起的名字不同，先 `git branch -m feat/scroll-motion-demo`），从最新 main 开始。读 `docs/DESIGN.md` 第六版（§6 所有权和共享接口）、`docs/BEATS.md`（含停留组）、`src/lib/beats.ts`（`pinState`、`envelope`、`phaseProgress`、`derive`）、`src/lib/scroll-velocity.ts`、`src/components/ScrollDriver.tsx`、`src/components/SceneStage.tsx`、`src/components/kitchen/KitchenScene.tsx`、`src/app/dev/beats/`（集成替身和调节面板是很好的起点）。
 
-**只改** `src/app/demo/scroll-motion/**`、`public/assets/demo/**`、本文件。其他文件只读；需要共享接口改动写在本文件末尾"需要集成会话改"。**不改**正式首页、`beats.json`、共享组件；**不新增**滚动驱动、滚动监听、ScrollTrigger、Lenis。
+**只改** `src/app/demo/scroll-motion/**`、`public/assets/demo/**`、本文件。其他文件只读；需要共享接口或节拍表改动写在本文件末尾"需要集成会话改"。**不改**正式首页、`beats.json`、共享组件；**不新增**滚动驱动、滚动监听、ScrollTrigger、Lenis（项目里没有平滑滚动库，也不要加）。
 
-## 目标
+## 方向（用户 2026-11-13 定）
 
-不改变已确定的荷包蛋拌饭故事，在独立预览路由 `/demo/scroll-motion` 验证三个连续段落的运动，让用户先看**倾斜幅度、镜头衔接、蛋的落点**，再扩展到其他段落。
+**温暖、从容的厨房叙事。** 不要模仿海浪那种持续倾斜和摇晃。重点是**三段停留（sticky / pin）**：
 
-用同一套滚动方案：`<SceneProvider initialBeats={DEMO_BEATS}>` + 现有 `<ScrollDriver>`。`DEMO_BEATS` 放在路由目录里（比如 `beats.demo.ts`），从 `BEATS` 取 `chop`、`notice`、`catch` 三段复制后调整长度和阶段，**`n` 保持原节拍号**（1、4、6），这样 `derive()` 和声音按原段落工作。如果第 3 段需要"伸锅铲"的内容，把 `spatula`（n=5）放在 `catch` 前面一起用也可以，但对用户仍呈现为一段连续动作。
+| 停留组 | 包含节拍 | 停留期间滚动推动什么 |
+|---|---|---|
+| 📌 备菜 `prep` | 切配菜 → 炒配菜 → 调汁 | 三组妈妈画格在同一个停住的版面里依次接替（比如卡片叠放、翻到下一张、或在一条桌面上从左到右推进），厨房在背后弱化但持续活动 |
+| 📌 跨景接蛋 `catch` | 伸锅铲 → 接蛋 | 前景妈妈带着锅铲进入，漫画边界打开，同一颗蛋从后景锅里飞到铲面 |
+| 📌 饭碗结尾 `bowl` | 放进饭碗 → 结尾近景 | 锅铲妈妈换成端碗妈妈，蛋落到饭中央，镜头靠近饭碗，结尾近景静态图淡入 |
 
-所有组件只读 `useScene().timeline`（段、段内进度、阶段）和 `getScrollVelocity()`，不自己计时决定节奏。被触发后的小动作秒数写在 `DEMO_BEATS` 的 `seconds` 里。
+停留期间画面位置不动，滚动只推动内容变化；组结束后**自然释放**（最后一屏随滚动正常上移离开，下一段从下方进入）。其余段落（开场、发现跳蛋）**正常流动**，内容随滚动 1:1 移动。全部用统一节拍表：`pinState(t)` 给出是否停留、整组进度 `groupP`、流动距离 `flowVh`、刚释放的距离 `releaseVh`。
 
-## 三段
+**避免空滚**：停留组里每一段滚动都要有看得见的变化；如果某段读完后还要滚很久才有变化，就是空滚，写进报告并建议缩短长度。
 
-1. **妈妈切菜漫画进入（悬挂感）**：画格像轻轻挂起的插画，悬挂点在上沿。参考 GSAP Velocity Skew（https://demos.gsap.com/demo/velocity-skew/）"滚动速度影响形变"的思路，但**以小幅旋转为主**：旋转角 ∝ 滚动速度，最大约 ±2.5°，带一点阻尼弹簧，停下后平稳回正；skew 最多 ±1° 或不用，**不能明显拉歪妈妈的脸和身体**。阅读停留时速度为 0 就完全静止，**不要持续摇晃**。速度在 gsap.ticker / rAF 里用 `getScrollVelocity()` 读，不要放进 React state。
-2. **镜头向灶台推进**：用 `<KitchenScene camera={{ x, y, weight: 1, zoom }}>` 推近灶台（zoom 约 1 → 1.35），前中后景错速：前景推得最多、背景最少。`KitchenLayers` 冻结不能改：在路由内做你自己的分层渲染（复用同样的 `public/assets/scene/*.png`、同样的 `Z`），读舞台上的 `--cam-zoom` 做错速；或在本文件末尾提出需要的共享接口。切菜漫画在推进时要和背景保持空间联系（例如作为最前景平面，随镜头更快地离开画面，而不是突然消失）。
-3. **妈妈伸锅铲接蛋（漫画边界打开）**：锅铲妈妈（`MOM_SPATULA`，场景层，按 scene.ts 摆放）先出现在一个漫画画格边框里，随后边框向外打开（clip-path 扩到全屏、边框淡出），妈妈成为前景；同一颗蛋（厨房里的 `<Egg>`，由 `flight` 驱动）从后景锅里飞到铲面 `ANCHORS.spatulaLand`。在 `catch` 段的进入阶段做"边界打开"（这时 `flight` 仍为 null，蛋在锅里继续跳），动作阶段飞行。
+## 动效语气
 
-缺图一律用明确标记的占位（米白底 + 虚线框 + "占位：…"）。手机适配和最终视觉修整**现在不做**。
+- 缓动用 sine / power2.inOut 这类柔和曲线，位移小、速度慢，像翻食谱、端盘子，不像弹簧玩具。
+- 滚动速度（`getScrollVelocity()`，在 gsap.ticker / rAF 里读，不放进 React state）只用来加一点"跟手"的余韵，例如画格进入时最多约 1° 的轻微倾斜，停下 0.6–1 秒内平稳回正；阅读时完全静止。不要明显拉歪妈妈的脸和身体。
+- 镜头：可用 `<KitchenScene camera={{ x, y, weight, zoom }}>` 在接蛋组和饭碗组里轻推近（zoom ≤ 1.3），前中后景错速；`KitchenLayers` 冻结不能改，需要错速就在路由内自己渲染分层（复用 `public/assets/scene/*.png` 和 `Z`），读舞台上的 `--cam-zoom`。
+- 妈妈素材是合并插画，没有关节层：只做整格的进入、接替、离开，不做整人晃动冒充动作。
 
-## 产出
+## 找灵感（先做，再动手）
 
-- `src/app/demo/scroll-motion/page.tsx` 及同目录组件；页面角落有可收起的读数：当前段、阶段、段内进度、滚动速度、当前倾斜角、镜头 zoom、flight。
-- 在本地 dev server 上跑（worktree 里先 `npm ci`，然后 `npx next dev -p 3002`），给出预览地址。
+从现有库和案例里找"停留式叙事"的做法，挑适合这个温暖厨房故事节奏的，写在本文件"灵感笔记"里（每条：来源链接、借鉴什么、为什么适合、不借鉴什么）。可以看：GSAP ScrollTrigger 的 pin / scrub 示例与 Velocity Skew demo（https://demos.gsap.com/demo/velocity-skew/，只借速度余韵的思路）、SBS The Boat（https://www.sbs.com.au/theboat/）、The Pudding / NYT 等 scrollytelling 案例、Apple 产品页的分段停留。只借鉴结构和节奏，**不引入新库**，实现仍用我们的时间轴。
+
+## 用现有素材做完整粗版
+
+- 整个故事 0–8 都要能滚完（用完整 `BEATS`，必要时用 `<SceneProvider initialBeats>` 在路由里试调过的副本），三段停留做细，流动段做简。
+- 素材：厨房分层与角色（`KitchenScene` + `KitchenCharacters`）、`MOM_PANELS` 三张、`MOM_SPATULA`、`MOM_SERVE`（摆放见 `src/lib/scene.ts`）。缺图（如结尾近景）用明确标记的占位。
+- 角落放可收起的读数：当前段、阶段、停留组与 groupP / 流动 vh、滚动速度、倾斜角、镜头 zoom、flight / serve。
+- 手机适配和最终视觉修整**现在不做**。
+- 本地预览：worktree 里先 `npm ci`，然后 `npx next dev -p 3002`，路由 `/demo/scroll-motion`。
 
 ## 验收（先报告给用户看，不合并 main）
 
-- 快速滚动和慢速滚动时，切菜画格的倾斜都在 ±2.5° 内，停下后 1 秒内回正且不再晃。
-- 推进时前中后景错速清楚，漫画离场和镜头连续。
-- 边界打开后蛋落在铲面上；回滚时一切倒回。
-- `npm run lint`、`npm run build` 通过；commit 并 push `feat/scroll-motion-demo`。报告贴三段截图、实测最大倾斜角和剩余问题。
+- 三段停留都"停得住、推得动、放得开"：停留时位置稳定，滚动带来连续变化，释放自然。
+- 列出你测到的空滚位置（哪一段、多少 vh）和建议长度，写到"需要集成会话改"。
+- 接蛋落在铲面上、入碗落在饭中央；回滚时一切倒回。
+- `npm run lint`、`npm run build` 通过；commit 并 push `feat/scroll-motion-demo`。报告贴每个停留组的截图（进入、中段、释放）和剩余问题。
+
+## 灵感笔记
+（在这里写）
 
 ## 需要集成会话改：
 （在这里追加）

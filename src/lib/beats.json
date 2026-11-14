@@ -1,95 +1,305 @@
 {
   "version": 1,
-  "note": "统一场景节拍表（唯一事实来源）。lengthVh = 这一段占多少滚动距离（视口高度的百分比）；phases = 进入/动作/阅读停留/退出 在这一段里的比例，和为 1；kitchenDim = [进入起点, 停留值, 退出终点]；audio.loops = 这一段稳定时各循环声的音量，进入阶段从上一段的音量渐变过来；audio.fades = 在某个阶段内把某条循环声从 from 渐变到 to；audio.oneshots.at = 段内局部进度 0–1 的触发点；seconds = 被触发后按秒播放的小动作时长（先调 lengthVh，再调这里）。改完运行 node tools/beats_table.mjs 更新 docs/BEATS.md。",
+  "note": "统一场景节拍表（唯一事实来源）。lengthVh = 这一段占多少滚动距离（视口高度的百分比）；phases = 进入/动作/阅读停留/退出 在这一段里的比例，和为 1；kitchenDim = [进入起点, 停留值, 退出终点]；audio.loops = 这一段稳定时各循环声的音量，进入阶段从上一段的音量渐变过来；audio.fades = 在某个阶段内把某条循环声从 from 渐变到 to；audio.oneshots.at = 段内局部进度 0–1 的触发点；seconds = 被触发后按秒播放的小动作时长（先调 lengthVh，再调这里）。改完运行 node tools/beats_table.mjs 更新 docs/BEATS.md。 pin = 所属停留组（prep 备菜 / catch 跨景接蛋 / bowl 饭碗结尾）：同组连续段落期间画面停住，由滚动推动内容变化，组结束后自然释放；null = 正常流动段，内容随滚动 1:1 移动。",
   "beats": [
     {
-      "id": "opening", "n": 0, "title": "开场：活着的厨房",
+      "id": "opening",
+      "n": 0,
+      "title": "开场：活着的厨房",
       "lengthVh": 120,
-      "phases": { "enter": 0, "action": 0, "hold": 0.75, "exit": 0.25 },
-      "kitchenDim": [0, 0, 0.5],
+      "pin": null,
+      "phases": {
+        "enter": 0,
+        "action": 0,
+        "hold": 0.75,
+        "exit": 0.25
+      },
+      "kitchenDim": [
+        0,
+        0,
+        0.5
+      ],
       "foreground": "无。全屏厨房，无文字；底部滚动提示",
       "egg": "loop",
-      "audio": { "loops": { "room": 0.25, "sizzle": 0.55 }, "fades": [], "oneshots": [] },
+      "audio": {
+        "loops": {
+          "room": 0.25,
+          "sizzle": 0.55
+        },
+        "fades": [],
+        "oneshots": []
+      },
       "seconds": {}
     },
     {
-      "id": "chop", "n": 1, "title": "切配菜",
+      "id": "chop",
+      "n": 1,
+      "title": "切配菜",
       "lengthVh": 150,
-      "phases": { "enter": 0.2, "action": 0.15, "hold": 0.45, "exit": 0.2 },
-      "kitchenDim": [0.5, 1, 1],
+      "pin": "prep",
+      "phases": {
+        "enter": 0.2,
+        "action": 0.15,
+        "hold": 0.45,
+        "exit": 0.2
+      },
+      "kitchenDim": [
+        0.5,
+        1,
+        1
+      ],
       "foreground": "妈妈切胡萝卜和葱花（MOM_PANELS.chop），进入上浮淡入，退出上飘淡出",
       "egg": "loop",
-      "audio": { "loops": { "room": 0.25, "sizzle": 0.15, "chop": 0.5 }, "fades": [], "oneshots": [] },
+      "audio": {
+        "loops": {
+          "room": 0.25,
+          "sizzle": 0.15,
+          "chop": 0.5
+        },
+        "fades": [],
+        "oneshots": []
+      },
       "seconds": {}
     },
     {
-      "id": "stirfry", "n": 2, "title": "炒配菜",
+      "id": "stirfry",
+      "n": 2,
+      "title": "炒配菜",
       "lengthVh": 150,
-      "phases": { "enter": 0.2, "action": 0.15, "hold": 0.45, "exit": 0.2 },
-      "kitchenDim": [1, 1, 1],
+      "pin": "prep",
+      "phases": {
+        "enter": 0.2,
+        "action": 0.15,
+        "hold": 0.45,
+        "exit": 0.2
+      },
+      "kitchenDim": [
+        1,
+        1,
+        1
+      ],
       "foreground": "妈妈炒配菜（MOM_PANELS.stirfry）",
       "egg": "loop",
-      "audio": { "loops": { "room": 0.25, "sizzle": 0.15, "stirfry": 0.5 }, "fades": [], "oneshots": [{ "sound": "stirfryIn", "at": 0.2 }] },
+      "audio": {
+        "loops": {
+          "room": 0.25,
+          "sizzle": 0.15,
+          "stirfry": 0.5
+        },
+        "fades": [],
+        "oneshots": [
+          {
+            "sound": "stirfryIn",
+            "at": 0.2
+          }
+        ]
+      },
       "seconds": {}
     },
     {
-      "id": "sauce", "n": 3, "title": "调汁",
+      "id": "sauce",
+      "n": 3,
+      "title": "调汁",
       "lengthVh": 140,
-      "phases": { "enter": 0.2, "action": 0.15, "hold": 0.45, "exit": 0.2 },
-      "kitchenDim": [1, 1, 1],
+      "pin": "prep",
+      "phases": {
+        "enter": 0.2,
+        "action": 0.15,
+        "hold": 0.45,
+        "exit": 0.2
+      },
+      "kitchenDim": [
+        1,
+        1,
+        1
+      ],
       "foreground": "妈妈调酱汁（MOM_PANELS.sauce）",
       "egg": "loop",
-      "audio": { "loops": { "room": 0.25, "sizzle": 0.15, "sauce": 0.4 }, "fades": [], "oneshots": [] },
+      "audio": {
+        "loops": {
+          "room": 0.25,
+          "sizzle": 0.15,
+          "sauce": 0.4
+        },
+        "fades": [],
+        "oneshots": []
+      },
       "seconds": {}
     },
     {
-      "id": "notice", "n": 4, "title": "发现后景跳蛋",
+      "id": "notice",
+      "n": 4,
+      "title": "发现后景跳蛋",
       "lengthVh": 120,
-      "phases": { "enter": 0.25, "action": 0.25, "hold": 0.3, "exit": 0.2 },
-      "kitchenDim": [1, 0.1, 0.1],
+      "pin": null,
+      "phases": {
+        "enter": 0.25,
+        "action": 0.25,
+        "hold": 0.3,
+        "exit": 0.2
+      },
+      "kitchenDim": [
+        1,
+        0.1,
+        0.1
+      ],
       "foreground": "画格散去；可有很小的视线引导，厨房重新清晰",
       "egg": "loop",
-      "audio": { "loops": { "room": 0.25, "sizzle": 0.55 }, "fades": [], "oneshots": [] },
+      "audio": {
+        "loops": {
+          "room": 0.25,
+          "sizzle": 0.55
+        },
+        "fades": [],
+        "oneshots": []
+      },
       "seconds": {}
     },
     {
-      "id": "spatula", "n": 5, "title": "伸锅铲",
+      "id": "spatula",
+      "n": 5,
+      "title": "伸锅铲",
       "lengthVh": 100,
-      "phases": { "enter": 0.3, "action": 0.4, "hold": 0.3, "exit": 0 },
-      "kitchenDim": [0.1, 0.1, 0.1],
+      "pin": "catch",
+      "phases": {
+        "enter": 0.3,
+        "action": 0.4,
+        "hold": 0.3,
+        "exit": 0
+      },
+      "kitchenDim": [
+        0.1,
+        0.1,
+        0.1
+      ],
       "foreground": "前景妈妈（MOM_SPATULA）在进入+动作阶段从右下滑入到摆放位置",
       "egg": "loop",
-      "audio": { "loops": { "room": 0.25, "sizzle": 0.5 }, "fades": [], "oneshots": [] },
+      "audio": {
+        "loops": {
+          "room": 0.25,
+          "sizzle": 0.5
+        },
+        "fades": [],
+        "oneshots": []
+      },
       "seconds": {}
     },
     {
-      "id": "catch", "n": 6, "title": "接蛋：后景锅 → 前景锅铲",
+      "id": "catch",
+      "n": 6,
+      "title": "接蛋：后景锅 → 前景锅铲",
       "lengthVh": 180,
-      "phases": { "enter": 0, "action": 0.85, "hold": 0.15, "exit": 0 },
-      "kitchenDim": [0.1, 0.1, 0.1],
+      "pin": "catch",
+      "phases": {
+        "enter": 0,
+        "action": 0.85,
+        "hold": 0.15,
+        "exit": 0
+      },
+      "kitchenDim": [
+        0.1,
+        0.1,
+        0.1
+      ],
       "foreground": "锅铲妈妈保持；蛋的飞行进度 = 动作阶段进度",
       "egg": "flight",
-      "audio": { "loops": { "room": 0.25, "sizzle": 0.5 }, "fades": [{ "sound": "sizzle", "from": 0.5, "to": 0.2, "phase": "action" }], "oneshots": [{ "sound": "catch", "at": 0.85 }] },
-      "seconds": { "landSquash": 0.7 }
+      "audio": {
+        "loops": {
+          "room": 0.25,
+          "sizzle": 0.5
+        },
+        "fades": [
+          {
+            "sound": "sizzle",
+            "from": 0.5,
+            "to": 0.2,
+            "phase": "action"
+          }
+        ],
+        "oneshots": [
+          {
+            "sound": "catch",
+            "at": 0.85
+          }
+        ]
+      },
+      "seconds": {
+        "landSquash": 0.7
+      }
     },
     {
-      "id": "serve", "n": 7, "title": "放进饭碗中央，端出",
+      "id": "serve",
+      "n": 7,
+      "title": "放进饭碗中央，端出",
       "lengthVh": 160,
-      "phases": { "enter": 0.2, "action": 0.5, "hold": 0.3, "exit": 0 },
-      "kitchenDim": [0.1, 0.5, 0.5],
+      "pin": "bowl",
+      "phases": {
+        "enter": 0.2,
+        "action": 0.5,
+        "hold": 0.3,
+        "exit": 0
+      },
+      "kitchenDim": [
+        0.1,
+        0.5,
+        0.5
+      ],
       "foreground": "进入阶段锅铲妈妈交叉淡化为端碗妈妈（MOM_SERVE）；蛋的入碗进度 = 动作阶段进度",
       "egg": "serve",
-      "audio": { "loops": { "room": 0.25 }, "fades": [{ "sound": "sizzle", "from": 0.2, "to": 0, "phase": "enter" }], "oneshots": [{ "sound": "bowlDown", "at": 0.7 }] },
-      "seconds": { "bowlSettle": 0.6 }
+      "audio": {
+        "loops": {
+          "room": 0.25
+        },
+        "fades": [
+          {
+            "sound": "sizzle",
+            "from": 0.2,
+            "to": 0,
+            "phase": "enter"
+          }
+        ],
+        "oneshots": [
+          {
+            "sound": "bowlDown",
+            "at": 0.7
+          }
+        ]
+      },
+      "seconds": {
+        "bowlSettle": 0.6
+      }
     },
     {
-      "id": "ending", "n": 8, "title": "结尾近景：淋汁、划开流黄（静态图）",
+      "id": "ending",
+      "n": 8,
+      "title": "结尾近景：淋汁、划开流黄（静态图）",
       "lengthVh": 150,
-      "phases": { "enter": 0.3, "action": 0, "hold": 0.7, "exit": 0 },
-      "kitchenDim": [0.5, 1, 1],
+      "pin": "bowl",
+      "phases": {
+        "enter": 0.3,
+        "action": 0,
+        "hold": 0.7,
+        "exit": 0
+      },
+      "kitchenDim": [
+        0.5,
+        1,
+        1
+      ],
       "foreground": "静态结尾近景图（未到前用标注占位）在进入阶段淡入全屏，验证镜头切换；不做流体动画",
       "egg": "bowl",
-      "audio": { "loops": { "room": 0.15 }, "fades": [], "oneshots": [{ "sound": "pour", "at": 0.3 }] },
+      "audio": {
+        "loops": {
+          "room": 0.15
+        },
+        "fades": [],
+        "oneshots": [
+          {
+            "sound": "pour",
+            "at": 0.3
+          }
+        ]
+      },
       "seconds": {}
     }
   ]
