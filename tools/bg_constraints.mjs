@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 
 const root = new URL("..", import.meta.url).pathname;
-const bg = JSON.parse(readFileSync(`${root}src/app/preview/visual/backgrounds.json`, "utf8"));
+const bg = JSON.parse(readFileSync(process.env.BG_JSON ?? `${root}src/app/preview/visual/backgrounds.json`, "utf8"));
 const beats = JSON.parse(readFileSync(`${root}src/app/preview/visual/beats.visual-v2.json`, "utf8")).beats;
 const slots = JSON.parse(readFileSync(`${root}src/app/preview/visual/slots.json`, "utf8"));
 const W = 1536, H = 1024, EGG = 388;
@@ -95,6 +95,48 @@ const A = bg.anchors, T = bg.table, PM = bg.eggPath.panel;
 const catchB = beats[idx("catch")];
 const ph = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15, ...catchB.phases };
 const flightStart = ph.enter, flightEnd = ph.enter + ph.action; // 动作阶段 = 飞行
+// ---- --views（只输出视野表）：各节拍下每个视口看到的场景范围（场景像素），给出图 brief 定“画面边缘”用 ----
+if (process.argv.includes("--views")) {
+  const BEATS = [["opening", 0.5], ["drop", 0.9], ["bag", 0.5], ["missing", 0.5], ["prejump", 0.6], ["hear", 0.5], ["catch", 0.5], ["handoff", 0.6], ["bowl", 0.5], ["call", 0.5], ["tablecall", 0.6], ["search", 0.5], ["eggcall", 0.5], ["return", 0.5], ["punchline", 0.5]];
+  const out = { beats: {}, landscapeAll: null, all: null };
+  let LA = [-1e9, -1e9, 1e9, 1e9], AL = [-1e9, -1e9, 1e9, 1e9];
+  for (const [id, p] of BEATS) {
+    const row = {};
+    for (const [vw, vh] of sizes) {
+      const L = layout(vw, vh);
+      const v = view(vw, vh, cam(gOf(id, p), L.wait));
+      const r = [Math.round(v.x0), Math.round(v.y0), Math.round(v.x1), Math.round(v.y1)];
+      row[`${vw}×${vh}`] = r;
+      const isLand = vw / vh >= 1.5;
+      if (isLand) LA = [Math.max(LA[0], r[0]), Math.max(LA[1], r[1]), Math.min(LA[2], r[2]), Math.min(LA[3], r[3])];
+      AL = [Math.max(AL[0], r[0]), Math.max(AL[1], r[1]), Math.min(AL[2], r[2]), Math.min(AL[3], r[3])];
+    }
+    out.beats[`${id} ${p}`] = row;
+  }
+  out.landscapeAll = LA; out.all = AL;
+  // 接蛋飞行走廊：所有视口蛋身（80% 宽、85% 高）沿路径的并集
+  let C = [1e9, 1e9, -1e9, -1e9];
+  for (const [vw, vh] of sizes) {
+    const L = layout(vw, vh);
+    for (let i = 0; i <= 100; i++) {
+      const t = i / 100, p = flightPoint(L.wait, L.land, L.apexY, t), w = EGG * (L.eggAtTable + (L.spat - L.eggAtTable) * t + 0.12 * Math.sin(Math.PI * t));
+      C = [Math.min(C[0], p.x - w * 0.4), Math.min(C[1], p.y - w * 0.85), Math.max(C[2], p.x + w * 0.4), Math.max(C[3], p.y)];
+    }
+  }
+  out.flightCorridor = C.map(Math.round);
+  if (process.argv.includes("--json")) console.log(JSON.stringify(out, null, 1));
+  else {
+    const vps = sizes.map(([w, h]) => `${w}×${h}`);
+    console.log("| 节拍 | " + vps.join(" | ") + " |");
+    console.log("|---|" + vps.map(() => "---|").join(""));
+    for (const [b, row] of Object.entries(out.beats)) console.log(`| ${b} | ` + vps.map((k) => `x ${row[k][0]}–${row[k][2]}, y ${row[k][1]}–${row[k][3]}`).join(" | ") + " |");
+    console.log(`\n横版（宽高比 ≥ 1.5）所有节拍都看得到：x ${LA[0]}–${LA[2]}, y ${LA[1]}–${LA[3]}`);
+    console.log(`五个视口所有节拍都看得到：x ${AL[0]}–${AL[2]}, y ${AL[1]}–${AL[3]}`);
+    console.log(`接蛋飞行走廊（五个视口蛋身并集）：x ${out.flightCorridor[0]}–${out.flightCorridor[2]}, y ${out.flightCorridor[1]}–${out.flightCorridor[3]}`);
+  }
+  process.exit(0);
+}
+
 const rows = [];
 for (const [vw, vh] of sizes) {
   const L = layout(vw, vh);
@@ -171,3 +213,4 @@ console.log("| 视口 | 窄布局 | 接蛋格 box | 铲面落点 | 桌沿等待 
 console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const r of rows) console.log(`| ${r.vp} | ${y(r.narrow)} | ${r.box} | ${r.land} | ${r.wait} | ${r.eggAtTable} | ${r.apexY} | ${y(r.rightOfBlade)} | ${y(r.clearOfPanel)} | ${y(r.ascentHitsBlade)} | ${y(r.monotonic)} | ${y(r.fromUpperRight)}（${r.slope}） | ${y(r.bubbleHit)} | ${r.minFx} | ${r.stages[0]} / ${r.stages[0.3]} / ${r.stages[0.85]} / ${r.stages[1]} | ${r.vis} | ${r.wm}（${r.wmAt}） | ${y(r.onTop)} | ${y(r.panOk)} | ${r.bowl} | ${r.ok ? "✓" : "✗"} |`);
 if (rows.some((r) => !r.ok)) process.exitCode = 1;
+
