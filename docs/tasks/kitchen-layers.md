@@ -28,65 +28,57 @@
 - `npm run lint` 和 `npm run build` 通过。每个阶段 commit 到本分支并 push，不合并 main。
 - 最终报告贴五层缩略图、差图、预览截图（含妈妈预留框）和剩余问题。
 
-## 需要集成会话改：
-（在这里追加）
-
 ---
 
-## 交付说明（2026-11-13，按用户新要求调整）
+## 交付（第三版，2026-11-13，分支 claude/kitchen-layers-3463cc）
 
-用户中途改了方向，以下以用户最新要求为准，覆盖上面"产出"里的部分条目：
-- 底图改用干净版 `Clean watercolor kitchen with red skillet.png`（与原画逐像素对齐），**分层里不含蛋**，蛋由主对话统一控制。
-- 不再做"整体上移退场"。厨房随 progress 缓慢横移、轻推近、弱化，始终留在画面里。
-- 新增 `pan-rim` 锅沿遮挡层：蛋在锅里时脚被锅沿挡住，跳出后再换到前层。
+v1 的交付说明（main / front / flame、inPan 插槽、drift / dim 等 props）已作废，代码在 41b5fe6、7d76b0b 里保留。v3 复用了其中的补图方法和视差代码。
 
-### 图层（全部 1536×1024 RGBA，同一画布、同一坐标，场景像素）
+### 五层（`public/assets/scene/`，1536×1024 透明，原位，由 `python3 tools/split_scene.py` 生成）
 
-| 文件 | 内容 | 深度系数 / 鼠标幅度 |
-|---|---|---|
-| `back.png` | 墙面 + 瓷砖（不透明，物件身后瓷砖按砖缝逐格重建） | 0.25 / ±2 |
-| `mid.png` | 黄色花纹锅、瓶罐、水壶、绿色后台面与左侧灶 | 0.5 / ±5 |
-| `main.png` | 红色平底锅、前方灶台、木桌面 | 0.75 / ±7 |
-| `pan-rim.png` | 锅的前沿 + 红色锅身前半（蛋的遮挡层） | 随 main |
-| `front.png` | 吐司盘、蛋壳、格纹布 | 1.0 / ±10 |
-| `flame.png` | 从原画提取的火苗（给 scene 分支的 Flame 用） | 随 main |
+| 文件 | Z | 内容 | 补图 |
+|---|---|---|---|
+| `back.png` | 10 | 墙、瓷砖、后台面、左侧灶、黄锅、瓶罐、水壶（不透明） | 瓷砖按砖缝逐格复制；红锅、锅柄、灶台后的台面按横向色带从同一色带的可见像素续接；黄锅被锅沿挡住的一角按锅身中轴镜像 |
+| `mid.png` | 20 | 木桌、绿色灶台、红锅锅身、锅柄、锅内底 | 吐司盘、蛋壳、格纹布身后的木纹用相邻可见木纹镜像续接（纹理横向连续） |
+| `pan-rim.png` | 50 | 红锅前半：前唇 + 红色外壁 | 不需要补 |
+| `front-left.png` | 60 | 吐司盘和吐司 | — |
+| `front-right.png` | 61 | 蛋壳、格纹布 | — |
 
-叠合顺序：back → mid → main → [inPan 插槽：火苗、油泡、影子、锅里的蛋] → pan-rim → front → [aboveFront 插槽]。
-`tools/check_overlay.png` 是叠回去与干净底图的对比和差图（差异只在 1–2px 的羽化轮廓上）。`tools/layers_preview.png` 是各层缩略图。`python3 tools/split_scene.py` 可重跑。
+- 叠合检查：`tools/check_overlay.png`。五层叠回去与 kitchen-clean 相比，平均差 0.37/255，99% 的像素差值不超过 8，剩余差异只在物件 1–2px 的羽化轮廓上（为了移动时没有硬边）。`tools/layers_preview.png` 是五层缩略图。
+- pan-rim 比任务里写的"一圈前唇"多包含了红色外壁。蛋脚只要落到锅内深色区域下沿以下就会被挡住，不会画到外壁上面。它和 mid 用同一套位移，重复的像素不会出现错位。
 
-### `<KitchenLayers>` 接口
+### 实测锅底与锅前沿（建议值，由集成会话更新 `src/lib/scene.ts`）
 
-```tsx
-<KitchenLayers
-  mouse                 // 鼠标视差，触屏自动关闭
-  drift={60}            // progress=1 时镜头横移量（场景像素，正值向右看）
-  push={0.05}           // progress=1 时最近层的推近量
-  dim={1}               // 0–1 弱化强度：1 = 亮度 0.7、饱和 0.8、模糊 2px
-  wash={0}              // 0–1 纸色薄雾，给前景漫画更多可读性
-  sway                  // 极慢的待机呼吸（reduced-motion 时关闭）
-  inPan={<>…</>}        // 画在锅和锅沿之间：蛋在锅里、火苗、油泡、影子
-  aboveFront={<>…</>}   // 与 main 同一套位移，画在 front 之上：蛋跳出锅后
-/>
-```
-- 蛋起跳前放在 `inPan`，脚底中心用 `ANCHORS.eggRest`。蛋底部离开锅沿线后，移到 `aboveFront`。两个插槽的位移完全相同，切换不会跳。
-- `inPan` 在弱化滤镜里面，`aboveFront` 不受弱化影响。
-- 每层都按位移自动放大到刚好不露出画布边缘。
+| 量 | 值 |
+|---|---|
+| 锅底（深色煎面）椭圆中心 | (743, 579)，半轴 398 × 77 |
+| 锅底可见区域外接框 | [360, 502, 1109, 661] |
+| 锅前沿遮挡线（pan-rim 上沿） | x=450: 633，x=600: 653，**x=720: 657**，x=743: 658，x=900: 651，x=1050: 630 |
+| pan-rim 包围盒 | [358, 601, 1119, 747] |
+| **建议 `panLaunch`**（和 `eggRest`） | **{ x: 720, y: 670 }** |
 
-### 锚点（`src/lib/scene.ts`，只改值并新增两个键）
-- `eggRest` = (742, 666)：锅内起跳点。比锅沿线低约 8px，蛋脚会被 pan-rim 挡住。
-- `panInner` = 中心 (743, 579)，半轴 398 × 78。锅沿遮挡线就是它的下半弧，x=743 处约 y=657，x=450 处约 y=633。
-- `panRimBox` = [358, 601, 1119, 747]，`panBox` = [360, 502, 1109, 661]，`flameBox` = [580, 729, 879, 800]，`kettleSpout` = (1192, 312)，`toastBox` = [0, 808, 450, 1024]。
+- 现在 lib 里的 (720, 618) 会让蛋整只站在锅沿线以上，脚完全露出，锅沿挡不到。
+- y=670 时，按 `eggSize` 388×388、蛋图底边就是脚底：靠下的左脚约 13px 藏到锅沿后面，右脚刚好碰到锅沿，看起来站在锅里。想藏得更深可以用 676。
+- 其他实测框：吐司盘 [0, 806, 452, 1023]，蛋壳 [1132, 834, 1441, 1009]，格纹布 [1236, 680, 1535, 930]。
+
+### `<KitchenLayers mouse />` 行为
+- 五个 div 是 SceneStage 里的兄弟元素，各自带 `zIndex = Z.*`，可以和角色层穿插。外面没有包容器，也不建新的层叠上下文。
+- 鼠标视差：front ±10、mid 和 pan-rim ±5（同一个值）、back ±2，缓动按时间计算，触屏和减少动效时关闭。
+- 随 `progress` 向上漂移：front 14、mid 和 pan-rim 6、back 2（场景像素）。不调暗、不退场。
+- `activePanel >= 4` 时 front-right 在 0.5 秒内淡出，回到 4 以下时淡回。
+- 每层按当前位移自动放大一点（最多约 1.035），画布边缘永远不露。
+- 锅里的角色要跟锅一起动：每帧把 mid 的位移写成 stage 元素上的 CSS 变量 `--kl-mid-x`、`--kl-mid-y`（另有 `--kl-mid-s`，是以 (768, 600) 为中心的放大量，锅附近误差小于 1px）。锅里的蛋、影子、油、油泡、火苗外层加 `transform: translate(var(--kl-mid-x, 0px), var(--kl-mid-y, 0px))` 即可。预览页的测试蛋就是这么做的，视差时和锅沿不脱节。
+
+### 预览
+`/dev/layers`：`<KitchenScene base={<KitchenLayers mouse />}>`，测试蛋（egg.webp，z=40）站在建议的起跳点，可切换跳动。另有锅沿线和锅底中心辅助线、momZone 占位虚线框（z=70），以及 progress、activePanel、launch y 滑块和各层开关。
 
 ## 需要集成会话改：
-1. `KitchenScene.tsx`：把 poster 换成 `<KitchenLayers mouse inPan={<><Flame/><Bubbles/><EggShadow/><Egg/></>} aboveFront={…} />`。蛋跳出锅沿后从 inPan 移到 aboveFront。
-2. `docs/DESIGN.md` §4/§5：分层改为 back / mid / main / pan-rim / front / flame；layers 分支不再产出 `egg.png`；记下新 props 和两个插槽；`ANCHORS` 新增 `panInner`、`panRimBox`。
-3. 把桌面上的两张源图放进 `source/`：`source/kitchen-clean.png`（干净厨房）和 `source/egg-jump.png`（独立蛋）。脚本会先找 `source/`，找不到才读桌面。
-4. 本任务上面写的"front 1.6× / mid 1.0× / back 0.4× 上移退场"已按用户要求作废，由 `drift` / `push` / `dim` / `wash` 代替，数值都可调。
-5. 本分支实际名是 `claude/kitchen-layers-3463cc`（不是 feat/kitchen-layers）。
+1. `src/lib/scene.ts`：`panLaunch` 和 `eggRest` 改为 `{ x: 720, y: 670 }`。`panBox` 可改为 `[360, 502, 1109, 661]`，`flameBox` 实测为 `[580, 729, 879, 800]`。
+2. kitchen-scene 分支：锅里的 `Egg`（z=40 阶段）、`EggShadow`、`PanOil`、`Bubbles`、`Flame` 外层加 `translate(var(--kl-mid-x, 0px), var(--kl-mid-y, 0px))`。蛋起飞后（z=80）可以逐渐取消，或保持不变。
+3. `KitchenScene.tsx`：`base={<KitchenLayers mouse />}`。
+4. 本分支名是 `claude/kitchen-layers-3463cc`。我已删除 v1 的 `main.png`、`front.png`、`flame.png`。按 v3 所有权，`flame.png` 归 kitchen-scene 分支。
 
-## 希望用户用 ChatGPT 生成的素材
-手工补图在叠合和轻微移动时都看不出来，但单独看某些层时仍能看出是拼补的。如需更大幅度的镜头运动，建议生成：
-1. **（最需要）去掉红色平底锅和前方小灶台的同一张厨房**，保留黄锅、瓶罐、水壶、绿色台面，同样构图、尺寸 1536×1024、同样画风。用来替换 `mid.png` 锅后面的台面。现在那块是按行拼出来的，有重复的横条纹，左侧灶台的右边缘是镜像出来的。
-2. **前景锅铲**（新情节"后景蛋跳到前景锅铲"需要）：同画风的木柄锅铲，透明背景，朝向镜头，约占画面 1/3 高。原画里没有锅铲，无法从原图拆出。
-3. （可选）**没有吐司盘、蛋壳、格纹布的同一张桌面**：现在木纹是镜像补的，吐司下方略浅。
-4. （可选）**锅内薄油层**，透明背景，与锅内椭圆同位置：干净底图的锅里没有油，原画的油和油星不能直接叠到新锅上。
+## 希望用户用 ChatGPT 生成的素材（可选）
+叠合静止时看不出补图，轻微视差也只露出几像素。单独看某一层时能看出拼补的地方：
+1. **去掉红色平底锅和前方小灶台的同一张厨房**（保留黄锅、瓶罐、水壶、绿色台面，同构图、1536×1024、同画风）。可以替换 `back.png` 里锅后面的台面：现在那块有重复横条纹，左侧灶台的右边缘是镜像出来的。
+2. **没有吐司盘、蛋壳、格纹布的同一张桌面**。front-right 淡出后，蛋壳和格纹布下面的木纹会露出来。现在是镜像补的，可以看，但吐司下方略浅。

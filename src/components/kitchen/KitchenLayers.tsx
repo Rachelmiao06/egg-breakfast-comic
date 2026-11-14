@@ -1,123 +1,70 @@
 "use client";
 /**
- * Kitchen environment layers (feat/kitchen-layers).
+ * Kitchen environment layers (kitchen-layers, design v3).
  *
- * Stack, back to front, all 1536×1024 scene pixels at the same coordinates:
- *   back     wall + tiles
- *   mid      yellow pot, jars, kettle, green back counter
- *   main     red skillet, front stove, wooden table
- *     └ inPan / children   ← flame, oil, the egg while it is in the pan
- *     └ pan-rim            ← front lip of the skillet, hides the egg's feet
- *   front    toast plate, eggshells, gingham cloth
- *   aboveFront             ← same motion as `main`, drawn above `front`
- *                            (move the egg here once it clears the rim)
+ * Five 1536×1024 layers cut from source/kitchen-clean.png, rendered as siblings inside
+ * <SceneStage> so they interleave with the character layers through the shared Z order:
+ *   back (Z.back)        wall, tiles, back counter, yellow pot, jars, kettle
+ *   mid (Z.mid)          wooden table, green stove, red skillet body + floor
+ *   pan-rim (Z.panRim)   front lip + red outer wall of the skillet → hides the egg's feet
+ *   front-left (Z.frontLeft)    toast plate
+ *   front-right (Z.frontRight)  eggshells, gingham cloth; fades out at activePanel >= 4 for mom
  *
- * Motion:
- * - mouse parallax (front ±10, main ±7, mid ±5, back ±2 px), eased; off on touch.
- * - story drift: as useScene().progress goes 0→1 the camera slowly pans sideways and
- *   pushes in a little; nearer layers travel more. The kitchen never leaves the screen.
- * - idle sway: a very slow ±4 px breathing so the room feels alive (off with reduced motion).
- * - every layer is over-scaled just enough that no canvas edge is ever exposed.
- * - background weakening (`dim`) for reading the comic on top: brightness, saturation,
- *   blur and an optional paper wash, all proportional to progress.
- * No egg is drawn here; the integration session supplies it through the slots.
+ * Motion (scene px, eased, frame-rate independent):
+ * - mouse parallax: front ±10, mid + pan-rim ±5 (identical values), back ±2; off on touch.
+ * - reading drift with useScene().progress: front 14, mid + pan-rim 6, back 2 px upward.
+ *   The kitchen never leaves and is never dimmed here (KitchenScene does the dimming).
+ * - each layer is over-scaled just enough that no canvas edge is ever exposed.
+ *
+ * Characters that sit in the skillet (egg, shadow, oil, bubbles, flame) should move with
+ * the skillet. The live mid-layer offset is published on the stage element as CSS vars:
+ *   transform: translate(var(--kl-mid-x, 0px), var(--kl-mid-y, 0px))
+ * (--kl-mid-s carries the tiny edge-cover scale around (768, 600) if exactness matters).
  */
 import gsap from "gsap";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { FOCUS_Y, SCENE_H, SCENE_W } from "@/lib/scene";
+import { useEffect, useRef, useState } from "react";
+import { FOCUS_Y, SCENE_H, SCENE_W, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
-export type KitchenLayerName = "back" | "mid" | "main" | "pan-rim" | "front";
+export type KitchenLayerName = "back" | "mid" | "pan-rim" | "front-left" | "front-right";
+
+const SRC = "/assets/scene";
+const ORIGIN_X = SCENE_W / 2;
+const ORIGIN_Y = FOCUS_Y;
+/** [mouse amplitude, reading drift] in scene px */
+const MOTION = { back: [2, 2], mid: [5, 6], front: [10, 14] } as const;
+type Group = keyof typeof MOTION;
+
+const LAYERS: { name: KitchenLayerName; z: number; group: Group }[] = [
+  { name: "back", z: Z.back, group: "back" },
+  { name: "mid", z: Z.mid, group: "mid" },
+  { name: "pan-rim", z: Z.panRim, group: "mid" },
+  { name: "front-left", z: Z.frontLeft, group: "front" },
+  { name: "front-right", z: Z.frontRight, group: "front" },
+];
 
 type Props = {
   /** Mouse parallax (ignored on touch devices). */
   mouse?: boolean;
-  /** Horizontal camera travel at progress = 1, scene px. Positive pans the view right. */
-  drift?: number;
-  /** Extra zoom at progress = 1 for the nearest layer (0.05 = 5 %). */
-  push?: number;
-  /** 0–1: how much the kitchen is weakened at progress = 1 (1 = brightness 0.7, blur 2px). */
-  dim?: number;
-  /** 0–1: paper-coloured veil over the kitchen at progress = 1, for comic readability. */
-  wash?: number;
-  /** Slow idle breathing motion. */
-  sway?: boolean;
-  /** Override useScene().progress (previews). */
-  progress?: number;
-  /** Rendered between the skillet and its front rim (egg in the pan, flame, oil). */
-  inPan?: ReactNode;
-  /** Alias for inPan. */
-  children?: ReactNode;
-  /** Rendered above the front layer with the skillet's motion (egg after it jumps out). */
-  aboveFront?: ReactNode;
   /** Dev only: layers to hide. */
   hide?: KitchenLayerName[];
 };
 
-const SRC = "/assets/scene";
-/** depth factor (story drift / push) and mouse amplitude per layer, px */
-const DEPTH = { back: [0.25, 2], mid: [0.5, 5], main: [0.75, 7], front: [1, 10] } as const;
-type Group = keyof typeof DEPTH;
-const ORIGIN_X = SCENE_W / 2;
-const ORIGIN_Y = FOCUS_Y;
+export default function KitchenLayers({ mouse = false, hide = [] }: Props) {
+  const { progress, activePanel, isTouch, reducedMotion } = useScene();
+  const useMouse = mouse && !isTouch && !reducedMotion;
+  const momOnStage = activePanel >= 4;
 
-function Img({ name, hidden, onLoad }: { name: string; hidden?: boolean; onLoad?: () => void }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`${SRC}/${name}.png`}
-      width={SCENE_W}
-      height={SCENE_H}
-      alt=""
-      draggable={false}
-      decoding="async"
-      onLoad={onLoad}
-      ref={(el) => {
-        if (el?.complete && el.naturalWidth) onLoad?.();
-      }}
-      className="pointer-events-none absolute inset-0 select-none"
-      style={{ visibility: hidden ? "hidden" : undefined }}
-    />
-  );
-}
-
-const layerStyle = {
-  width: SCENE_W,
-  height: SCENE_H,
-  transformOrigin: `${ORIGIN_X}px ${ORIGIN_Y}px`,
-  willChange: "transform",
-} as const;
-
-export default function KitchenLayers({
-  mouse = false,
-  drift = 60,
-  push = 0.05,
-  dim = 1,
-  wash = 0,
-  sway = true,
-  progress,
-  inPan,
-  children,
-  aboveFront,
-  hide = [],
-}: Props) {
-  const scene = useScene();
-  const p = progress ?? scene.progress;
-  const useMouse = mouse && !scene.isTouch;
-  const still = scene.reducedMotion;
-
-  const backRef = useRef<HTMLDivElement>(null);
-  const midRef = useRef<HTMLDivElement>(null);
-  const mainRef = useRef<HTMLDivElement>(null);
-  const frontRef = useRef<HTMLDivElement>(null);
-  const aboveRef = useRef<HTMLDivElement>(null);
-  const filterRef = useRef<HTMLDivElement>(null);
-  const washRef = useRef<HTMLDivElement>(null);
-  // live values read by the ticker without re-subscribing
-  const live = useRef({ p, drift, push, dim, wash, useMouse, still, sway });
+  const els = useRef<(HTMLDivElement | null)[]>([]);
+  const live = useRef({ progress, useMouse, reducedMotion });
   useEffect(() => {
-    live.current = { p, drift, push, dim, wash, useMouse, still, sway };
+    live.current = { progress, useMouse, reducedMotion };
   });
+
+  // reveal only when every layer is decoded, so layers never pop in one by one
+  const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
+  const ready = loaded.size >= LAYERS.length;
+  const markLoaded = (name: string) => setLoaded((s) => (s.has(name) ? s : new Set(s).add(name)));
 
   useEffect(() => {
     const m = { x: 0, y: 0, tx: 0, ty: 0 };
@@ -132,11 +79,8 @@ export default function KitchenLayers({
     window.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerleave", onLeave);
 
-    let shown = live.current.p;
-    let lastFilter = "";
-    const t0 = performance.now();
-    let prev = t0;
-    // frame-rate independent easing: fraction of the gap closed after dt seconds
+    let shown = live.current.progress;
+    let prev = performance.now();
     const ease = (perSecond: number, dt: number) => 1 - Math.exp(-perSecond * dt);
 
     const tick = () => {
@@ -144,52 +88,34 @@ export default function KitchenLayers({
       const dt = Math.min(1, (now - prev) / 1000);
       prev = now;
       const L = live.current;
-      // the story moves slowly behind the comic (~1.2 s to settle)
-      shown += (L.p - shown) * (L.still ? 1 : ease(3.5, dt));
-      if (Math.abs(L.p - shown) < 1e-4) shown = L.p;
-      const tgx = L.useMouse && !L.still ? m.tx : 0;
-      const tgy = L.useMouse && !L.still ? m.ty : 0;
-      const mk = ease(4.5, dt);
-      m.x += (tgx - m.x) * mk;
-      m.y += (tgy - m.y) * mk;
+      shown += (L.progress - shown) * (L.reducedMotion ? 1 : ease(4, dt));
+      const k = ease(4.5, dt);
+      m.x += ((L.useMouse ? m.tx : 0) - m.x) * k;
+      m.y += ((L.useMouse ? m.ty : 0) - m.y) * k;
 
-      const t = (now - t0) / 1000;
-      const sw = L.sway && !L.still ? 1 : 0;
-      const sx = sw * 4 * Math.sin((t * 2 * Math.PI) / 17);
-      const sy = sw * 2 * Math.sin((t * 2 * Math.PI) / 11 + 1.3);
-      const e = shown * shown * (3 - 2 * shown); // smoothstep
-
-      const groups: [HTMLDivElement | null, Group][] = [
-        [backRef.current, "back"],
-        [midRef.current, "mid"],
-        [mainRef.current, "main"],
-        [frontRef.current, "front"],
-        [aboveRef.current, "main"],
-      ];
-      for (const [el, g] of groups) {
-        if (!el) continue;
-        const [f, amp] = DEPTH[g];
-        const tx = -L.drift * f * e - m.x * amp + sx * f;
-        const ty = -m.y * amp * 0.6 + sy * f;
-        const dolly = 1 + L.push * f * e;
-        // smallest scale that keeps every canvas edge covered after the shift
-        const cover =
+      const t: Record<Group, string> = { back: "", mid: "", front: "" };
+      let midVars: [number, number, number] = [0, 0, 1];
+      for (const g of ["back", "mid", "front"] as const) {
+        const [amp, drift] = MOTION[g];
+        const tx = -m.x * amp;
+        const ty = -m.y * amp * 0.6 - drift * shown;
+        // smallest scale around (ORIGIN_X, ORIGIN_Y) that keeps every canvas edge covered
+        const s =
           1 +
           Math.max(0, tx / ORIGIN_X, -tx / (SCENE_W - ORIGIN_X), ty / ORIGIN_Y, -ty / (SCENE_H - ORIGIN_Y)) +
-          0.001;
-        const s = Math.max(dolly, cover);
-        el.style.transform = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0) scale(${s.toFixed(4)})`;
+          0.0005;
+        t[g] = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0) scale(${s.toFixed(4)})`;
+        if (g === "mid") midVars = [tx, ty, s];
       }
-
-      const d = L.dim * e;
-      const filter = d > 0.001
-        ? `brightness(${(1 - 0.3 * d).toFixed(3)}) saturate(${(1 - 0.2 * d).toFixed(3)}) blur(${(2 * d).toFixed(2)}px)`
-        : "none";
-      if (filter !== lastFilter && filterRef.current) {
-        filterRef.current.style.filter = filter;
-        lastFilter = filter;
+      els.current.forEach((el, i) => {
+        if (el) el.style.transform = t[LAYERS[i].group];
+      });
+      const stage = els.current[0]?.parentElement;
+      if (stage) {
+        stage.style.setProperty("--kl-mid-x", `${midVars[0].toFixed(2)}px`);
+        stage.style.setProperty("--kl-mid-y", `${midVars[1].toFixed(2)}px`);
+        stage.style.setProperty("--kl-mid-s", midVars[2].toFixed(4));
       }
-      if (washRef.current) washRef.current.style.opacity = (L.wash * e).toFixed(3);
     };
 
     gsap.ticker.add(tick);
@@ -200,40 +126,45 @@ export default function KitchenLayers({
     };
   }, []);
 
-  const hidden = (n: KitchenLayerName) => hide.includes(n);
-  // reveal the stack only when every layer is decoded, so layers never pop in one by one
-  const [loaded, setLoaded] = useState<Set<string>>(() => new Set());
-  const ready = loaded.size >= 5;
-  const done = (n: string) => () =>
-    setLoaded((s) => (s.has(n) ? s : new Set(s).add(n)));
-
   return (
-    <div className="pointer-events-none absolute inset-0" style={{ width: SCENE_W, height: SCENE_H }}>
-      <div
-        ref={filterRef}
-        className="absolute inset-0 transition-opacity duration-500"
-        style={{ willChange: "filter", opacity: ready ? 1 : 0 }}
-      >
-        <div ref={backRef} className="absolute left-0 top-0" style={layerStyle}>
-          <Img name="back" hidden={hidden("back")} onLoad={done("back")} />
-        </div>
-        <div ref={midRef} className="absolute left-0 top-0" style={layerStyle}>
-          <Img name="mid" hidden={hidden("mid")} onLoad={done("mid")} />
-        </div>
-        <div ref={mainRef} className="absolute left-0 top-0" style={layerStyle}>
-          <Img name="main" hidden={hidden("main")} onLoad={done("main")} />
-          {inPan}
-          {children}
-          <Img name="pan-rim" hidden={hidden("pan-rim")} onLoad={done("pan-rim")} />
-        </div>
-        <div ref={frontRef} className="absolute left-0 top-0" style={layerStyle}>
-          <Img name="front" hidden={hidden("front")} onLoad={done("front")} />
-        </div>
-      </div>
-      <div ref={washRef} className="absolute inset-0" style={{ background: "#f6ecdc", opacity: 0 }} />
-      <div ref={aboveRef} className="absolute left-0 top-0" style={layerStyle}>
-        {aboveFront}
-      </div>
-    </div>
+    <>
+      {LAYERS.map(({ name, z }, i) => {
+        const fadeForMom = name === "front-right" && momOnStage;
+        return (
+          <div
+            key={name}
+            ref={(el) => {
+              els.current[i] = el;
+            }}
+            className="pointer-events-none absolute left-0 top-0"
+            style={{
+              width: SCENE_W,
+              height: SCENE_H,
+              zIndex: z,
+              transformOrigin: `${ORIGIN_X}px ${ORIGIN_Y}px`,
+              willChange: "transform, opacity",
+              opacity: !ready || hide.includes(name) || fadeForMom ? 0 : 1,
+              transition: `opacity ${ready && name === "front-right" ? 0.5 : 0.4}s ease`,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`${SRC}/${name}.png`}
+              width={SCENE_W}
+              height={SCENE_H}
+              alt=""
+              draggable={false}
+              decoding="async"
+              onLoad={() => markLoaded(name)}
+              ref={(img) => {
+                // already decoded before hydration: onLoad will not fire
+                if (img?.complete && img.naturalWidth) markLoaded(name);
+              }}
+              className="absolute inset-0 select-none"
+            />
+          </div>
+        );
+      })}
+    </>
   );
 }

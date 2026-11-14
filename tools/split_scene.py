@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
-"""Split the clean kitchen painting into depth layers (feat/kitchen-layers).
+"""Split the clean kitchen painting into depth layers (kitchen-layers, design v3).
 
-Inputs (first existing path wins):
-  clean kitchen : source/kitchen-clean.png, ~/Desktop/Clean watercolor kitchen with red skillet.png
-  egg character : source/egg-jump.png,     ~/Desktop/Happy jumping fried egg character.png
-  original      : source/kitchen-main.png (used to register the egg and lift the flame)
+Input : source/kitchen-clean.png (falls back to ~/Desktop/Clean watercolor kitchen with red skillet.png)
 
-Outputs (all 1536x1024 RGBA, same canvas, same coordinates):
-  public/assets/scene/back.png   wall + tiles (opaque, tiles rebuilt behind every object)
-  public/assets/scene/mid.png    yellow pot, jars, kettle, green back counter
-  public/assets/scene/main.png   red skillet, front stove, wooden table
-  public/assets/scene/front.png  toast plate, eggshells, gingham cloth
-  public/assets/scene/egg.png    the jumping egg, registered onto the original egg position
-  public/assets/scene/flame.png  burner flame lifted from the original painting
-  tools/check_overlay.png        layers recomposited vs clean image + diff
-  tools/layers_preview.png       contact sheet of every layer
+Outputs (all 1536x1024 RGBA, same canvas, same coordinates, see docs/DESIGN.md Z order):
+  public/assets/scene/back.png         Z.back   wall, tiles, back counter, yellow pot, jars, kettle (opaque)
+  public/assets/scene/mid.png          Z.mid    wooden table, green stove, red skillet body + handle + floor
+  public/assets/scene/pan-rim.png      Z.panRim front half of the skillet: front lip + red outer wall
+  public/assets/scene/front-left.png   Z.frontLeft  toast plate with toast
+  public/assets/scene/front-right.png  Z.frontRight eggshells + gingham cloth (fades out for mom)
+  tools/check_overlay.png              five layers recomposited vs the clean source + |diff|
+  tools/layers_preview.png             contact sheet of the five layers
+
+Hidden areas are rebuilt only from the painting itself: tile cells copied joint to joint,
+counter bands and wood grain continued from visible pixels of the same rows, the yellow
+pot's hidden corner mirrored about its axis. Deterministic (fixed seed); re-run overwrites.
 
 Run:  python3 tools/split_scene.py [--debug DIR]
-Everything is deterministic (fixed RNG seed); re-running overwrites the outputs.
 """
 from __future__ import annotations
 
@@ -590,19 +589,6 @@ def build_rim(img, M):
     return rim, (cx, cy, aw, ah, ang)
 
 
-def lift_flame(orig, clean):
-    """Flame = pixels where the original painting differs from the clean one around the
-    burner; colour from the original, alpha from the difference (soft key)."""
-    d = np.abs(orig - clean).max(2)
-    box = np.zeros((H, W), bool)
-    box[722:800, 580:880] = True
-    hsv = cv2.cvtColor(orig.astype(np.uint8), cv2.COLOR_RGB2HSV).astype(np.float32)
-    hot = ((hsv[..., 0] < 32) | ((hsv[..., 0] > 95) & (hsv[..., 0] < 130))) & (hsv[..., 1] > 70)
-    a = np.clip((d - 28) / 60.0, 0, 1) * box * (hot | (d > 90))
-    a = cv2.GaussianBlur(a.astype(np.float32), (0, 0), 0.8)
-    return rgba(orig, a), a
-
-
 def sheet(layers: dict[str, np.ndarray], path: Path, cols=3, tw=512):
     th = tw * H // W
     rows = (len(layers) + cols - 1) // cols
@@ -634,67 +620,64 @@ def main():
     args = ap.parse_args()
     clean_p = first(ROOT / "source/kitchen-clean.png", DESK / "Clean watercolor kitchen with red skillet.png")
     img = load_rgb(clean_p)
-    orig = load_rgb(first(ROOT / "source/kitchen-main.png"))
     assert img.shape[:2] == (H, W), img.shape
     print("masks ...")
     M = build_masks(img)
     if args.debug:
         os.makedirs(args.debug, exist_ok=True)
         debug_masks(img, M, Path(args.debug) / "masks.png")
-    print("back ...")
-    back = build_back(img, M)
-    print("mid ...")
+    print("wall + tiles ...")
+    wall = build_back(img, M)
+    print("back counter + objects ...")
     region = mid_region()
-    mid, mid_m = build_mid(img, M, region)
-    print("main ...")
-    main_rgb, main_m = build_main(img, M)
+    counter, counter_m = build_mid(img, M, region)
+    # v3 "back" = wall/tiles with the back counter and its objects on top (one opaque layer)
+    ca = soft(counter_m)[..., None]
+    back = counter * ca + wall * (1 - ca)
+    print("table, stove, skillet ...")
+    mid_rgb, mid_m = build_main(img, M)
     rim_m, ell = build_rim(img, M)
-    front_m = M["plate"] | M["shells"] | M["cloth"]
-    flame, _ = lift_flame(orig, img)
 
     L = {
         "back": rgba(back, np.ones((H, W), np.float32)),
-        "mid": rgba(mid, soft(mid_m)),
-        "main": rgba(main_rgb, soft(main_m)),
+        "mid": rgba(mid_rgb, soft(mid_m)),
         "pan-rim": rgba(img, soft(rim_m, grow=0, feather=0.8)),
-        "front": rgba(img, soft(front_m)),
-        "flame": flame,
+        "front-left": rgba(img, soft(M["plate"])),
+        "front-right": rgba(img, soft(M["shells"] | M["cloth"])),
     }
     OUT.mkdir(parents=True, exist_ok=True)
     for k, v in L.items():
         Image.fromarray(v).save(OUT / f"{k}.png", optimize=True)
-    # stale outputs from the earlier plan
-    for stale in ("egg.png",):
-        if (OUT / stale).exists():
-            (OUT / stale).unlink()
 
     # ---- checks
-    comp = composite([L["back"], L["mid"], L["main"], L["pan-rim"], L["front"]])
+    comp = composite(list(L.values()))
     diff = np.abs(comp - img).max(2)
-    print(f"recomposite vs clean: mean {diff.mean():.3f}, max {diff.max():.0f}, >8: {(diff > 8).sum()} px")
-    with_flame = composite([L["back"], L["mid"], L["main"], L["flame"], L["pan-rim"], L["front"]])
+    print(f"recomposite vs clean: mean {diff.mean():.3f}, p99.9 {np.percentile(diff, 99.9):.0f}, "
+          f"max {diff.max():.0f}, >8: {(diff > 8).sum()} px ({(diff > 8).mean() * 100:.2f}%)")
     dv = np.clip(diff * 8, 0, 255).astype(np.uint8)
     tw, th = 768, 512
-    chk = Image.new("RGB", (tw * 2 + 36, th * 2 + 80), (250, 247, 240))
+    chk = Image.new("RGB", (tw * 2 + 36, th + 52), (250, 247, 240))
     d = ImageDraw.Draw(chk)
-    for (i, (name, im)) in enumerate([("clean source", img), ("layers recomposited", comp),
-                                      ("|difference| x8 (black = identical)", np.dstack([dv] * 3)),
-                                      ("recomposited + flame", with_flame)]):
-        r, c = divmod(i, 2)
+    for c, (name, im) in enumerate([("five layers recomposited", comp),
+                                    ("|difference vs kitchen-clean| x8 (black = identical)", np.dstack([dv] * 3))]):
         chk.paste(Image.fromarray(np.clip(im, 0, 255).astype(np.uint8)).resize((tw, th), Image.LANCZOS),
-                  (12 + c * (tw + 12), 12 + r * (th + 28)))
-        d.text((12 + c * (tw + 12), 12 + r * (th + 28) + th + 6), name, fill=(60, 40, 30))
+                  (12 + c * (tw + 12), 12))
+        d.text((12 + c * (tw + 12), 12 + th + 8), name, fill=(60, 40, 30))
     chk.save(ROOT / "tools/check_overlay.png")
     sheet(L, ROOT / "tools/layers_preview.png")
+
+    # ---- measurements for ANCHORS
     cx, cy, aw, ah, ang = ell
-    print(f"pan cooking surface ellipse: centre ({cx:.0f},{cy:.0f}) axes ({aw:.0f},{ah:.0f}) angle {ang:.1f}")
+    rx, ry = max(aw, ah) / 2, min(aw, ah) / 2
+    print(f"pan floor (cooking surface) ellipse: centre ({cx:.0f},{cy:.0f}) semi-axes ({rx:.0f},{ry:.0f})")
+    for x in (450, 600, 720, 743, 900, 1050):
+        col = np.nonzero(rim_m[:, x])[0]
+        print(f"  pan-rim top edge at x={x}: y={col.min() if len(col) else None}")
     ys, xs = np.nonzero(rim_m)
-    print(f"pan rim box: [{xs.min()}, {ys.min()}, {xs.max()}, {ys.max()}]")
-    for k in ("pan", "stove_top", "plate", "shells", "cloth", "kettle", "pot", "jars"):
+    print(f"  pan-rim box [{xs.min()}, {ys.min()}, {xs.max()}, {ys.max()}]")
+    for k in ("plate", "shells", "cloth", "pan"):
         ys, xs = np.nonzero(M[k])
-        print(f"  {k:10s} box [{xs.min()}, {ys.min()}, {xs.max()}, {ys.max()}]")
-    fy, fx = np.nonzero(L["flame"][..., 3] > 40)
-    print(f"  flame      box [{fx.min()}, {fy.min()}, {fx.max()}, {fy.max()}]")
+        print(f"  {k:7s} box [{xs.min()}, {ys.min()}, {xs.max()}, {ys.max()}]")
 
 
 if __name__ == "__main__":
