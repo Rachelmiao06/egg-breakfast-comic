@@ -250,18 +250,21 @@ function FlowLayer() {
   beats.forEach((b, i) => (index[b.id] = i));
   const visible = PANELS.filter((p) => !p.hideInFlow && index[p.beat] !== undefined && g - index[p.beat] > -0.16 && g - index[p.beat] < 1.16);
   const groups: Record<string, PanelSpec[]> = {};
-  for (const p of visible) if (p.role !== "closeup") (groups[p.beat] ??= []).push(p);
+  // 提前离场的格（exitAt 早于同段其他格）单独成组排版：它离开后，同段其他格的位置不受影响
+  const groupOf = (p: PanelSpec) => (p.exitAt && p.exitAt[1] < 0.7 ? `${p.beat}:solo:${p.key}` : p.beat);
+  for (const p of visible) if (p.role !== "closeup") (groups[groupOf(p)] ??= []).push(p);
   const places: Record<string, Place> = {};
   const pans: Record<string, number> = {};
   const egg = EGG_VISIBLE.has(t.beat.egg) || EGG_VISIBLE.has(beats[t.index + 1]?.egg ?? "") ? eggRectNow(vp.w, vp.h) : null;
   for (const [id, list] of Object.entries(groups)) {
-    const eggHere = egg && EGG_VISIBLE.has(beats[index[id]].egg) ? egg : null;
+    const beatId = id.split(":")[0];
+    const eggHere = egg && EGG_VISIBLE.has(beats[index[beatId]].egg) ? egg : null;
     if (vp.portrait) {
       // 竖屏：整列的下沿停在蛋的上方（蛋在下半屏时），放不下就在停留阶段缓慢上移阅读
       const bottom = eggHere && eggHere.y > 30 ? eggHere.y - 1 : 95;
       const r = columnPlaces(list, vp.w, vp.h, 4, bottom);
       Object.assign(places, r.places);
-      pans[id] = r.pan;
+      for (const p of list) pans[p.key] = r.pan;
     } else {
       Object.assign(places, fitPlaces(list, vp.w, vp.h, 96));
       if (eggHere) avoidEgg(list, places, eggHere, vp.w, vp.h);
@@ -275,11 +278,11 @@ function FlowLayer() {
         const i = p.order ?? 0;
         const pos = places[p.key] ?? { x: p.x, y: p.y, w: p.w };
         const hVh = hOf(p, pos.w, vp.w, vp.h);
-        const pan = pans[p.beat] ?? 0;
-        const s0 = -0.14 + i * 0.05, s1 = 0.34;
-        const e0 = 0.7 + i * 0.03, e1 = 1.14;
+        const pan = pans[p.key] ?? 0;
+        const [s0, s1] = p.enterAt ?? [-0.14 + i * 0.05, 0.34];
+        const [e0, e1] = p.exitAt ?? [0.7 + i * 0.03, 1.14];
         // 竖屏整列较高时：停留阶段由滚动直接带动缓慢上移（读条漫），离场从上移后的位置继续
-        const panNow = pan * clamp01((q - s1) / (0.7 - s1));
+        const panNow = pan * clamp01((q - s1) / (e0 - s1));
         const enterOff = 100 - pos.y + 4;
         const exitOff = pos.y - pan + hVh + 4;
         let dy = -panNow;

@@ -562,8 +562,8 @@
   {
    "id": "search",
    "n": 17,
-   "title": "走去女儿房门口：\"宝宝？\"、空房间",
-   "lengthVh": 125,
+   "title": "妈妈离开厨房（只有“离开、饭留在桌上”这一格）→ 门口探头喊“宝宝？” → 空房间",
+   "lengthVh": 160,
    "pin": "search",
    "kitchenDim": [
     0,
@@ -585,6 +585,10 @@
     "action": 0,
     "hold": 0.36,
     "exit": 0.3
+   },
+   "events": {
+    "leave": 0.1,
+    "peek": 0.5
    }
   },
   {

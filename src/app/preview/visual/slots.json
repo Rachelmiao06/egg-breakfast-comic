@@ -265,7 +265,15 @@
    "aspect": 0.998,
    "from": "left",
    "order": 0,
-   "role": "insert"
+   "role": "insert",
+   "enterAt": [
+    -0.02,
+    0.2
+   ],
+   "exitAt": [
+    0.3,
+    0.5
+   ]
   },
   {
    "key": "p5b",
@@ -279,7 +287,11 @@
    "aspect": 1.0,
    "from": "bottom",
    "order": 1,
-   "role": "hero"
+   "role": "hero",
+   "enterAt": [
+    0.24,
+    0.5
+   ]
   },
   {
    "key": "p5c",
@@ -293,7 +305,11 @@
    "aspect": 1.039,
    "from": "right",
    "order": 2,
-   "role": "hero"
+   "role": "hero",
+   "enterAt": [
+    0.3,
+    0.55
+   ]
   },
   {
    "key": "p5d",
