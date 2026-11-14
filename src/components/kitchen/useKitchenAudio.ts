@@ -18,7 +18,8 @@
  * - 自动播放解锁：第一次 pointerup / touchend / keydown 时 resume AudioContext，并把每个元素都"预热"一次
  *   （play 后立刻 pause，iOS 要求每个媒体元素各自在手势里 play 过）。
  * - 页面切到后台：全部暂停；回到前台恢复循环；后台期间越过的触发点不补播。
- * - 文件还没提供（404 / 解码失败）就保持静音；available 表示至少有一条能播。
+ * - 只为 audio-map.json 的 available 列表里的声音创建 <audio>（空位不发请求、保持静音，避免 404）；
+ *   列表里的文件解码失败也保持静音；available 表示至少有一条能播。
  * - 场景 → 声音的对应表在 audio-map.json（按场景编号 id 覆盖节拍数据的 audio 字段，表里没有的场景沿用原值）。
  *   这样不用改共享的 beats.json；音量、触发点都在声音分支自己的文件里。
  */
@@ -52,6 +53,8 @@ const ONESHOT_SOUNDS = Object.keys(ONESHOTS) as OneShotSound[];
 
 type SceneAudio = Beat["audio"];
 const SCENE_AUDIO = (audioMap as { scenes: Record<string, SceneAudio> }).scenes;
+/** 真正有文件的声音；其余为空位 */
+const AVAILABLE = new Set<string>((audioMap as { available: string[] }).available);
 const warned = new Set<string>();
 /** 用 audio-map.json 覆盖节拍表每段的 audio；检查声音名是否已登记（没登记的忽略并在开发期提示一次） */
 export function withAudioMap(beats: Beat[]): Beat[] {
@@ -100,8 +103,9 @@ type Channel = {
 class KitchenMixer {
   private root: HTMLDivElement;
   private ctx: AudioContext | null = null;
-  private loops = {} as Record<LoopSound, Channel>;
-  private shots = {} as Record<OneShotSound, Channel>;
+  private loops: Partial<Record<LoopSound, Channel>> = {};
+  private shots: Partial<Record<OneShotSound, Channel>> = {};
+  private total = 0;
   private soundOn = false;
   private hidden = false;
   private unlocked = false;
@@ -121,8 +125,12 @@ class KitchenMixer {
     } catch {
       this.ctx = null;
     }
-    for (const name of LOOP_SOUNDS) this.loops[name] = this.channel(name, "loop", LOOP_FILES[name], true);
-    for (const name of ONESHOT_SOUNDS) this.shots[name] = this.channel(name, "oneshot", ONESHOTS[name].file, false);
+    const loopNames = LOOP_SOUNDS.filter((n) => AVAILABLE.has(n));
+    const shotNames = ONESHOT_SOUNDS.filter((n) => AVAILABLE.has(n));
+    this.total = loopNames.length + shotNames.length;
+    for (const name of loopNames) this.loops[name] = this.channel(name, "loop", LOOP_FILES[name], true);
+    for (const name of shotNames) this.shots[name] = this.channel(name, "oneshot", ONESHOTS[name].file, false);
+    if (this.total === 0) queueMicrotask(() => onAvailable(false));
     this.hidden = document.visibilityState === "hidden";
     document.addEventListener("visibilitychange", this.onVisibility);
     window.addEventListener("pointerup", this.onGesture, { passive: true });
@@ -164,11 +172,10 @@ class KitchenMixer {
       }
     }
     if (!ch.gain) el.volume = 0;
-    const total = LOOP_SOUNDS.length + ONESHOT_SOUNDS.length;
     const settle = () => {
       this.settled += 1;
-      if (this.settled === total && !this.disposed) {
-        const any = [...Object.values(this.loops), ...Object.values(this.shots)].some((c) => c.ok);
+      if (this.settled === this.total && !this.disposed) {
+        const any = [...this.all(this.loops), ...this.all(this.shots)].some((c) => c.ok);
         this.onAvailable(any);
       }
     };
@@ -177,6 +184,10 @@ class KitchenMixer {
     el.src = DIR + file;
     this.root.appendChild(el);
     return ch;
+  }
+
+  private all<T extends string>(m: Partial<Record<T, Channel>>): Channel[] {
+    return Object.values(m).filter((c): c is Channel => !!c);
   }
 
   /** 把电平写到 GainNode（或 volume）和 data-level 上 */
@@ -210,17 +221,17 @@ class KitchenMixer {
   private onGesture = () => {
     if (this.ctx && this.ctx.state !== "running") this.ctx.resume().catch(() => {});
     if (this.unlocked) return;
-    for (const ch of Object.values(this.loops)) {
+    for (const ch of this.all(this.loops)) {
       if (ch.target > 0 && this.soundOn && !this.hidden) this.play(ch);
       else this.prime(ch);
     }
-    for (const ch of Object.values(this.shots)) this.prime(ch);
+    for (const ch of this.all(this.shots)) this.prime(ch);
   };
 
   private onVisibility = () => {
     this.hidden = document.visibilityState === "hidden";
     if (this.hidden) {
-      for (const ch of [...Object.values(this.loops), ...Object.values(this.shots)]) {
+      for (const ch of [...this.all(this.loops), ...this.all(this.shots)]) {
         if (!ch.el.paused) ch.el.pause();
         ch.priming = false;
       }
@@ -232,7 +243,7 @@ class KitchenMixer {
     const now = performance.now();
     const step = ((now - this.lastTick) / 1000) * SLEW_PER_SEC;
     this.lastTick = now;
-    for (const ch of Object.values(this.loops)) {
+    for (const ch of this.all(this.loops)) {
       const target = this.soundOn && !this.hidden && ch.ok ? ch.target : 0;
       const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), step);
       const level = Math.min(1, Math.max(0, v));
@@ -254,7 +265,7 @@ class KitchenMixer {
   setSoundOn(on: boolean) {
     this.soundOn = on;
     if (!on) {
-      for (const ch of Object.values(this.shots)) {
+      for (const ch of this.all(this.shots)) {
         if (!ch.el.paused) { ch.el.pause(); ch.el.currentTime = 0; }
       }
     }
@@ -272,6 +283,7 @@ class KitchenMixer {
   setLevels(levels: Record<LoopSound, number>) {
     for (const name of LOOP_SOUNDS) {
       const ch = this.loops[name];
+      if (!ch) continue; // 空位
       ch.target = levels[name];
       ch.el.dataset.target = ch.target.toFixed(3);
     }
@@ -280,7 +292,7 @@ class KitchenMixer {
   /** 单次音效：从头播一次。同一音效只有一个元素，重触发 = 重放，不叠加 */
   fire(name: OneShotSound) {
     const ch = this.shots[name];
-    if (!ch.ok || !this.soundOn || this.hidden) return;
+    if (!ch || !ch.ok || !this.soundOn || this.hidden) return; // 空位或不可播
     ch.priming = false;
     ch.fired += 1;
     ch.el.dataset.fired = String(ch.fired);
@@ -296,7 +308,7 @@ class KitchenMixer {
     window.removeEventListener("pointerup", this.onGesture);
     window.removeEventListener("touchend", this.onGesture);
     window.removeEventListener("keydown", this.onGesture);
-    for (const ch of [...Object.values(this.loops), ...Object.values(this.shots)]) {
+    for (const ch of [...this.all(this.loops), ...this.all(this.shots)]) {
       ch.el.pause();
       ch.el.removeAttribute("src");
       ch.el.load();
