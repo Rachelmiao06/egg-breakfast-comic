@@ -58,6 +58,13 @@
 - chop 段去掉 chop 循环；前景在每次落刀接触帧派发 `kitchen:oneshot`（detail.sound = "chopHit"），混音器播 chop-hit.mp3 一次（AudioBuffer，每刀新节点，可重叠；静音 / 未解锁 / 后台丢弃不补播）。
 - 裁切改为解码后 atrim（mp3 输入寻址会吃掉第一帧约 24 ms），全部素材重建，接缝检查通过。
 
+## 寻找段由声音引导的停顿（2026-11-14 晚，未试听）
+
+- audio-map 新增扩展字段 ramps / lowpass（段内定时，起止点写法同 at）；search / quiet / eggcall / return 的声音按集成会话转达的用户要求重写，细节和测量见 `public/assets/audio/README.md`。
+- 画外敲击：bowl-tap-1 / bowl-tap-2，从勺碰碗原档切出，声像偏左。eggCall 保持空位。
+- 单次音效越过规则：同一次更新越过多个只播最后一个；跨 40 vh 以上全部跳过。
+- 共享类型 OneShotSound 里没有 bowlTap1 / bowlTap2：声音分支内部用 MapOnlySound 转换。集成会话愿意的话可以把它们加进 beats.ts 的类型。
+
 ## 需要集成会话改：
 
 - 无需改 beats 数据：音量和触发点都在 audio-map.json。若试听后要调 sauce（0.4）/ chop（0.5）/ 炒菜段 sizzle（0.45），改 audio-map.json 即可。

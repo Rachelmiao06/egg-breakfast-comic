@@ -38,8 +38,9 @@
 | pour | pour.mp3 | 单次 | bowl @ p=0.55（淋汁） | **空位**（用户决定保持） |
 | momCall | mom-call.mp3 | 单次 | call @ p=0.25（"宝宝，来吃饭啦！"） | **空位**（用户决定：保留漫画文字，不配音） |
 | eggSmall | egg-small.mp3 | 单次 | call @ p=0.55、tablecall @ p=0.5（"我在这儿……"） | **空位**（同上） |
-| steps | footsteps-loop.mp3（7.56 s 循环） | 循环，主要动作声 | search 0.3（地毯上拖鞋慢走，低而温和）；eggcall 进入阶段退掉（停下听）；return 进入阶段 0→0.3、停留阶段 0.3→0（走回去、到达） | 已接入（2026-11-14，未试听） |
-| eggCall | egg-call.mp3 | 单次 | eggcall @ p=0.25（"妈！这里！"） | **空位**（同上） |
+| steps | footsteps-loop.mp3（7.56 s 循环） | 循环，主要动作声 | search：p 0→0.10 接上（0→0.3），停留开始前后（enterEnd±0.04）停下；eggcall：妈妈转身后由远到近 0→0.15、低通 700→3000 Hz；return：0.15→0.3、低通开到 16 kHz，回到碗前停下（audio-map 的 ramps / lowpass） | 已接入（未试听） |
+| bowlTap1 / bowlTap2 | bowl-tap-1.mp3（0.12 s）/ bowl-tap-2.mp3（0.10 s） | 单次，声像 −0.6（偏左） | quiet（只有 v2）：@tap1 → bowlTap1，@tap2 → bowlTap2，@tap3 → bowlTap1；电平 0.3。从勺碰碗的原档切出的轻瓷器接触 + 4 kHz 低通 | 已接入（未试听） |
+| eggCall | egg-call.mp3 | 单次 | quiet @eggCall（"妈！这里！"，v2；v1 没有 quiet 段，不触发） | **空位**（同上） |
 
 旧版 9 段节拍表（`/`、`/dev/beats`）里与新故事同名的场景（opening/chop/stirfry/sauce/catch）也会套用上表的值；其余旧场景 notice/spatula/serve/ending 沿用 beats.json 原值。
 
@@ -99,6 +100,14 @@
 真实浏览器复测（素材会话，Chrome 开发预览，AudioContext 实际输出，修复后版本）：文件本身干净，拼接跳变 0.0047，正常值 0.0083。但 room 7 次回绕里有 4 次仍有 3–8 ms、低于中位 10 dB 以上的掉落，位置固定在回绕点后约 61–68 ms；另外 3 次干净，随机对照最长 3 ms。sizzle 5 次、sauce 3 次回绕都干净。文件里没有这个掉落，位置又固定，所以应是 Chrome 用 `<audio loop>` 循环 mp3 时自己时有时无插入的间隙，文件处理改不掉。
 
 是否可闻要人耳判断，不阻塞集成。要根治：循环声改用 `decodeAudioData` + `AudioBufferSourceNode`（loop=true）做采样级循环，单次音效可保留 `<audio>`。这是混音器结构改动，等用户试听后决定。人耳仍未试听。
+
+### 寻找段由声音引导的停顿（2026-11-14，全部未试听）
+
+- 素材：现有授权录音里只有勺碰碗（sauce-stir 原档）有轻的瓷器接触声；bowl-down 是一整声放碗的闷响，catch 是湿的 plop，chop-hit 是刀碰案板，都不像蛋敲碗沿。从勺碰碗里挑了两下最轻、前后最安静的，4 kHz 低通压掉勺子的金属亮度。没有下载新素材。"妈！这里！"（eggCall）保持空位，只靠画面小字。
+- 离线渲染（v2，30 vh/s）：三下敲击在 68.65 / 69.05 / 69.25 s，eggCall 空位在 69.95 s；每下左声道比右声道高约 7 dB，比当时的 room 高 15–16 dB（第三下在第二下余音上，6.5 dB）；search 里的脚步在 64.9 s 左右（search p≈0.33）停下；整条 -29.1 LUFS，段落交界跳变 ≤ 2.7 dB。离线渲染不含低通。
+- 浏览器（v2，DOM / 节点读数）：search p 0.05 / 0.2 / 0.3 / 0.36 / 0.42 时 steps 0.15 / 0.30 / 0.30 / 0.075 / 0，room 0.128 → 0.060；eggcall p 0.5 / 0.95 时 steps 0.036 / 0.139、低通 1258 / 2826 Hz；return p 0.1 / 0.25 / 0.34 / 0.4 时 steps 0.204 / 0.284 / 0.201 / 0、低通 7643 / 14607 / 16000 Hz。
+- 越过规则：1 vh 一步慢慢前进，三下依次播放、声像都是 −0.6；倒滚不播；一次更新从 quiet 0.25 跳到 0.55（28.5 vh，越过三下）只播最后一下；原地反复派发滚动事件不重复；一次跳 177.5 vh 全部跳过。
+- 切菜格（集成会话的前景派发）：滚到切菜格停留阶段，三刀都触发（rAF 用计时器代替时间隔约 575 ms）。
 
 ### 切菜逐刀（chopHit，2026-11-14）
 
