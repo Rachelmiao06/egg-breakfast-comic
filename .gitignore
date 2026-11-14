@@ -45,3 +45,11 @@ next-env.d.ts
 
 # parallel-session worktrees
 /.claude/worktrees/
+
+# background-scenes 会话的录屏、截图、无头检查输出（大文件不入库）
+/notes/background-scenes/*.mp4
+/notes/background-scenes/*.webm
+/notes/background-scenes/frames/
+/notes/background-scenes/shots/
+/notes/background-scenes/.profile/
+/notes/background-scenes/samples-*.json

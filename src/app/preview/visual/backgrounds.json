@@ -16,10 +16,29 @@
   "status": "现有分层（kitchen-clean 拆出）"
  },
  "table": {
-  "type": "reuse",
-  "src": "/assets/scene/mid.png（桌面部分）",
-  "edgeY": 860,
-  "status": "复用现有木质桌面；正式桌面图到位后替换"
+  "type": "placeholder",
+  "label": "占位 · B1 桌沿带（正式图：4000×800 木质桌沿，见 docs/BACKGROUND-SPEC.md §3）",
+  "src": null,
+  "size": [
+   4000,
+   800
+  ],
+  "showBox": [
+   -232,
+   860,
+   2000,
+   400
+  ],
+  "topY": 920,
+  "edgeY": 995,
+  "faceY": 1060,
+  "placeholder": {
+   "paper": "#f7eedd",
+   "top": "#ead5b2",
+   "face": "#dcc29a",
+   "below": "#ecdcc3"
+  },
+  "status": "缺图（B1）。占位只用平涂色块标出桌面（topY–edgeY）和前侧面（edgeY–faceY），无纹理；在纸面之下、桌沿蛋之下，跟随主体层视差，与蛋锁在一起"
  },
  "paper": {
   "type": "color",
@@ -33,10 +52,21 @@
   "label": "占位 · 寻找段外围：暖米白平涂（正式图：浅色墙面 + 局部门框 + 纸白）",
   "src": null,
   "size": [
-   1600,
-   1000
+   2400,
+   1500
   ],
-  "status": "缺图（门口和空房间由漫画格 p5b / p5c 承担，外围不铺完整房间）",
+  "srcPortrait": null,
+  "sizePortrait": [
+   1200,
+   2600
+  ],
+  "focus": [
+   0.5,
+   0.5
+  ],
+  "driftPct": 2.5,
+  "portraitBelow": 1.0,
+  "status": "缺图（B2 横版 + 竖版；门口和空房间由漫画格 p5b / p5c 承担，外围不铺完整房间）",
   "color": "#f6eee2"
  },
  "room": {
@@ -209,8 +239,55 @@
     0.4,
     1
    ]
+  ],
+  "table": [
+   [
+    "drop",
+    0.7,
+    0
+   ],
+   [
+    "bag",
+    0.3,
+    1
+   ]
+  ],
+  "dinner": [
+   [
+    "handoff",
+    0.45,
+    0
+   ],
+   [
+    "bowl",
+    0.6,
+    -32
+   ]
+  ],
+  "hallwayDrift": [
+   [
+    "call",
+    0.85,
+    1
+   ],
+   [
+    "search",
+    0.5,
+    0.25
+   ],
+   [
+    "eggcall",
+    0.7,
+    -0.25
+   ],
+   [
+    "return",
+    0.2,
+    -1
+   ]
   ]
  },
+ "curvesNote": "paper / table：纸面与桌沿带的不透明度；dinner：蛋交给漫画之后，纸面 + 桌沿带整体上移的场景像素（桌子成为饭桌，露出更多桌面；蛋此时已不在场景里）；hallway：寻找段外围不透明度；hallwayDrift：外围的横向漂移（乘 hallway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。",
  "ending": {
   "type": "color",
   "color": "#f6eee2",

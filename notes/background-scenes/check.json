@@ -1,0 +1,22 @@
+{
+ "report": {
+  "1440x900": {
+   "samples": 258,
+   "eggCountBad": 0,
+   "eggAfterHandoff": 0,
+   "tableChecks": 98,
+   "tableBad": 0,
+   "footMin": 0.599,
+   "footMax": 0.601,
+   "bgSeq": [
+    "kitchen",
+    "table-edge",
+    "dinner-table",
+    "search",
+    "dinner-table",
+    "ending"
+   ]
+  }
+ },
+ "fails": []
+}
