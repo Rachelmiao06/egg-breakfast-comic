@@ -1,12 +1,12 @@
 {
  "report": {
-  "1440x900": {
-   "samples": 65,
+  "1600x900": {
+   "samples": 518,
    "eggCountBad": 0,
    "eggAfterHandoff": 0,
-   "bowlChecks": 2,
+   "bowlChecks": 16,
    "bowlBad": 0,
-   "tableChecks": 24,
+   "tableChecks": 195,
    "tableBad": 0,
    "footMin": 0.599,
    "footMax": 0.601,
@@ -22,15 +22,81 @@
     "ending"
    ]
   },
-  "390x844": {
-   "samples": 65,
+  "1440x900": {
+   "samples": 518,
    "eggCountBad": 0,
    "eggAfterHandoff": 0,
-   "bowlChecks": 2,
+   "bowlChecks": 16,
    "bowlBad": 0,
-   "tableChecks": 24,
+   "tableChecks": 195,
    "tableBad": 0,
-   "footMin": 0.933,
+   "footMin": 0.599,
+   "footMax": 0.601,
+   "bgSeq": [
+    "kitchen",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-call",
+    "search",
+    "table-edge",
+    "ending"
+   ]
+  },
+  "1024x768": {
+   "samples": 518,
+   "eggCountBad": 0,
+   "eggAfterHandoff": 0,
+   "bowlChecks": 16,
+   "bowlBad": 0,
+   "tableChecks": 195,
+   "tableBad": 0,
+   "footMin": 0.932,
+   "footMax": 0.935,
+   "bgSeq": [
+    "kitchen",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-call",
+    "search",
+    "table-edge",
+    "ending"
+   ]
+  },
+  "860x1000": {
+   "samples": 518,
+   "eggCountBad": 0,
+   "eggAfterHandoff": 0,
+   "bowlChecks": 16,
+   "bowlBad": 0,
+   "tableChecks": 195,
+   "tableBad": 0,
+   "footMin": 0.932,
+   "footMax": 0.934,
+   "bgSeq": [
+    "kitchen",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-call",
+    "search",
+    "table-edge",
+    "ending"
+   ]
+  },
+  "390x844": {
+   "samples": 518,
+   "eggCountBad": 0,
+   "eggAfterHandoff": 0,
+   "bowlChecks": 16,
+   "bowlBad": 0,
+   "tableChecks": 195,
+   "tableBad": 0,
+   "footMin": 0.932,
    "footMax": 0.935,
    "bgSeq": [
     "kitchen",
