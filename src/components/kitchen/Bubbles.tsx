@@ -5,6 +5,7 @@
  * 颜色取自原画的油：金黄填充 + 细棕描边 + 一点高光，尽量小、淡。
  */
 import { useRef } from "react";
+import { Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import { useCanvasLoop } from "./useCanvasLoop";
 
@@ -112,7 +113,7 @@ export default function Bubbles() {
       ref={ref}
       aria-hidden
       className="pointer-events-none absolute"
-      style={{ left: BOX.x, top: BOX.y, width: BOX.w, height: BOX.h }}
+      style={{ left: BOX.x, top: BOX.y, width: BOX.w, height: BOX.h, zIndex: Z.fx }}
     />
   );
 }

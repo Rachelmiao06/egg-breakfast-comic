@@ -1,7 +1,7 @@
 "use client";
 /** 水壶嘴慢慢冒出的一点蒸汽（Canvas，柔和的奶白水彩团，最多十来团，很淡）。 */
 import { useRef } from "react";
-import { ANCHORS } from "@/lib/scene";
+import { ANCHORS, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import { useCanvasLoop } from "./useCanvasLoop";
 
@@ -55,7 +55,7 @@ export default function Steam() {
       ref={ref}
       aria-hidden
       className="pointer-events-none absolute"
-      style={{ left: BOX.x, top: BOX.y, width: BOX.w, height: BOX.h }}
+      style={{ left: BOX.x, top: BOX.y, width: BOX.w, height: BOX.h, zIndex: Z.steam }}
     />
   );
 }

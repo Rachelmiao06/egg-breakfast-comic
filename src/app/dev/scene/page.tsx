@@ -8,7 +8,25 @@ import KitchenCharacters from "@/components/kitchen/KitchenCharacters";
 import KitchenScene from "@/components/kitchen/KitchenScene";
 import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
+import { ANCHORS, Z } from "@/lib/scene";
 import { SceneProvider, useScene } from "@/lib/scene-context";
+
+/** 开发标记：前景妈妈预留区和锅铲落点（真正的 MomForeground 由 comic-scroll 提供）。 */
+function SpatulaMarker() {
+  const { flight } = useScene();
+  const [x0, y0, x1, y1] = ANCHORS.momZone;
+  if (flight === null) return null;
+  return (
+    <div className="pointer-events-none absolute" style={{ left: x0, top: y0, width: x1 - x0, height: y1 - y0, zIndex: Z.mom }}>
+      <div className="absolute inset-0 rounded-3xl border-4 border-dashed border-ink/40 bg-cream/40" />
+      <span className="absolute right-6 bottom-6 font-mono text-2xl text-ink/60">占位：妈妈的手臂和锅铲</span>
+      <div
+        className="absolute h-4 w-40 -translate-x-1/2 rounded-full bg-ink/40"
+        style={{ left: ANCHORS.spatulaLand.x - x0, top: ANCHORS.spatulaLand.y - y0 }}
+      />
+    </div>
+  );
+}
 
 function DebugPanel() {
   const { progress, setProgress, flight, setFlight } = useScene();
@@ -40,7 +58,7 @@ export default function DevScenePage() {
   return (
     <SceneProvider>
       <div className="fixed inset-0">
-        <KitchenScene>
+        <KitchenScene foreground={<SpatulaMarker />}>
           <KitchenCharacters />
         </KitchenScene>
       </div>

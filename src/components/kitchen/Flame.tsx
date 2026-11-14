@@ -2,7 +2,7 @@
 /** 锅底火苗：原画抽出的 flame.png，两份叠加做轻微纵向伸缩和亮度闪烁。原点在火苗底部。 */
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { ANCHORS, SCENE_H, SCENE_W } from "@/lib/scene";
+import { ANCHORS, SCENE_H, SCENE_W, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
 const [fx0, , fx1, fy1] = ANCHORS.flameBox;
@@ -41,7 +41,7 @@ export default function Flame() {
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={a} src="/assets/scene/flame.png" alt="" draggable={false} className="pointer-events-none absolute inset-0 select-none" style={style} />
+      <img ref={a} src="/assets/scene/flame.png" alt="" draggable={false} className="pointer-events-none absolute inset-0 select-none" style={{ ...style, zIndex: Z.fx }} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={b}
@@ -49,7 +49,7 @@ export default function Flame() {
         alt=""
         draggable={false}
         className="pointer-events-none absolute inset-0 select-none"
-        style={{ ...style, filter: "brightness(1.12) saturate(1.05)" }}
+        style={{ ...style, filter: "brightness(1.12) saturate(1.05)", zIndex: Z.fx }}
       />
     </>
   );

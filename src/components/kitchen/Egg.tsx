@@ -2,29 +2,30 @@
 /**
  * 荷包蛋。
  * - 循环模式（flight === null）：压扁蓄力 → 拉长起跳 → 空中 → 下落 → 落地摊平 → 回弹 → 停一会儿再来。
- * - 飞行模式（flight 0–1，由 comic-scroll 随滚动写入）：停止循环，沿弧线从锅里飞到吐司上；到 1 时落地压扁回弹。
+ * - 飞行模式（flight 0–1，由 comic-scroll 随滚动写入）：停止循环，沿弧线从锅里（panLaunch）飞到前景妈妈的
+ *   锅铲上（spatulaLand）；到 1 时落在铲面压扁回弹。在锅里时 z = Z.eggInPan（被锅沿挡脚），起飞后 z = Z.eggFlying。
  * 图片脚底对齐 ANCHORS.eggRest，transform-origin 在脚底。
  */
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { ANCHORS } from "@/lib/scene";
+import { ANCHORS, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import EggShadow from "./EggShadow";
 
-const { eggRest: REST, eggSize: SIZE, toastLand: LAND } = ANCHORS;
+const { eggRest: REST, eggSize: SIZE, panLaunch: START, spatulaLand: LAND } = ANCHORS;
 const JUMP_HEIGHT = 135;
 /** 飞行弧线的控制点（二次贝塞尔），越高弧越大 */
-const CTRL = { x: 470, y: 250 };
+const CTRL = { x: 930, y: 300 };
 
 function flightPose(f: number) {
   const t = Math.min(Math.max(f, 0), 1);
-  const x = (1 - t) ** 2 * REST.x + 2 * (1 - t) * t * CTRL.x + t ** 2 * LAND.x;
-  const y = (1 - t) ** 2 * REST.y + 2 * (1 - t) * t * CTRL.y + t ** 2 * LAND.y;
+  const x = (1 - t) ** 2 * START.x + 2 * (1 - t) * t * CTRL.x + t ** 2 * LAND.x;
+  const y = (1 - t) ** 2 * START.y + 2 * (1 - t) * t * CTRL.y + t ** 2 * LAND.y;
   return {
     x: x - REST.x,
     y: y - REST.y,
-    rotation: -16 * Math.sin(Math.PI * t), // 空中稍微转身，落地回正
-    scale: 1 + 0.12 * t, // 吐司离镜头更近，蛋略变大
+    rotation: 14 * Math.sin(Math.PI * t), // 空中稍微转身，落地回正
+    scale: 1 + 0.28 * t, // 从后景飞到前景，越近越大
   };
 }
 
@@ -34,6 +35,7 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
   const landedRef = useRef(false);
   const { reducedMotion, flight } = useScene();
   const flying = flight !== null;
+  const zIndex = flight !== null && flight > 0.02 ? Z.eggFlying : Z.eggInPan;
 
   // 循环跳跃
   useEffect(() => {
@@ -86,7 +88,7 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
 
   return (
     <>
-      <EggShadow ref={shadowRef} />
+      <EggShadow ref={shadowRef} zIndex={Z.eggInPan} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={eggRef}
@@ -94,7 +96,7 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
         alt=""
         draggable={false}
         className="pointer-events-none absolute select-none will-change-transform"
-        style={{ left: REST.x - SIZE.w / 2, top: REST.y - SIZE.h, width: SIZE.w, height: SIZE.h }}
+        style={{ left: REST.x - SIZE.w / 2, top: REST.y - SIZE.h, width: SIZE.w, height: SIZE.h, zIndex }}
       />
     </>
   );
