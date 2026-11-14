@@ -1,8 +1,8 @@
-// 从预览路由的 slots.json + beats.visual.json 生成 docs/ASSET-SLOTS.md（素材对应表）。用法：node tools/slots_table.mjs
+// 从预览路由的 slots.json + beats.visual-v2.json 生成 docs/ASSET-SLOTS.md（素材对应表）。用法：node tools/slots_table.mjs
 import { readFileSync, writeFileSync } from "node:fs";
 const R = "src/app/preview/visual/";
 const slots = JSON.parse(readFileSync(R + "slots.json", "utf8"));
-const beats = JSON.parse(readFileSync(R + "beats.visual.json", "utf8")).beats;
+const beats = JSON.parse(readFileSync(R + "beats.visual-v2.json", "utf8")).beats; // 默认动效（v2）
 const man = JSON.parse(readFileSync("public/assets/comic-v3/manifest.json", "utf8"));
 let md = `# 素材对应表（由 \`node tools/slots_table.mjs\` 生成，不要手改）
 
