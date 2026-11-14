@@ -70,10 +70,7 @@ export default function DevPage() {
         />
       </div>
       <ComicScroll />
-      {/* body 是 flex-col 且 height:100%，占位高度要 shrink-0 才不会被压成一屏 */}
-      <div className="shrink-0">
-        <ScrollDriver />
-      </div>
+      <ScrollDriver />
       <Hud />
     </SceneProvider>
   );

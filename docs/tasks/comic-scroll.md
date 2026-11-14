@@ -62,5 +62,6 @@
 3. `.claude/launch.json`：本机 3000/3001 被其他会话占用，我本地用 3002 预览（`npm run dev -- -p 3002`），没有改提交的配置。
 4. 第五版起本分支不再有 ScrollTrigger、滚动区高度和 `mom-store.ts`；第四版之前的占位文件（土豆汤/旧吐司裁的
    `public/assets/comic/placeholder/`、`catch-point.ts`、`story.ts`、`ComicCard.tsx`、`tools/make_placeholders.py`）已删除，它们在 cfd3d3e 里还能找到。
-5. 节拍表建议（按 beats.json 现值验证，暂不要求改）：`spatula` 段 100vh 里进入+动作共 70vh 滑入，手感合适；
-   `notice` 段的"！"跟 envelope 显隐（进入 0→1、退出 1→0），不需要额外阶段。
+5. 第六版：本分支只做布局，画格用简单淡入/位移（进入上浮 28px、退出上飘 16px、整格 ±3px CSS 漂浮），没有速度倾斜和镜头；
+   停留组（`pin` / `pinState`）留给主会话整合运动小样时在同一份 timeline 上叠加，画格的显隐包络不需要改。
+   节拍表按现值验证，没有改长度的要求。
