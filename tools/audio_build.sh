@@ -85,14 +85,14 @@ loop_seam() {
     -c:a pcm_f32le "$out"
 }
 
-# 单次： oneshot_trim <in> <wav_out> <start> <end> <fade_in> <fade_out>
+# 单次： oneshot_trim <in> <wav_out> <start> <end> <fade_in> <fade_out> [额外滤镜，如 lowpass=f=4000]
 oneshot_trim() {
-  local in=$1 out=$2 start=$3 end=$4 fi=$5 fo=$6
+  local in=$1 out=$2 start=$3 end=$4 fi=$5 fo=$6 extra=${7:-}
   local dur fo_start
   dur=$(awk -v s="$start" -v e="$end" 'BEGIN{printf "%.3f", e-s}')
   fo_start=$(awk -v d="$dur" -v f="$fo" 'BEGIN{printf "%.3f", d-f}')
   "$FFMPEG" -hide_banner -loglevel error -y -i "$in" \
-    -af "aresample=44100,atrim=start=${start}:end=${end},asetpts=N/SR/TB,afade=t=in:st=0:d=${fi},afade=t=out:st=${fo_start}:d=${fo}" -c:a pcm_f32le "$out"
+    -af "aresample=44100,atrim=start=${start}:end=${end},asetpts=N/SR/TB${extra:+,$extra},afade=t=in:st=0:d=${fi},afade=t=out:st=${fo_start}:d=${fo}" -c:a pcm_f32le "$out"
 }
 
 build() {
@@ -119,6 +119,14 @@ build() {
                       # 取 [1.177, 1.437]（起音前 2 ms），1 ms 淡入、尾部 0.08 s 淡出 → 0.26 s。供前景动画逐刀触发（kitchen:oneshot 事件）
       raw="$RAW/chop-loop.mp3"
       oneshot_trim "$raw" "$wav" 1.177 1.437 0.001 0.08; finalize "$wav" "$out" 3 192k ;;
+    bowl-tap-1)       # 寻找段留白里画外的"嗒"（蛋轻敲碗沿）。从 sauce-stir 原档（勺碰碗）取最轻、最孤立的一下：起音 11.5453 s，
+                      # 前 30 ms 在 -40 dB 左右，之后 110 ms 内平滑衰减到 -50 dB；取 [11.543, 11.663]，4 kHz 低通去掉勺子的金属亮度 → 0.12 s
+      raw="$RAW/sauce-stir-loop.mp3"
+      oneshot_trim "$raw" "$wav" 11.543 11.663 0.001 0.05 "lowpass=f=4000"; finalize "$wav" "$out" 3 192k ;;
+    bowl-tap-2)       # 第二下（"嗒嗒"），换一个起音，避免同一采样重复的机械感：起音 15.0393 s，前 30 ms 约 -50 dB；
+                      # 取 [15.037, 15.137]，4 kHz 低通，尾部 0.05 s 淡出（之后有勺子刮碗的残声，裁掉）→ 0.10 s
+      raw="$RAW/sauce-stir-loop.mp3"
+      oneshot_trim "$raw" "$wav" 15.037 15.137 0.001 0.05 "lowpass=f=4000"; finalize "$wav" "$out" 3 192k ;;
     pop)              # 原档 1.04 s，起音 0.025 s、约 0.17 s 后衰减到底；取 [0.02, 0.30]，2 ms 淡入、尾部 0.1 s 淡出 → 0.28 s
       oneshot_trim "$raw" "$wav" 0.02 0.30 0.002 0.1; finalize "$wav" "$out" 3 192k ;;
     *) echo "未知文件 $name" >&2; exit 1 ;;
@@ -126,6 +134,6 @@ build() {
 }
 
 names=("$@")
-if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit); fi
+if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit bowl-tap-1 bowl-tap-2); fi
 for n in "${names[@]}"; do build "$n"; done
 echo "完成。测量：tools/audio_measure.sh"

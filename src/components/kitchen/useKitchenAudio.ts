@@ -25,6 +25,9 @@
  * - 场景 → 声音的对应表在 audio-map.json（按场景编号 id 覆盖节拍数据的 audio 字段，表里没有的场景沿用原值）。
  *   这样不用改共享的 beats.json；音量、触发点都在声音分支自己的文件里。
  *   触发点可写成阶段符号（"actionEnd" 等，见 resolveAt），按当前节拍表的 phases 换算成段内进度，新旧两版节拍共用一张表。
+ * - 越过节拍表触发点的单次音效：同一次时间轴更新越过多个时只播最后一个；一次跨过 40 vh 以上（拖滚动条、跳转）全部跳过；
+ *   停在原地不重复，倒滚不播。
+ * - audio-map 的扩展：ramps（段内定时的电平斜坡）和 lowpass（段内定时的低通，目前给 steps 由远到近），见 MappedBeat。
  * - 动画逐帧触发的单次音效（目前只有切菜格的 chopHit）：监听 window 事件 "kitchen:oneshot"（detail.sound），收到就播一次。
  *   解码成 AudioBuffer，每次新建 BufferSource，快速连刀可以重叠；静音、未解锁（AudioContext 未 running）、后台时丢弃不补播。
  */
@@ -49,11 +52,15 @@ const LOOP_FILES: Record<LoopSound, string> = {
  * 触发时刻完全由动画决定，混音器不做节拍判断。
  */
 type EventSound = "chopHit";
-type ShotSound = OneShotSound | EventSound;
+/** 只在 audio-map 里用、由滚动越过触发点触发的单次音效（共享的 OneShotSound 类型里没有，运行时照样经节拍表的 oneshots 传递） */
+type MapOnlySound = "bowlTap1" | "bowlTap2";
+type ShotSound = OneShotSound | EventSound | MapOnlySound;
 const EVENT_SOUNDS: readonly EventSound[] = ["chopHit"];
+/** 解码成 AudioBuffer 播放：每次触发新建节点，快速连续触发可以重叠，并可以带声像 */
+const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "bowlTap1", "bowlTap2"];
 export const KITCHEN_ONESHOT_EVENT = "kitchen:oneshot";
 /** 单次音效：文件与播放音量（素材已统一到约 -18 LUFS，这里是相对电平） */
-const ONESHOTS: Record<ShotSound, { file: string; volume: number }> = {
+const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number }> = {
   stirfryIn: { file: "stirfry-in.mp3", volume: 0.6 },
   catch: { file: "catch.mp3", volume: 0.6 },
   bowlDown: { file: "bowl-down.mp3", volume: 0.6 },
@@ -64,14 +71,30 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number }> = {
   eggSmall: { file: "egg-small.mp3", volume: 0.5 }, // 暂无素材：蛋小声"我在这儿……"
   // 切菜格逐刀：从 chop-loop 同一原档切出的一刀，0.26 s；电平 0.5 = 原来 chop 循环里每一刀的电平
   chopHit: { file: "chop-hit.mp3", volume: 0.5 },
+  // 寻找段留白（quiet）：画外"嗒……嗒嗒"，蛋轻敲碗沿。从勺碰碗的原档切出的两下轻瓷器接触，4 kHz 低通；
+  // 声像偏左（画面上"妈！这里！"从左边来）；很轻，room 0.08 之上刚好能听出
+  bowlTap1: { file: "bowl-tap-1.mp3", volume: 0.3, pan: -0.6 },
+  bowlTap2: { file: "bowl-tap-2.mp3", volume: 0.3, pan: -0.6 },
 };
 /** 可以写进节拍表 / audio-map 的单次音效（事件触发的不在其中） */
-const ONESHOT_SOUNDS = (Object.keys(ONESHOTS) as ShotSound[]).filter((n): n is OneShotSound => !(EVENT_SOUNDS as readonly string[]).includes(n));
+const ONESHOT_SOUNDS = (Object.keys(ONESHOTS) as ShotSound[]).filter((n) => !(EVENT_SOUNDS as readonly string[]).includes(n));
 const SHOT_NAMES = Object.keys(ONESHOTS) as ShotSound[];
 
 type SceneAudio = Beat["audio"];
 /** audio-map.json 里一段的写法：单次音效的 at 可以是数字（段内进度 0–1），也可以是阶段符号 */
-type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: number | string }[] };
+type At = number | string;
+/**
+ * 段内定时的电平斜坡（比按阶段的 fades 更细）：p 在 [start, end] 内从 from 线性到 to，之前保持 from、之后保持 to；
+ * 同一声音可写多条（按 start 排序，后面的接管）。start / end 和单次音效的 at 写法一样（数字、阶段符号、@事件）。
+ * 有斜坡的声音在这一段里完全由斜坡决定；它在本段的 loops 值自动取最后一条的 to，下一段的进入渐变从这里接上。
+ */
+type MapRamp = { sound: string; from: number; to: number; start: At; end: At };
+/** 段内定时的低通（目前给 steps 由远到近用）：截止频率 fromHz → toHz，规则同 ramps；没写的段 = 全开 */
+type MapLowpass = { sound: string; fromHz: number; toHz: number; start: At; end: At };
+type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: At }[]; ramps?: MapRamp[]; lowpass?: MapLowpass[] };
+type Ramp = { sound: LoopSound; from: number; to: number; start: number; end: number };
+/** 带声音分支扩展字段的节拍（ramps / lowpass 已换算成段内进度） */
+export type MappedBeat = Beat & { mapRamps?: Ramp[]; mapLowpass?: Ramp[] };
 const SCENE_AUDIO = (audioMap as { scenes: Record<string, MapScene> }).scenes;
 /**
  * 触发点符号：enterEnd / actionEnd / holdEnd（= 该段进入 / 动作 / 停留阶段的结束处），可带偏移，如 "actionEnd-0.02"。
@@ -96,8 +119,8 @@ export function resolveAt(b: Beat, at: number | string): number | null {
 const AVAILABLE = new Set<string>((audioMap as { available: string[] }).available);
 const warned = new Set<string>();
 /** 用 audio-map.json 覆盖节拍表每段的 audio；检查声音名是否已登记（没登记的忽略并在开发期提示一次） */
-export function withAudioMap(beats: Beat[]): Beat[] {
-  return beats.map((b) => {
+export function withAudioMap(beats: Beat[]): MappedBeat[] {
+  return beats.map((b): MappedBeat => {
     const m = SCENE_AUDIO[b.id];
     if (!m) return b;
     const loops: SceneAudio["loops"] = {};
@@ -111,21 +134,64 @@ export function withAudioMap(beats: Beat[]): Beat[] {
       if (!(ONESHOT_SOUNDS as string[]).includes(o.sound)) { warnOnce(`audio-map.json: 场景 ${b.id} 的单次音效 ${o.sound} 未登记`); continue; }
       const at = resolveAt(b, o.at);
       if (at === null) { warnOnce(`audio-map.json: 场景 ${b.id} 的触发点 ${String(o.at)} 不认识（数字、enterEnd/actionEnd/holdEnd±偏移，或本段存在的共享事件 @eggOnTable/@eggOnSpatula/@eggInBowl）`); continue; }
+      // MapOnlySound（bowlTap1/2）不在共享类型里：这里只做类型转换，运行时名字原样传给 crossedOneShots → fire
       oneshots.push({ sound: o.sound as OneShotSound, at });
     }
-    return { ...b, audio: { loops, fades, oneshots } };
+    const resolveRamps = (list: { sound: string; from: number; to: number; start: At; end: At }[] | undefined, kind: string): Ramp[] => {
+      const out: Ramp[] = [];
+      for (const r of list ?? []) {
+        if (!(LOOP_SOUNDS as string[]).includes(r.sound)) { warnOnce(`audio-map.json: 场景 ${b.id} 的 ${kind} 声音 ${r.sound} 未登记`); continue; }
+        const start = resolveAt(b, r.start), end = resolveAt(b, r.end);
+        if (start === null || end === null) { warnOnce(`audio-map.json: 场景 ${b.id} 的 ${kind} 区间 ${String(r.start)}–${String(r.end)} 不认识`); continue; }
+        out.push({ sound: r.sound as LoopSound, from: r.from, to: r.to, start, end: Math.max(start, end) });
+      }
+      return out.sort((x, y) => x.start - y.start);
+    };
+    const mapRamps = resolveRamps(m.ramps, "ramps");
+    const mapLowpass = resolveRamps(m.lowpass?.map((l) => ({ sound: l.sound, from: l.fromHz, to: l.toHz, start: l.start, end: l.end })), "lowpass");
+    for (const r of mapRamps) loops[r.sound] = r.to; // 排过序：最后一条的 to 留下
+    return { ...b, audio: { loops, fades, oneshots }, mapRamps, mapLowpass };
   });
 }
 function warnOnce(msg: string) {
   if (!warned.has(msg)) { warned.add(msg); if (process.env.NODE_ENV !== "production") console.warn(msg); }
   return true;
 }
+/** 某声音在段内进度 p 处的斜坡值；这一段没有它的斜坡 → null */
+function rampValue(rs: Ramp[] | undefined, sound: LoopSound, p: number): number | null {
+  let v: number | null = null;
+  for (const r of rs ?? []) {
+    if (r.sound !== sound) continue;
+    if (v === null && p < r.start) return r.from;
+    if (p < r.start) break;
+    v = p >= r.end || r.end === r.start ? r.to : r.from + (r.to - r.from) * ((p - r.start) / (r.end - r.start));
+  }
+  return v;
+}
+/** loopLevels 的结果再套上本段的 ramps */
+export function mappedLevels(t: Timeline, base: Record<LoopSound, number>): Record<LoopSound, number> {
+  const b = t.beat as MappedBeat;
+  if (!b.mapRamps?.length) return base;
+  const out = { ...base };
+  for (const s of LOOP_SOUNDS) { const v = rampValue(b.mapRamps, s, t.p); if (v !== null) out[s] = v; }
+  return out;
+}
+/** 滚动位置（vh），用来判断一次更新跨了多远 */
+function posVh(t: Timeline, beats: Beat[]) {
+  let acc = 0;
+  for (let i = 0; i < t.index && i < beats.length; i++) acc += beats[i].lengthVh;
+  return acc + t.p * (beats[t.index]?.lengthVh ?? 0);
+}
+/** 一次时间轴更新跨过这么多 vh 以上（拖滚动条、跳转），越过的单次音效全部跳过 */
+const MAX_CROSS_VH = 40;
 
 /** 平滑速度：音量每秒最多变化这么多（满量程），只用于去掉跳变，节奏由节拍表决定 */
 const SLEW_PER_SEC = 2.5;
 const TICK_MS = 50;
 /** sizzle 低通：远（flight 0）→ 近（flight 1）；全开 = 不起作用 */
 const LOWPASS_FAR = 1500, LOWPASS_NEAR = 16000, LOWPASS_OPEN = 20000;
+/** 挂低通的循环声：sizzle（跟随蛋的飞行）、steps（audio-map 的 lowpass 规则，脚步由远到近） */
+const LOWPASS_SOUNDS: readonly string[] = ["sizzle", "steps"];
 
 type Channel = {
   name: string;
@@ -178,7 +244,7 @@ class KitchenMixer {
     this.total = loopNames.length + shotNames.length;
     for (const name of loopNames) this.loops[name] = this.channel(name, "loop", LOOP_FILES[name], true);
     for (const name of shotNames) this.shots[name] = this.channel(name, "oneshot", ONESHOTS[name].file, false);
-    for (const name of EVENT_SOUNDS) if (this.shots[name]) this.loadBuffer(name);
+    for (const name of BUFFER_SOUNDS) if (this.shots[name]) this.loadBuffer(name);
     if (this.total === 0) queueMicrotask(() => onAvailable(false));
     this.hidden = document.visibilityState === "hidden";
     document.addEventListener("visibilitychange", this.onVisibility);
@@ -206,7 +272,7 @@ class KitchenMixer {
         const src = this.ctx.createMediaElementSource(el);
         ch.gain = this.ctx.createGain();
         ch.gain.gain.value = 0;
-        if (name === "sizzle" && kind === "loop") {
+        if (LOWPASS_SOUNDS.includes(name) && kind === "loop") {
           ch.lowpass = this.ctx.createBiquadFilter();
           ch.lowpass.type = "lowpass";
           ch.lowpass.Q.value = 0.7;
@@ -355,11 +421,17 @@ class KitchenMixer {
 
   /** 蛋的飞行进度 → sizzle 低通截止频率（null = 全开） */
   setFlight(flight: number | null) {
-    const ch = this.loops.sizzle;
+    this.setLowpass("sizzle", flight === null ? null : LOWPASS_FAR * Math.pow(LOWPASS_NEAR / LOWPASS_FAR, Math.min(1, Math.max(0, flight))));
+  }
+
+  /** 循环声的低通截止频率（null = 全开）；只有 LOWPASS_SOUNDS 里的声音有低通 */
+  setLowpass(name: LoopSound, hz: number | null) {
+    const ch = this.loops[name];
     if (!ch?.lowpass || !this.ctx) return;
-    const hz = flight === null ? LOWPASS_OPEN : LOWPASS_FAR * Math.pow(LOWPASS_NEAR / LOWPASS_FAR, Math.min(1, Math.max(0, flight)));
-    ch.lowpass.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.05);
-    ch.el.dataset.lowpass = String(Math.round(hz));
+    const f = hz === null ? LOWPASS_OPEN : Math.min(LOWPASS_OPEN, Math.max(200, hz));
+    if (ch.el.dataset.lowpass === String(Math.round(f))) return;
+    ch.lowpass.frequency.setTargetAtTime(f, this.ctx.currentTime, 0.05);
+    ch.el.dataset.lowpass = String(Math.round(f));
   }
 
   setLevels(levels: Record<LoopSound, number>) {
@@ -386,8 +458,11 @@ class KitchenMixer {
       src.buffer = buf;
       const g = this.ctx.createGain();
       g.gain.value = ONESHOTS[name].volume;
-      src.connect(g).connect(this.ctx.destination);
-      src.onended = () => { src.disconnect(); g.disconnect(); this.voices.delete(src); };
+      const pan = ONESHOTS[name].pan;
+      const panner = pan !== undefined && pan !== 0 && typeof this.ctx.createStereoPanner === "function" ? this.ctx.createStereoPanner() : null;
+      if (panner && pan !== undefined) { panner.pan.value = pan; src.connect(g).connect(panner).connect(this.ctx.destination); }
+      else src.connect(g).connect(this.ctx.destination);
+      src.onended = () => { src.disconnect(); g.disconnect(); panner?.disconnect(); this.voices.delete(src); };
       this.voices.add(src);
       src.start();
       ch.fired += 1;
@@ -441,7 +516,13 @@ export function useKitchenAudio() {
   useEffect(() => { mixer.current?.setFlight(flight); }, [flight]);
 
   // 目标音量：完全由节拍表推导
-  useEffect(() => { mixer.current?.setLevels(loopLevels(timeline, beats)); }, [timeline, beats]);
+  // 目标音量：节拍表推导（loopLevels）+ 本段 audio-map 的 ramps；steps 的低通按本段 lowpass 规则（没写 = 全开）
+  useEffect(() => {
+    mixer.current?.setLevels(mappedLevels(timeline, loopLevels(timeline, beats)));
+    const b = timeline.beat as MappedBeat;
+    const hz = rampValue(b.mapLowpass, "steps", timeline.p);
+    mixer.current?.setLowpass("steps", hz);
+  }, [timeline, beats]);
 
   // 单次音效：向下滚动越过节拍表里的触发点时播一次
   const prevT = useRef<Timeline | null>(null);
@@ -451,10 +532,13 @@ export function useKitchenAudio() {
       prevT.current = timeline;
       return;
     }
-    const fired = crossedOneShots(prevT.current, timeline, beats);
+    const prev = prevT.current;
+    const fired = crossedOneShots(prev, timeline, beats);
     prevT.current = timeline;
-    if (!soundOn) return;
-    for (const name of fired) mixer.current?.fire(name);
+    if (!soundOn || fired.length === 0) return;
+    // 一次更新跨得太远（拖滚动条、跳转）：越过的全部跳过；同一次越过多个：只播最后一个，不堆在一起
+    if (prev && Math.abs(posVh(timeline, beats) - posVh(prev, beats)) > MAX_CROSS_VH) return;
+    mixer.current?.fire(fired[fired.length - 1]);
   }, [timeline, soundOn, beats]);
 
   // 回到前台：把"上一次时间轴"重同步到当前滚动位置（后台期间越过的触发点不补播；之后的真实滚动照常触发）

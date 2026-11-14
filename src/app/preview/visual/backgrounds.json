@@ -70,6 +70,160 @@
   },
   "status": "已接入复用素材。全部尺寸相对 anchors.tableBowl（碗里蛋的脚底点），场景像素：box = [dx, dy, w, h]（1 图片像素 = 0.625 场景像素）；碗口外椭圆中心 dy −82、半宽 130、半高 66；碗口内沿前弧（米饭前边缘）dy −25，蛋脚下 25 场景像素被前沿挡住；碗底 dy +31。碗身 z 62（蛋之下），前沿遮挡层 Z.bowlFront 64（蛋之上）；接触阴影由代码画。数值由 tools/prepare_bowl.py 输出。只在环境段 tablecall 出现（curves.bowl）"
  },
+ "reading": {
+  "note": "阅读段主后景（2026-11-14 新素材，方向：家里厨房的食材和调料偷偷活过来）。场景层，放在纸面组里替代纸面和 B1 桌沿带（有 src 时纸面、桌沿带不画），跟随主体层视差、与蛋锁在一起。图按原比例铺在 box（场景 x, y, 宽, 高），台面前缘对齐桌沿线 y 995，台面就是蛋站立和放碗的桌面。视口宽高比 < portraitBelow 用竖版。",
+  "src": "/assets/bg/kitchen-friends.webp",
+  "size": [
+   1672,
+   941
+  ],
+  "box": [
+   -110,
+   66,
+   1756,
+   988
+  ],
+  "counter": {
+   "imgBackY": 668,
+   "imgFrontY": 885,
+   "backY": 767,
+   "frontY": 995
+  },
+  "srcPortrait": "/assets/bg/kitchen-friends-portrait.webp",
+  "sizePortrait": [
+   852,
+   1846
+  ],
+  "boxPortrait": [
+   401,
+   -616,
+   767,
+   1661
+  ],
+  "counterPortrait": {
+   "imgBackY": 1675,
+   "imgFrontY": 1790,
+   "backY": 892,
+   "frontY": 995
+  },
+  "portraitBelow": 0.6,
+  "source": "source/bg-v3/BG-kitchen-secret-friends.png（横版，桌面 new pics 原件的副本）、source/bg-v3/hallway-portrait.png（竖版：内容是同一套厨房，不是走廊）",
+  "status": "已替换。横版缩放 1.05（场景像素 / 图片像素），竖版 0.9；box 由 counter 对齐和可见范围算出",
+  "srcBase": "/assets/bg/kitchen-friends-base.webp",
+  "actorsNote": "横版阅读厨房的三个小角色（tools/prepare_friends.py 从原图拆出：角色层 + 遮挡物 + 只在角色背后补齐的底图）。img / pivot 是原图像素；只转动几度，方向选在只会露出干净背景的一侧：酱油瓶往左躲到油瓶后（露出层板侧面）、糖罐往左歪头（露出墙面）、葱叶往右偏向胡萝卜（露出瓷砖）。角度由 curves 里对应曲线给出（度，滚动驱动），只安排在各段的进入 / 退出阶段，阅读停留阶段不动；三个错开。减少动态效果时全部为 0。胡萝卜背后是生菜和番茄，没有可用的底图，保持静态。竖版没有拆层，保持静态。",
+  "actors": [
+   {
+    "id": "soy",
+    "src": "/assets/bg/friends-soy.png",
+    "img": [
+     299,
+     439,
+     67,
+     238
+    ],
+    "pivot": [
+     330,
+     676
+    ],
+    "curve": "friendSoy",
+    "range": [
+     -3.5,
+     0
+    ]
+   },
+   {
+    "id": "jar",
+    "src": "/assets/bg/friends-jar.png",
+    "img": [
+     196,
+     232,
+     158,
+     157
+    ],
+    "pivot": [
+     274,
+     380
+    ],
+    "curve": "friendJar",
+    "range": [
+     -3,
+     0
+    ]
+   },
+   {
+    "id": "scallion-leaves",
+    "src": "/assets/bg/friends-scallion-leaves.png",
+    "img": [
+     1330,
+     373,
+     138,
+     149
+    ],
+    "pivot": [
+     1335,
+     522
+    ],
+    "curve": "friendLeaves",
+    "range": [
+     0,
+     3
+    ]
+   }
+  ],
+  "occluders": [
+   {
+    "id": "oil",
+    "src": "/assets/bg/friends-oil.png",
+    "img": [
+     203,
+     394,
+     101,
+     286
+    ]
+   },
+   {
+    "id": "post",
+    "src": "/assets/bg/friends-post.png",
+    "img": [
+     362,
+     349,
+     30,
+     362
+    ]
+   }
+  ],
+  "window": {
+   "note": "窗外的树当远景：四块玻璃各自裁出原图里自己的那一块，放大 scale 倍后只做横向视差（远景层与主体层视差差值 × parallax，最多约 8 场景像素，小于放大留出的边，不露边）。图片像素。",
+   "panes": [
+    [
+     1182,
+     0,
+     1392,
+     52
+    ],
+    [
+     1424,
+     0,
+     1624,
+     52
+    ],
+    [
+     1182,
+     82,
+     1392,
+     219
+    ],
+    [
+     1424,
+     82,
+     1624,
+     219
+    ]
+   ],
+   "scale": 1.1,
+   "parallax": 0.2
+  }
+ },
  "paper": {
   "type": "color",
   "color": "#f7eedd",
@@ -79,11 +233,11 @@
  },
  "hallway": {
   "type": "placeholder",
-  "label": "占位 · 寻找段外围：暖米白平涂（正式图：浅色墙面 + 局部门框 + 纸白）",
-  "src": null,
+  "label": "寻找段外围：厨房 + 通往另一个房间的门口（new pics/hallway-landscape.png）",
+  "src": "/assets/bg/kitchen-doorway.webp",
   "size": [
-   2400,
-   1500
+   1585,
+   992
   ],
   "srcPortrait": null,
   "sizePortrait": [
@@ -96,8 +250,54 @@
   ],
   "driftPct": 2.5,
   "portraitBelow": 1.0,
-  "status": "缺图（B2 横版 + 竖版；门口和空房间由漫画格 p5b / p5c 承担，外围不铺完整房间）",
-  "color": "#f6eee2"
+  "status": "已替换（横版）。没有竖版的门口图：竖屏用同一张横版按 focusPortrait 裁到门口和菜篮一侧（保持比例，不拉伸）",
+  "color": "#f6eee2",
+  "focusPortrait": [
+   0.86,
+   0.5
+  ],
+  "quiet": {
+   "note": "声音留白段（quiet）：镜头不换图，推进到门口厨房左下的桌角（只取 x0..x1、底边对齐 y1 的这一块，避开左边层板上的小角色和右边门口）。桌角单独一层（tools/prepare_quiet.py 裁出），在段内比墙面多放大 cornerPush，像更近的一层；只往外长、盖住地板，不露底。墙上一片柔和暖光随段内进度缓慢移动。碗和声音在画外左边，和 p5e 妈妈向左回头一致。图片像素。 frame = [x0, x1, 底边 y]，frameH = 至少显示的高度（竖屏按它推近，桌角才不会太小）；band = 斜向的窗光带（视口宽 %，随段内进度从 from 移到 to）。",
+   "frame": [
+    262,
+    1112,
+    992
+   ],
+   "corner": {
+    "src": "/assets/bg/doorway-corner.png",
+    "img": [
+     0,
+     868,
+     361,
+     124
+    ]
+   },
+   "push": 0.03,
+   "cornerPush": 0.06,
+   "light": {
+    "from": [
+     640,
+     600
+    ],
+    "to": [
+     720,
+     570
+    ],
+    "r": [
+     560,
+     360
+    ],
+    "color": "rgba(255,232,186,0.85)"
+   },
+   "frameH": 620,
+   "band": {
+    "from": -6,
+    "to": 4,
+    "angle": -24,
+    "color": "rgba(255,244,214,0.42)",
+    "width": 16
+   }
+  }
  },
  "room": {
   "type": "placeholder",
@@ -316,12 +516,12 @@
   "paper": [
    [
     "drop",
-    0.7,
+    0.55,
     0
    ],
    [
-    "bag",
-    0.3,
+    "drop",
+    0.78,
     1
    ],
    [
@@ -446,12 +646,269 @@
     0.2,
     -1
    ]
+  ],
+  "reading": [
+   [
+    "drop",
+    0.78,
+    0
+   ],
+   [
+    "bag",
+    0.2,
+    1
+   ]
+  ],
+  "friendJar": [
+   [
+    "bag",
+    0.72,
+    0
+   ],
+   [
+    "bag",
+    0.95,
+    -3
+   ],
+   [
+    "prejump",
+    0.9,
+    -3
+   ],
+   [
+    "hear",
+    0.25,
+    0
+   ],
+   [
+    "catch",
+    0.05,
+    0
+   ],
+   [
+    "catch",
+    0.2,
+    -3
+   ],
+   [
+    "handoff",
+    0.72,
+    -3
+   ],
+   [
+    "handoff",
+    0.95,
+    0
+   ],
+   [
+    "call",
+    0.72,
+    0
+   ],
+   [
+    "call",
+    0.95,
+    -3
+   ],
+   [
+    "tablecall",
+    0.9,
+    -3
+   ],
+   [
+    "search",
+    0.1,
+    0
+   ],
+   [
+    "recognize",
+    0.72,
+    0
+   ],
+   [
+    "recognize",
+    0.95,
+    -3
+   ],
+   [
+    "punchline",
+    0.72,
+    -3
+   ],
+   [
+    "punchline",
+    0.95,
+    0
+   ]
+  ],
+  "friendSoy": [
+   [
+    "hear",
+    0.02,
+    0
+   ],
+   [
+    "hear",
+    0.25,
+    -3.5
+   ],
+   [
+    "hear",
+    0.9,
+    -3.5
+   ],
+   [
+    "catch",
+    0.1,
+    0
+   ],
+   [
+    "call",
+    0.75,
+    0
+   ],
+   [
+    "call",
+    0.95,
+    -3.5
+   ],
+   [
+    "tablecall",
+    0.1,
+    -3.5
+   ],
+   [
+    "tablecall",
+    0.35,
+    0
+   ],
+   [
+    "return",
+    0.02,
+    0
+   ],
+   [
+    "return",
+    0.25,
+    -3.5
+   ],
+   [
+    "punchline",
+    0.75,
+    -3.5
+   ],
+   [
+    "punchline",
+    0.95,
+    0
+   ]
+  ],
+  "friendLeaves": [
+   [
+    "idea",
+    0.72,
+    0
+   ],
+   [
+    "idea",
+    0.95,
+    3
+   ],
+   [
+    "chop",
+    0.25,
+    0
+   ],
+   [
+    "stirfry",
+    0.72,
+    0
+   ],
+   [
+    "stirfry",
+    0.95,
+    3
+   ],
+   [
+    "sauce",
+    0.25,
+    0
+   ],
+   [
+    "prejump",
+    0.3,
+    0
+   ],
+   [
+    "prejump",
+    0.5,
+    3
+   ],
+   [
+    "prejump",
+    0.8,
+    0
+   ],
+   [
+    "tablecall",
+    0.45,
+    0
+   ],
+   [
+    "tablecall",
+    0.65,
+    3
+   ],
+   [
+    "tablecall",
+    0.85,
+    0
+   ]
+  ],
+  "searchQuiet": [
+   [
+    "search",
+    0.72,
+    0
+   ],
+   [
+    "quiet",
+    0.2,
+    1
+   ],
+   [
+    "quiet",
+    0.9,
+    1
+   ],
+   [
+    "eggcall",
+    0.3,
+    0
+   ]
+  ],
+  "quietPush": [
+   [
+    "quiet",
+    0.15,
+    0
+   ],
+   [
+    "quiet",
+    0.92,
+    1
+   ]
   ]
  },
- "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后纸面 + 桌沿带整体的垂直位移（场景像素，当前 0；B1 正式图到位后如需为饭桌微调桌面高度只改这里，正值向下）；bowl：环境段 tablecall 饭桌上的碗（B3）；hallway：寻找段外围不透明度；hallwayDrift：外围的横向漂移（乘 hallway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。",
+ "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后纸面 + 桌沿带整体的垂直位移（场景像素，当前 0；B1 正式图到位后如需为饭桌微调桌面高度只改这里，正值向下）；bowl：环境段 tablecall 饭桌上的碗（B3）；hallway：寻找段外围不透明度；hallwayDrift：外围的横向漂移（乘 hallway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。 reading：阅读段主后景（厨房小角色）不透明度，有 reading.src 时替代 paper / table。 换场不叠两张厨房：drop 段先由纸面盖住旧厨房（0.55→0.78），再在纸面上淡入厨房小角色（0.78→bag 0.2）；寻找段和收尾的图层内部也是先铺满纸色、再淡入图片（前一半纸色、后一半图片）。 friendJar / friendSoy / friendLeaves：阅读厨房三个小角色的转动角度（度），只在进入 / 退出阶段变化。 searchQuiet：寻找段镜头从门口厨房全景推到左下桌角（0 = 全景，1 = 桌角），search 结尾推进、eggcall 开头拉回；quietPush：quiet 段内的缓慢推近和光影移动（0–1）。",
  "ending": {
   "type": "color",
   "color": "#f6eee2",
-  "status": "收尾背景：干净暖米白平涂，盖住桌腿和木纹横带（无纹理）"
+  "status": "已替换：new pics/BG-quiet-ending.png（淡出的厨房，角落里的小角色），cover 铺满；src 为 null 时退回平涂",
+  "src": "/assets/bg/quiet-ending.webp",
+  "focus": [
+   0.5,
+   0.7
+  ]
  }
 }

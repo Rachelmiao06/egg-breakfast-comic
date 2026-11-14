@@ -24,6 +24,8 @@ export type PanelSlot = {
   from: "left" | "right" | "top" | "bottom" | "seam";
   /** 同一段里的进场先后（0 起），错开进入 */
   order?: number;
+  /** 新版流动排版里不显示（例如 p5d：会提前揭示蛋，改由独立拟声字表达“妈！这里！”）；旧版 v1 照常 */
+  hideInFlow?: boolean;
   /** 主次：hero 主镜头 / support 次要 / insert 过渡小格 / closeup 结尾独立特写 */
   role?: "hero" | "support" | "insert" | "closeup";
 };

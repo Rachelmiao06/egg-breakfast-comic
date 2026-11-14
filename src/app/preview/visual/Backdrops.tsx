@@ -39,9 +39,25 @@ export function backgroundState(g: number) {
   const ending = bgCurve("ending", g);
   const bowl = bgCurve("bowl", g);
   const lift = bgCurve("dinner", g);
+  const reading = BG.reading.src ? bgCurve("reading", g) : 0;
   const name =
-    ending > 0.5 ? "ending" : hallway > 0.5 ? "search" : bowl > 0.5 ? "table-call" : table > 0.5 ? (lift > 1 ? "dinner-table" : paper < 0.9 ? "table-edge+kitchen" : "table-edge") : "kitchen";
-  return { paper, table, hallway, ending, bowl, lift, drift: bgCurve("hallwayDrift", g) * BG.hallway.driftPct, name };
+    ending > 0.5
+      ? "ending"
+      : hallway > 0.5
+        ? "search"
+        : bowl > 0.5
+          ? "table-call"
+          : reading > 0.5
+            ? "kitchen-friends"
+            : table > 0.5
+              ? lift > 1
+                ? "dinner-table"
+                : paper < 0.9
+                  ? "table-edge+kitchen"
+                  : "table-edge"
+              : "kitchen";
+  const quiet = bgCurve("searchQuiet", g);
+  return { paper, table, hallway, ending, bowl, lift, reading, quiet, quietPush: bgCurve("quietPush", g), drift: bgCurve("hallwayDrift", g) * BG.hallway.driftPct * (1 - quiet), name: name === "search" && quiet > 0.5 ? "quiet-corner" : name };
 }
 
 const SHOW = 0.001;
@@ -53,7 +69,20 @@ export function Paper() {
   const s = backgroundState(gNow(t));
   return (
     <>
-      {(s.paper > SHOW || s.table > SHOW) && (
+      {BG.reading.src ? (
+        (s.reading > SHOW || s.paper > SHOW) && (
+          <div
+            aria-hidden
+            data-bg="table-group"
+            className="pointer-events-none absolute left-0 top-0 h-full w-full"
+            style={{ zIndex: Z.paper, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
+          >
+            {/* 先由纸面盖住旧厨房，再在纸面上淡入新厨房：任何时刻只看得到一张厨房 */}
+            {s.paper > SHOW && s.reading < 0.999 && <PaperSheet opacity={s.paper} />}
+            {s.reading > SHOW && <ReadingKitchen opacity={s.reading} />}
+          </div>
+        )
+      ) : (s.paper > SHOW || s.table > SHOW) && (
         <div
           aria-hidden
           data-bg="table-group"
@@ -66,6 +95,80 @@ export function Paper() {
       )}
       {s.bowl > SHOW && <TableBowl opacity={s.bowl} debug={debug} />}
     </>
+  );
+}
+
+/**
+ * 阅读段主后景：家里厨房里偷偷活过来的食材和调料（new pics 素材，backgrounds.json reading）。
+ * 按原比例铺在 reading.box（场景像素），台面前缘对齐桌沿线，台面就是蛋站立和放碗的桌面；竖屏用竖版。
+ * 两条零高度标记线（data-bg-line="top" / "edge"）= 台面后缘 / 前缘，给无头检查量“蛋脚底在桌面上”。
+ */
+function ReadingKitchen({ opacity }: { opacity: number }) {
+  const R = BG.reading;
+  const vp = useViewport();
+  const { timeline: t, reducedMotion } = useScene();
+  const portrait = !!R.srcPortrait && vp.w / vp.h < R.portraitBelow;
+  const [x, y, w, h] = portrait ? R.boxPortrait : R.box;
+  const c = portrait ? R.counterPortrait : R.counter;
+  // 横版有拆好的小角色层：底图换成补好的那张，角色和遮挡物叠在上面（角度 0 时与原图一致）
+  const actors = !portrait && R.srcBase ? R.actors : [];
+  const src = portrait ? R.srcPortrait : actors.length ? R.srcBase : R.src;
+  const [iw, ih] = R.size;
+  const pct = (b: number[]) => ({ left: `${(b[0] / iw) * 100}%`, top: `${(b[1] / ih) * 100}%`, width: `${(b[2] / iw) * 100}%`, height: `${(b[3] / ih) * 100}%` });
+  const g = gNow(t);
+  return (
+    <div data-bg="reading" data-variant={portrait ? "portrait" : "landscape"} className="absolute" style={{ left: x, top: y, width: w, height: h, opacity }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
+      {actors.map((a) => {
+        const deg = reducedMotion ? 0 : Math.min(a.range[1], Math.max(a.range[0], bgCurve(a.curve as CurveName, g)));
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={a.id}
+            data-actor={a.id}
+            src={a.src}
+            alt=""
+            draggable={false}
+            className="absolute select-none"
+            style={{ ...pct(a.img), transform: `rotate(${deg.toFixed(2)}deg)`, transformOrigin: `${((a.pivot[0] - a.img[0]) / a.img[2]) * 100}% ${((a.pivot[1] - a.img[1]) / a.img[3]) * 100}%` }}
+          />
+        );
+      })}
+      {/* 远景：窗外的树比墙面慢一点（横向），阅读停留时镜头不动，它也不动；减少动态效果时不做 */}
+      {!portrait &&
+        !reducedMotion &&
+        R.window.panes.map((p, i) => {
+          const pw = p[2] - p[0], ph = p[3] - p[1];
+          return (
+            <div key={i} data-window-pane={i} className="absolute overflow-hidden" style={pct([p[0], p[1], pw, ph])}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                draggable={false}
+                className="absolute max-w-none select-none"
+                style={{
+                  left: `${(-p[0] / pw) * 100}%`,
+                  top: `${(-p[1] / ph) * 100}%`,
+                  width: `${(iw / pw) * 100}%`,
+                  height: `${(ih / ph) * 100}%`,
+                  transformOrigin: `${((p[0] + pw / 2) / iw) * 100}% ${((p[1] + ph / 2) / ih) * 100}%`,
+                  transform: `scale(${R.window.scale})`,
+                  translate: `calc((var(--kl-counter-x, 0px) - var(--kl-mid-x, 0px)) * ${R.window.parallax}) 0px`,
+                }}
+              />
+            </div>
+          );
+        })}
+      {actors.length > 0 &&
+        R.occluders.map((o) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={o.id} data-occluder={o.id} src={o.src} alt="" draggable={false} className="absolute select-none" style={pct(o.img)} />
+        ))}
+      <div data-bg-line="top" className="absolute left-0 h-0 w-full" style={{ top: c.backY - y }} />
+      <div data-bg-line="edge" className="absolute left-0 h-0 w-full" style={{ top: c.frontY - y }} />
+    </div>
   );
 }
 
@@ -187,29 +290,94 @@ export function HallwayBackdrop() {
   const s = backgroundState(gNow(t));
   return (
     <>
-      {s.hallway > SHOW && <SearchSurround opacity={s.hallway} driftPct={s.drift} debug={debug} />}
+      {s.hallway > SHOW && <SearchSurround opacity={s.hallway} driftPct={s.drift} quiet={s.quiet} push={s.quietPush} debug={debug} />}
       {s.ending > SHOW && <EndingSheet opacity={s.ending} />}
     </>
   );
 }
 
 /** B2 寻找段外围：浅色墙面 + 局部门框 + 纸白。横版 / 竖版按视口选；占位是平涂 */
-function SearchSurround({ opacity, driftPct, debug }: { opacity: number; driftPct: number; debug: boolean }) {
+function SearchSurround({ opacity, driftPct, quiet, push, debug }: { opacity: number; driftPct: number; quiet: number; push: number; debug: boolean }) {
   const H = BG.hallway;
+  const Q = H.quiet;
   const vp = useViewport();
+  const { reducedMotion } = useScene();
   // 视口宽高比低于 portraitBelow（竖屏、窄窗口 860×1000）用竖版，否则横版
   const portrait = vp.w / vp.h < H.portraitBelow;
   const src = portrait ? (H.srcPortrait ?? H.src) : H.src;
+  // 没有竖版图时竖屏用横版裁切：focusPortrait 指向门口那一侧（保持比例，不拉伸）
+  const f = portrait && !H.srcPortrait ? H.focusPortrait : H.focus;
   const pad = H.driftPct;
+  const [iw, ih] = H.size;
+  const vw = vp.w, vh = vp.h;
+  // 全景：容器比视口左右各宽 pad%，cover + object-position，加横向漂移（与原来的 object-cover 相同）
+  const cw = vw * (1 + (2 * pad) / 100);
+  const s0 = Math.max(cw / iw, vh / ih);
+  const full = { s: s0, x: (-pad / 100) * vw + (cw - iw * s0) * f[0] + (driftPct / 100) * vw, y: (vh - ih * s0) * f[1] };
+  // 声音留白段的桌角：横向只看 frame[0]..frame[1]，底边对齐 frame[2]，桌角贴在画面左边；段内再缓慢推近（以左下为原点）
+  const [qx0, qx1, qy1] = Q.frame;
+  const k = reducedMotion ? 0 : push;
+  const s1 = Math.max(vw / (qx1 - qx0), vh / Q.frameH) * (1 + Q.push * k);
+  const near = { s: s1, x: -qx0 * s1, y: vh - qy1 * s1 };
+  const q = quiet * quiet * (3 - 2 * quiet);
+  const cam = { s: full.s + (near.s - full.s) * q, x: full.x + (near.x - full.x) * q, y: full.y + (near.y - full.y) * q };
+  const pct = (b: number[]) => ({ left: `${(b[0] / iw) * 100}%`, top: `${(b[1] / ih) * 100}%`, width: `${(b[2] / iw) * 100}%`, height: `${(b[3] / ih) * 100}%` });
+  const L = Q.light;
+  const lx = L.from[0] + (L.to[0] - L.from[0]) * k, ly = L.from[1] + (L.to[1] - L.from[1]) * k;
   return (
-    <div aria-hidden data-bg="search" className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity, background: H.color }}>
-      {/* 比视口左右各宽 driftPct%，漂移时不露边 */}
-      <div className="absolute inset-y-0" style={{ left: `-${pad}%`, right: `-${pad}%`, transform: `translateX(${driftPct.toFixed(3)}vw)` }}>
-        {src && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none object-cover" style={{ objectPosition: `${H.focus[0] * 100}% ${H.focus[1] * 100}%` }} />
-        )}
-      </div>
+    // 两段式：前一半铺满纸色（盖住阅读段的厨房），后一半在纸色上淡入图片，不叠两张厨房
+    <div aria-hidden data-bg="search" data-quiet={q.toFixed(2)} className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity: src ? 1 : opacity }}>
+      <div className="absolute inset-0" style={{ background: H.color, opacity: src ? Math.min(1, opacity * 2) : 1 }} />
+      {src && (
+        <div className="absolute" style={{ left: cam.x, top: cam.y, width: iw * cam.s, height: ih * cam.s, opacity: Math.max(0, opacity * 2 - 1) }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
+          {/* 墙上的柔和暖光：只在桌角段出现，随段内进度缓慢移动 */}
+          {q > 0.01 && (
+            <div
+              data-quiet-light
+              className="absolute"
+              style={{
+                left: `${((lx - L.r[0]) / iw) * 100}%`,
+                top: `${((ly - L.r[1]) / ih) * 100}%`,
+                width: `${((2 * L.r[0]) / iw) * 100}%`,
+                height: `${((2 * L.r[1]) / ih) * 100}%`,
+                background: `radial-gradient(closest-side, ${L.color}, rgba(255,236,196,0))`,
+                mixBlendMode: "screen",
+                opacity: q * 0.9,
+              }}
+            />
+          )}
+          {/* 桌角近景层：段内比墙面多放大一点（以左下为原点），形成纵深 */}
+          {q > 0.01 && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              data-quiet-corner
+              src={Q.corner.src}
+              alt=""
+              draggable={false}
+              className="absolute select-none"
+              style={{ ...pct(Q.corner.img), transformOrigin: "0% 100%", transform: `scale(${(1 + Q.cornerPush * k * q).toFixed(4)})` }}
+            />
+          )}
+        </div>
+      )}
+      {/* 斜向的窗光带（桌角段）：很淡，随段内进度缓慢平移，减少动态效果时停在起点 */}
+      {src && q > 0.01 && (
+        <div
+          data-quiet-band
+          className="absolute inset-y-0"
+          style={{
+            left: `${Q.band.from + (Q.band.to - Q.band.from) * k}%`,
+            width: `${Q.band.width}%`,
+            background: `linear-gradient(90deg, rgba(255,244,214,0), ${Q.band.color}, rgba(255,244,214,0))`,
+            transform: `skewX(${Q.band.angle}deg)`,
+            transformOrigin: "50% 100%",
+            mixBlendMode: "screen",
+            opacity: q * Math.max(0, opacity * 2 - 1),
+          }}
+        />
+      )}
       {debug && !src && (
         <span className="absolute bottom-6 left-6 rounded bg-white/70 px-2 py-1 font-mono text-[12px] text-[#5b4632]">
           {H.label}（{portrait ? "竖版" : "横版"}，{H.status}）
@@ -219,9 +387,19 @@ function SearchSurround({ opacity, driftPct, debug }: { opacity: number; driftPc
   );
 }
 
-/** 收尾：干净暖米白平涂，盖住桌腿和木纹横带 */
+/** 收尾：安静的厨房（new pics BG-quiet-ending），cover 铺满；src 为 null 时退回暖米白平涂 */
 function EndingSheet({ opacity }: { opacity: number }) {
-  return <div aria-hidden data-bg="ending" className="pointer-events-none fixed inset-0 z-[5]" style={{ opacity, background: BG.ending.color }} />;
+  const E = BG.ending;
+  return (
+    // 两段式：先铺满纸色，再淡入安静的厨房，不叠两张厨房
+    <div aria-hidden data-bg="ending" className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity: E.src ? 1 : opacity }}>
+      <div className="absolute inset-0" style={{ background: E.color, opacity: E.src ? Math.min(1, opacity * 2) : 1 }} />
+      {E.src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={E.src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none object-cover" style={{ objectPosition: `${E.focus[0] * 100}% ${E.focus[1] * 100}%`, opacity: Math.max(0, opacity * 2 - 1) }} />
+      )}
+    </div>
+  );
 }
 
 function transparent(hex: string) {

@@ -113,7 +113,7 @@ function Hud({ narrow }: { narrow: boolean }) {
         {t.beat.n} {t.beat.id} · p {f(t.p)} · g {f(g)} · egg {t.beat.egg} · flight {flight === null ? "–" : f(flight)} · {narrow ? "窄布局" : "横版"}
       </div>
       <div>
-        后景 <b>{s.name}</b> · 纸面 {f(s.paper)} · 桌沿 {f(s.table)} · 饭桌下移 {s.lift.toFixed(0)} · 外围 {f(s.hallway)} 漂移 {s.drift.toFixed(2)}vw · 碗 {f(s.bowl)} · 收尾 {f(s.ending)}
+        后景 <b>{s.name}</b> · 纸面 {f(s.paper)} · 桌沿 {f(s.table)} · 饭桌下移 {s.lift.toFixed(0)} · 外围 {f(s.hallway)} 漂移 {s.drift.toFixed(2)}vw · 碗 {f(s.bowl)} · 厨房小角色 {f(s.reading)} · 收尾 {f(s.ending)}
       </div>
     </div>
   );
