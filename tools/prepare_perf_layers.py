@@ -14,6 +14,7 @@ import json
 
 import numpy as np
 from PIL import Image, ImageFilter
+from scipy import ndimage
 
 from panel_alpha import dilate, outside_mask, process  # noqa: E402  (同目录工具)
 
@@ -30,13 +31,24 @@ save(base, "p2b-base")
 W, H = base.size
 
 FIT = {"ang": 7.0, "sc": 0.92, "dx": 6, "dy": -17, "pivot": (20, 150)}
-arm = Image.open(f"{S}/02-knife-arm-overlay-draft.png").convert("RGBA").crop(box)
-r = arm.rotate(FIT["ang"], resample=Image.BICUBIC, center=FIT["pivot"], translate=(FIT["dx"], FIT["dy"]))
-w2, h2 = int(W * FIT["sc"]), int(H * FIT["sc"])
-r2 = r.resize((w2, h2), Image.BICUBIC)
-armc = Image.new("RGBA", (W, H))
+# 先按裁切框外扩 PAD 再变换，最后才裁回格子：草图的刀尖在页面 y≈820，框底是 810，
+# 旧做法先裁后转，刀尖被平切掉（scroll-motion-demo 2026-11-14 修）。
+# 变换在预乘 alpha（RGBa）下做，避免透明黑边渗进柔边；贴到空画布时不再用自身 alpha 当蒙版（旧做法让 alpha 变成 a²，袖口半透明）。
+PAD = 120
 px, py = FIT["pivot"]
-armc.paste(r2, (int(px - px * FIT["sc"]), int(py - py * FIT["sc"])), r2)
+arm = Image.open(f"{S}/02-knife-arm-overlay-draft.png").convert("RGBA").crop((box[0] - PAD, box[1] - PAD, box[2] + PAD, box[3] + PAD))
+arm = arm.convert("RGBa")
+r = arm.rotate(FIT["ang"], resample=Image.BICUBIC, center=(px + PAD, py + PAD), translate=(FIT["dx"], FIT["dy"]))
+w2, h2 = round((W + 2 * PAD) * FIT["sc"]), round((H + 2 * PAD) * FIT["sc"])
+r2 = r.resize((w2, h2), Image.BICUBIC).convert("RGBA")
+armc = Image.new("RGBA", (W, H))
+ox, oy = round(px - (px + PAD) * FIT["sc"]), round(py - (py + PAD) * FIT["sc"])
+armc.paste(r2, (ox, oy))  # 画布是空的，直接贴（不带蒙版）
+# 手臂内部（离边缘 3px 以上）一律不透明，柔边保留
+_a = np.asarray(armc).copy()
+_solid = ndimage.binary_erosion(ndimage.binary_fill_holes(_a[..., 3] > 128), iterations=3)
+_a[..., 3] = np.where(_solid, 255, _a[..., 3])
+armc = Image.fromarray(_a, "RGBA")
 # 框线内侧：底图里框外透明 + 框线（深色）区域都不让手臂覆盖
 ba = np.asarray(base)
 rgb = ba[..., :3].astype(float)
