@@ -42,31 +42,33 @@
   "status": "缺图（B1）。占位只用平涂色块标出桌面（topY–edgeY）和前侧面（edgeY–faceY），无纹理；在纸面之下、桌沿蛋之下，跟随主体层视差，与蛋锁在一起"
  },
  "bowl": {
-  "type": "placeholder",
-  "label": "占位 · B3 饭桌上的碗（正式图：碗身 + 前沿遮挡层两张，见 docs/BACKGROUND-SPEC.md §6）",
-  "src": null,
-  "srcFront": null,
+  "type": "image",
+  "label": "B3 饭桌上的碗：复用第 3 页 p3b 格里的配菜饭碗（碗里没有蛋），tools/prepare_bowl.py 只裁切和加遮罩，不改原图",
+  "src": "/assets/scene/bowl-body.png",
+  "srcFront": "/assets/scene/bowl-front.png",
+  "source": "source/comic-v3/03-something-is-missing.png，页面像素裁切框 [548, 140, 992, 441]，碗的外接框（裁切框内）[12, 16, 427, 301]，输出 415×285 图片像素",
   "box": [
-   -140,
-   -82,
-   280,
-   140
+   -129,
+   -146,
+   259,
+   178
   ],
   "rim": {
-   "dy": -58,
+   "dy": -82,
    "rx": 130,
-   "ry": 20
+   "ry": 66
   },
-  "baseDy": 35,
+  "rimFrontDy": -25,
+  "baseDy": 31,
   "baseHalfW": 62,
-  "footDy": 45,
+  "footDy": 31,
   "placeholder": {
    "body": "#fbf7ee",
    "inside": "#efe6d4",
    "line": "#b7a07c",
    "shadow": "rgba(120,88,50,0.16)"
   },
-  "status": "缺图（B3）。全部尺寸相对 anchors.tableBowl（碗里蛋的脚底点）：box = [dx, dy, w, h]；碗身在纸面组之上、蛋之下（z 62），前沿遮挡层在蛋之上（Z.bowlFront 64），挡住蛋的下部。只在环境段 tablecall 出现（curves.bowl）"
+  "status": "已接入复用素材。全部尺寸相对 anchors.tableBowl（碗里蛋的脚底点），场景像素：box = [dx, dy, w, h]（1 图片像素 = 0.625 场景像素）；碗口外椭圆中心 dy −82、半宽 130、半高 66；碗口内沿前弧（米饭前边缘）dy −25，蛋脚下 25 场景像素被前沿挡住；碗底 dy +31。碗身 z 62（蛋之下），前沿遮挡层 Z.bowlFront 64（蛋之上）；接触阴影由代码画。数值由 tools/prepare_bowl.py 输出。只在环境段 tablecall 出现（curves.bowl）"
  },
  "paper": {
   "type": "color",

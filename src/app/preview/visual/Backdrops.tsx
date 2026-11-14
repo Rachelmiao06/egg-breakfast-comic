@@ -74,7 +74,8 @@ export function Paper() {
  *   碗身 / 碗内（data-bg="bowl"）z = Z.paper，DOM 在纸面组之后，所以画在纸面之上、蛋之下；
  *   前沿遮挡层（data-bg="bowl-front"）z = Z.bowlFront，挡住蛋的下部。
  * 坐标全部相对 anchors.tableBowl；只跟随主体层视差（和蛋的 FollowMid 一样），不跟随饭桌位移。
- * 正式图：bowl.src（碗身）和 bowl.srcFront（前沿遮挡层，透明底）都铺满 bowl.box。占位：平涂 SVG，无纹理。
+ * 图片：bowl.src（碗身）和 bowl.srcFront（前沿遮挡层，透明底）都铺满 bowl.box。现在接的是复用素材（第 3 页 p3b 的碗，tools/prepare_bowl.py）；
+ * 两个 src 都为 null 时退回平涂 SVG 占位，无纹理。
  */
 function TableBowl({ opacity, debug }: { opacity: number; debug: boolean }) {
   const B = BG.bowl;
@@ -98,14 +99,12 @@ function TableBowl({ opacity, debug }: { opacity: number; debug: boolean }) {
   return (
     <>
       <div aria-hidden data-bg="bowl" className={layer} style={{ zIndex: Z.paper, opacity, ...follow }}>
-        {B.src ? (
-          img(B.src)
-        ) : (
-          <svg className="absolute left-0 top-0 overflow-visible" width={1} height={1}>
-            <ellipse cx={cx} cy={footY + 4} rx={rx * 0.8} ry={10} fill={P.shadow} />
-            <ellipse cx={cx} cy={rimY} rx={rx} ry={ry} fill={P.inside} stroke={P.line} strokeWidth={3} />
-          </svg>
-        )}
+        {/* 接触阴影（代码画，平涂）：正式图和占位都用 */}
+        <svg className="absolute left-0 top-0 overflow-visible" width={1} height={1}>
+          <ellipse cx={cx} cy={footY + 2} rx={rx * 0.62} ry={9} fill={P.shadow} />
+          {!B.src && <ellipse cx={cx} cy={rimY} rx={rx} ry={ry} fill={P.inside} stroke={P.line} strokeWidth={3} />}
+        </svg>
+        {B.src && img(B.src)}
       </div>
       <div aria-hidden data-bg="bowl-front" className={layer} style={{ zIndex: Z.bowlFront, opacity, ...follow }}>
         {B.srcFront ? (
