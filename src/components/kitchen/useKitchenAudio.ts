@@ -12,6 +12,8 @@
  * - 单次音效：固定 4 个 <audio>，向下越过 audio.oneshots.at 时从头播一次；回滚不播；回滚再前进可以再播，
  *   但同一音效永远只有这一个实例（重触发 = 从头重放，不叠加）。
  * - 音量通过 Web Audio 的 GainNode 施加（iOS Safari 忽略 HTMLMediaElement.volume）；没有 AudioContext 时退回 volume。
+ * - 跨景由远到近：只给 sizzle 挂一个低通（BiquadFilter），截止频率随 useScene().flight 从约 1.5 kHz 打开到 16 kHz，
+ *   flight 为 null（蛋还在锅里）或已到 1 时等于全开。其它声音不滤波；没有 AudioContext 时没有这一步。
  *   每个元素上的 data-level / data-target / data-fired 是给调试和验收读的。
  * - 自动播放解锁：第一次 pointerup / touchend / keydown 时 resume AudioContext，并把每个元素都"预热"一次
  *   （play 后立刻 pause，iOS 要求每个媒体元素各自在手势里 play 过）。
@@ -74,11 +76,15 @@ function warnOnce(msg: string) {
 /** 平滑速度：音量每秒最多变化这么多（满量程），只用于去掉跳变，节奏由节拍表决定 */
 const SLEW_PER_SEC = 2.5;
 const TICK_MS = 50;
+/** sizzle 低通：远（flight 0）→ 近（flight 1）；全开 = 不起作用 */
+const LOWPASS_FAR = 1500, LOWPASS_NEAR = 16000, LOWPASS_OPEN = 20000;
 
 type Channel = {
   name: string;
   el: HTMLAudioElement;
   gain: GainNode | null;
+  /** 只有 sizzle 有：由远到近的低通 */
+  lowpass: BiquadFilterNode | null;
   /** 文件可播（canplay 到过） */
   ok: boolean;
   /** 当前施加的电平 0–1 */
@@ -136,13 +142,22 @@ class KitchenMixer {
     el.dataset.target = "0";
     el.dataset.fired = "0";
     el.dataset.ok = "pending";
-    const ch: Channel = { name, el, gain: null, ok: false, level: 0, target: 0, priming: false, fired: 0 };
+    const ch: Channel = { name, el, gain: null, lowpass: null, ok: false, level: 0, target: 0, priming: false, fired: 0 };
     if (this.ctx) {
       try {
         const src = this.ctx.createMediaElementSource(el);
         ch.gain = this.ctx.createGain();
         ch.gain.gain.value = 0;
-        src.connect(ch.gain).connect(this.ctx.destination);
+        if (name === "sizzle" && kind === "loop") {
+          ch.lowpass = this.ctx.createBiquadFilter();
+          ch.lowpass.type = "lowpass";
+          ch.lowpass.Q.value = 0.7;
+          ch.lowpass.frequency.value = LOWPASS_OPEN;
+          el.dataset.lowpass = String(LOWPASS_OPEN);
+          src.connect(ch.gain).connect(ch.lowpass).connect(this.ctx.destination);
+        } else {
+          src.connect(ch.gain).connect(this.ctx.destination);
+        }
         el.volume = 1;
       } catch {
         ch.gain = null;
@@ -245,6 +260,15 @@ class KitchenMixer {
     }
   }
 
+  /** 蛋的飞行进度 → sizzle 低通截止频率（null = 全开） */
+  setFlight(flight: number | null) {
+    const ch = this.loops.sizzle;
+    if (!ch?.lowpass || !this.ctx) return;
+    const hz = flight === null ? LOWPASS_OPEN : LOWPASS_FAR * Math.pow(LOWPASS_NEAR / LOWPASS_FAR, Math.min(1, Math.max(0, flight)));
+    ch.lowpass.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.05);
+    ch.el.dataset.lowpass = String(Math.round(hz));
+  }
+
   setLevels(levels: Record<LoopSound, number>) {
     for (const name of LOOP_SOUNDS) {
       const ch = this.loops[name];
@@ -283,7 +307,7 @@ class KitchenMixer {
 }
 
 export function useKitchenAudio() {
-  const { soundOn, timeline: rawTimeline, beats: rawBeats } = useScene();
+  const { soundOn, timeline: rawTimeline, beats: rawBeats, flight } = useScene();
   // 套上声音分支自己的场景对应表；时间轴里的 beat 也换成带新 audio 的那一份
   const beats = useMemo(() => withAudioMap(rawBeats), [rawBeats]);
   const timeline = useMemo<Timeline>(() => ({ ...rawTimeline, beat: beats[rawTimeline.index] ?? rawTimeline.beat }), [rawTimeline, beats]);
@@ -298,6 +322,7 @@ export function useKitchenAudio() {
   }, []);
 
   useEffect(() => { mixer.current?.setSoundOn(soundOn); }, [soundOn]);
+  useEffect(() => { mixer.current?.setFlight(flight); }, [flight]);
 
   // 目标音量：完全由节拍表推导
   useEffect(() => { mixer.current?.setLevels(loopLevels(timeline, beats)); }, [timeline, beats]);

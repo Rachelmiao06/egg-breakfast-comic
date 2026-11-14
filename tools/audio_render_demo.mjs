@@ -112,7 +112,15 @@ execFileSync(FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
 
 // ---- 报告 ----
 const stats = spawnSync(FFMPEG, ["-hide_banner", "-nostats", "-i", wav, "-af", "ebur128=peak=true", "-f", "null", "-"], { encoding: "utf8" }).stderr.split("Summary").pop();
+// 相邻 100 ms 瞬时响度（M）的跳变：最大值及最大的几处（带所在场景），用来看段落切换处有没有电平突跳
+const mSeries = spawnSync(FFMPEG, ["-hide_banner", "-nostats", "-i", wav, "-af", "ebur128", "-f", "null", "-"], { encoding: "utf8" }).stderr
+  .split("\n").map((l) => l.match(/t:\s*([0-9.]+).*?M:\s*(-?[0-9.]+)/)).filter(Boolean).map((m) => ({ t: +m[1], M: +m[2] })).filter((x) => x.M > -60);
+const steps = [];
+for (let i = 1; i < mSeries.length; i++) { const d = mSeries[i].M - mSeries[i - 1].M; const sc = sceneTimes.find((s) => mSeries[i].t >= s.t0 && mSeries[i].t < s.t1); steps.push({ t: mSeries[i].t, dM: +d.toFixed(1), scene: sc?.id }); }
+const transitions = sceneTimes.slice(1).map((s) => { const near = steps.filter((x) => Math.abs(x.t - s.t0) <= 0.6); const worst = near.reduce((a, b) => (Math.abs(b.dM) > Math.abs(a.dM) ? b : a), { dM: 0 }); return { into: s.id, at: +s.t0.toFixed(1), maxStepDb: worst.dM }; });
+const biggest = [...steps].sort((a, b) => Math.abs(b.dM) - Math.abs(a.dM)).slice(0, 6);
 const report = {
+  momentaryStep100ms: { maxAbsDb: biggest[0]?.dM ?? 0, biggest, atTransitions: transitions },
   beats: BEATS_PATH.replace(ROOT + "/", ""), speedVhPerS: SPEED, totalVh, durationS: +duration.toFixed(1),
   scenes: sceneTimes.map((s) => ({ n: s.n, id: s.id, from: +s.t0.toFixed(1), to: +s.t1.toFixed(1), loops: beats[s.n].audio.loops })),
   oneshots: fires.map((f) => ({ t: +f.t.toFixed(2), sound: f.sound, played: f.has })),
