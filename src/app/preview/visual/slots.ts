@@ -49,7 +49,8 @@ export type HandoffSlot = {
 };
 export type SlotConfig = {
   scene: { catch: SceneSlot; handoff?: HandoffSlot; bowl?: SceneSlot };
-  egg: { onSpatulaScale: number; inBowlScale: number };
+  /** onSpatulaTilt：停在铲面上的倾角（度，负 = 倒向左侧的妈妈，贴合铲面斜度）；flightLean：飞行中途额外前倾 */
+  egg: { onSpatulaScale: number; inBowlScale: number; onSpatulaTilt?: number; flightLean?: number };
   /** 运行时（page.tsx 按视口算）：接蛋镜头下可见的场景范围，交接格滑动以它为界 */
   view?: { x0: number; x1: number; y0: number; y1: number };
   /** 运行时：横版接蛋格放不下，已缩到可见宽度内（竖屏、窄窗口） */

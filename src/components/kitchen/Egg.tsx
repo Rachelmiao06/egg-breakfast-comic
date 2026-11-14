@@ -36,7 +36,21 @@ export type EggAnchors = {
   eggInBowl: number;
   /** 可选：接蛋飞行的最高点（脚底的场景 y）。给了就越过接蛋格上框再落到铲面；不给用旧的固定抬升 */
   flightApexY?: number;
+  /**
+   * 可选：蛋停在铲面上的倾角（度，负 = 顶部向左倒向接蛋的妈妈）。给了就启用"朝妈妈"的姿态：
+   * 飞行中身体逐渐倒向妈妈（再叠加 flightLean 的中途前倾），落到铲面时贴合铲面斜度，落地是一次轻压缩回弹后停稳；
+   * 交接段先回正（与下一格画里直立的蛋一致）再短暂淡出。不给则保持旧的飞行自旋和直立落地。
+   */
+  spatulaTilt?: number;
+  flightLean?: number;
 };
+
+/**
+ * 交接段（handoff enter 阶段进度）：先把活动蛋回正，再让交接格淡入（画里的蛋被上层的活动蛋盖住），
+ * 最后活动蛋在很短的区间里淡出，避免两张脸长时间重叠。ScenePanels 读同一组数。
+ */
+export const HANDOFF = { straighten: [0, 0.4], panelIn: [0.15, 0.5], eggOut: [0.5, 0.62] } as const;
+const span = (v: number, [a, b]: readonly [number, number]) => clamp01((v - a) / (b - a));
 export const DEFAULT_EGG_ANCHORS: EggAnchors = {
   panLaunch: ANCHORS.panLaunch,
   tableWait: { x: 120, y: 965 },
@@ -70,7 +84,7 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 function stationPose(st: Station, a: EggAnchors): Pose {
   const p = st === "pan" ? a.panLaunch : st === "table" ? a.tableWait : st === "spatula" ? a.spatulaLand : a.bowlLand;
   const scale = st === "pan" ? 1 : st === "table" ? a.eggAtTable : st === "spatula" ? a.eggOnSpatula : a.eggInBowl;
-  return { x: p.x - REST.x, y: p.y - REST.y, scale, rotation: 0 };
+  return { x: p.x - REST.x, y: p.y - REST.y, scale, rotation: st === "spatula" ? (a.spatulaTilt ?? 0) : 0 };
 }
 
 /** 弧线：起点、终点、最高点抬升 lift；缩放线性插值，中途略放大表示靠近镜头 */
@@ -163,6 +177,10 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
           pose.x = f.x - REST.x;
           pose.y = f.y - REST.y;
         }
+        if (a.spatulaTilt !== undefined) {
+          // 身体逐渐倒向妈妈，中途多前倾一点，落到铲面时正好是铲面上的倾角（与停稳姿态无缝衔接）
+          pose.rotation = a.spatulaTilt * smooth(actionP) + (a.flightLean ?? 0) * Math.sin(Math.PI * actionP);
+        }
         return { pose, station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null };
       }
       return { ...base("spatula", null, Z.eggFlying), landing: "spatula" };
@@ -178,7 +196,12 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       // 只有交接那一段（上一段蛋还在）才淡出；之后的 gone 段始终隐藏，避免蛋在后续各段的进入阶段重新闪现
       const prev = beats[t.index - 1];
       const handingOff = !!prev && prev.egg === "flight"; // 只有接蛋之后的交接段淡出
-      P.opacity = handingOff && t.phase === "enter" ? 1 - clamp01((t.phaseP - 0.25) / 0.75) : 0;
+      if (a.spatulaTilt !== undefined) {
+        // 回正 → 交接格淡入（被活动蛋盖住）→ 活动蛋短暂淡出
+        const e = t.phase === "enter" ? t.phaseP : 1;
+        P.pose.rotation = a.spatulaTilt * (1 - smooth(span(e, HANDOFF.straighten)));
+        P.opacity = handingOff && t.phase === "enter" ? 1 - span(e, HANDOFF.eggOut) : 0;
+      } else P.opacity = handingOff && t.phase === "enter" ? 1 - clamp01((t.phaseP - 0.25) / 0.75) : 0;
       return P;
     }
   }
@@ -210,9 +233,16 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     // 一次性落地回弹：第一次到达桌沿 / 锅铲 / 碗
     if (P.landing && lastLanding.current !== P.landing && !reducedMotion && eggRef.current) {
       const s = eggRef.current;
-      gsap.timeline()
-        .to(s, { scaleX: 1.18, scaleY: 0.8, duration: LAND_SQUASH_S * 0.15, ease: "power1.out", transformOrigin: "50% 100%" })
-        .to(s, { scaleX: 1, scaleY: 1, duration: LAND_SQUASH_S * 0.85, ease: "elastic.out(1, 0.45)" });
+      if (P.landing === "spatula" && a.spatulaTilt !== undefined) {
+        // 落铲：一次轻微压缩 → 小回弹 → 停稳（不连续弹跳，压缩量小，五官不变形）
+        gsap.timeline()
+          .to(s, { scaleX: 1.08, scaleY: 0.9, duration: LAND_SQUASH_S * 0.13, ease: "power2.out", transformOrigin: "50% 100%", overwrite: "auto" })
+          .to(s, { scaleX: 0.98, scaleY: 1.03, duration: LAND_SQUASH_S * 0.2, ease: "sine.out" })
+          .to(s, { scaleX: 1, scaleY: 1, duration: LAND_SQUASH_S * 0.3, ease: "sine.inOut" });
+      } else
+        gsap.timeline()
+          .to(s, { scaleX: 1.18, scaleY: 0.8, duration: LAND_SQUASH_S * 0.15, ease: "power1.out", transformOrigin: "50% 100%" })
+          .to(s, { scaleX: 1, scaleY: 1, duration: LAND_SQUASH_S * 0.85, ease: "elastic.out(1, 0.45)" });
     }
     lastLanding.current = P.landing;
   });

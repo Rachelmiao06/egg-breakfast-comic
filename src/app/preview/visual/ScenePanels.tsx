@@ -6,6 +6,7 @@
  * 下一段（handoff）进入时，这一格和后景的蛋一起淡出，由画着蛋的下一格漫画接手，全程只有一颗蛋。
  * 锅铲前沿遮挡层（occluderSrc）目前缺图，蛋压在铲面上方。
  */
+import { HANDOFF } from "@/components/kitchen/Egg";
 import { Z } from "@/lib/scene";
 import { phaseProgress } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
@@ -27,7 +28,8 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
   const handIn = t.beat.id === "handoff" ? phaseProgress(t, "enter") : 0;
   // 交接：接蛋格先较快淡出，交接格稍后淡入，减少两格重叠的时间
   if (t.beat.id === "handoff") k = 1 - Math.min(1, handIn * 1.6);
-  const handOp = Math.min(1, Math.max(0, (handIn - 0.25) / 0.75));
+  // 交接格淡入时画里的蛋被上层的活动蛋盖住；活动蛋随后在很短的区间淡出（Egg.tsx HANDOFF），不长时间出现两张脸
+  const handOp = Math.min(1, Math.max(0, (handIn - HANDOFF.panelIn[0]) / (HANDOFF.panelIn[1] - HANDOFF.panelIn[0])));
   const hb = handoffBox(cfg);
   const hand = cfg.scene.handoff;
   // 交叉淡化完成后（只剩画里的蛋），交接格平滑移到画面内完整可读的位置
