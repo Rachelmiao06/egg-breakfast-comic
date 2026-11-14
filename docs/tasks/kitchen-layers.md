@@ -11,6 +11,8 @@
 5. **锅沿遮挡**：保留 `pan-rim.png`，z = `Z.panRim`，与锅身同一视差值；请确认它挡住锅里蛋的脚但不挡起跳后的蛋（起跳后蛋 z = 80）。
 6. 视差与漂移照旧：front ±10、mid/pan-rim ±5、back ±2 px；`progress` 只带来轻微景深漂移，不退场、不调暗。
 
+> **第五版补充**：`useScene().progress`、`activePanel` 现在由统一节拍表推导（`src/lib/beats.json`、`docs/BEATS.md`），含义不变，你照常读取即可。不要注册自己的滚动监听或 ScrollTrigger。
+
 ## 产出
 
 - `tools/split_scene.py` 更新；`public/assets/scene/{back,mid 或 main,pan-rim,front-toast,front-right}.png`；叠合差图。

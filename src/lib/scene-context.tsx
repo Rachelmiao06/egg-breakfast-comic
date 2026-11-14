@@ -1,15 +1,21 @@
 "use client";
 /**
- * 全站共享状态（集成会话维护；各分支只读或只调用对应 setter）。
- * - soundOn:     用户是否打开了声音（kitchen-scene 读写）
- * - progress:    0 = 厨房开场完整可见，1 = 已完全进入漫画阅读（comic-scroll 写，kitchen 读）
- * - activePanel: 当前故事节拍（见 docs/DESIGN.md §1）：0 开场，1 切配菜，2 炒配菜，3 调汁，4 发现后景跳蛋，
- *                5 伸锅铲，6 飞向锅铲，7 放进饭碗端出，8 结尾近景（comic-scroll 写）
- * - flight:      null = 蛋在锅里循环跳；0–1 = 从锅里飞到妈妈锅铲上，1 = 已在锅铲上（comic-scroll 写）
- * - serve:       null = 还没放进碗；0–1 = 从锅铲移到饭碗中央，1 = 已在饭上（comic-scroll 写）
- * - reducedMotion / isTouch: 环境能力
+ * 全站共享状态（集成会话维护）。
+ *
+ * 节奏只有一个来源：timeline（由 <ScrollDriver> 按滚动位置写入，查 src/lib/beats.json 节拍表）。
+ * activePanel / progress / flight / serve 都由 derive(timeline) 推导，组件只读，不要自己另算节奏。
+ *
+ * - soundOn:       用户是否打开声音（SoundToggle 写）
+ * - timeline:      当前段、段内进度 p、阶段（enter/action/hold/exit）与阶段内进度
+ * - beats:         当前使用的节拍表（默认 beats.json；调节页可临时替换以试长度）
+ * - activePanel:   当前节拍 n（0 开场 … 8 结尾近景）
+ * - progress:      厨房阅读弱化 0–1
+ * - flight:        null = 蛋在锅里循环跳；0–1 = 接蛋飞行；1 = 在锅铲上
+ * - serve:         null = 未入碗；0–1 = 锅铲 → 碗中央；1 = 在饭上
+ * - setProgress / setActivePanel / setFlight / setServe：**只给开发预览页做手动覆盖**，正式页面不要调用。
  */
-import { createContext, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { BEATS, derive, locate, type Beat, type Derived, type Timeline } from "./beats";
 
 /** 订阅一个 media query，SSR 时返回 false。 */
 function useMediaQuery(query: string) {
@@ -24,17 +30,19 @@ function useMediaQuery(query: string) {
   );
 }
 
-type SceneState = {
+type SceneState = Derived & {
   soundOn: boolean;
   setSoundOn: (v: boolean) => void;
-  progress: number;
+  timeline: Timeline;
+  setTimeline: (t: Timeline) => void;
+  beats: Beat[];
+  setBeats: (b: Beat[]) => void;
+  /** 开发覆盖 */
   setProgress: (v: number) => void;
-  activePanel: number;
   setActivePanel: (n: number) => void;
-  flight: number | null;
   setFlight: (v: number | null) => void;
-  serve: number | null;
   setServe: (v: number | null) => void;
+  clearOverrides: () => void;
   reducedMotion: boolean;
   isTouch: boolean;
 };
@@ -43,17 +51,27 @@ const Ctx = createContext<SceneState | null>(null);
 
 export function SceneProvider({ children }: { children: ReactNode }) {
   const [soundOn, setSoundOn] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [activePanel, setActivePanel] = useState(0);
-  const [flight, setFlight] = useState<number | null>(null);
-  const [serve, setServe] = useState<number | null>(null);
+  const [beats, setBeats] = useState<Beat[]>(BEATS);
+  const [timeline, setTimeline] = useState<Timeline>(() => locate(0, BEATS));
+  const [overrides, setOverrides] = useState<Partial<Derived>>({});
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const isTouch = useMediaQuery("(hover: none)");
 
-  const value = useMemo(
-    () => ({ soundOn, setSoundOn, progress, setProgress, activePanel, setActivePanel, flight, setFlight, serve, setServe, reducedMotion, isTouch }),
-    [soundOn, progress, activePanel, flight, serve, reducedMotion, isTouch],
-  );
+  const setProgress = useCallback((v: number) => setOverrides((o) => ({ ...o, progress: v })), []);
+  const setActivePanel = useCallback((v: number) => setOverrides((o) => ({ ...o, activePanel: v })), []);
+  const setFlight = useCallback((v: number | null) => setOverrides((o) => ({ ...o, flight: v })), []);
+  const setServe = useCallback((v: number | null) => setOverrides((o) => ({ ...o, serve: v })), []);
+  const clearOverrides = useCallback(() => setOverrides({}), []);
+
+  const value = useMemo(() => {
+    const d = { ...derive(timeline), ...overrides };
+    return {
+      ...d,
+      soundOn, setSoundOn, timeline, setTimeline, beats, setBeats,
+      setProgress, setActivePanel, setFlight, setServe, clearOverrides,
+      reducedMotion, isTouch,
+    };
+  }, [soundOn, timeline, beats, overrides, reducedMotion, isTouch, setProgress, setActivePanel, setFlight, setServe, clearOverrides]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

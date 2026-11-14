@@ -46,6 +46,9 @@ export default function SceneStage({ children, className = "", focus }: { childr
   }
 
   const outer = { "--scene-scale": s } as CSSProperties;
+  // 只在镜头真的在移动时才做过渡；未量到尺寸前不显示，避免开场先画一帧 1 倍缩放再缩回去
+  const moving = !!focus && focus.weight > 0;
+  const measured = w > 0 && h > 0;
   return (
     <div ref={ref} className={`relative h-full w-full overflow-hidden ${className}`} style={outer}>
       <div
@@ -55,7 +58,8 @@ export default function SceneStage({ children, className = "", focus }: { childr
           height: SCENE_H,
           transform: `translate(${x}px, ${y}px) scale(${s})`,
           transformOrigin: "0 0",
-          transition: focus ? "transform 0.35s ease-out" : undefined,
+          transition: moving ? "transform 0.35s ease-out" : undefined,
+          visibility: measured ? "visible" : "hidden",
         }}
       >
         {children}

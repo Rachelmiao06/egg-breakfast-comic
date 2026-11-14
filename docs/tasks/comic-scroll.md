@@ -1,4 +1,11 @@
-# 任务：comic-scroll — 妈妈荷包蛋拌饭的前景漫画、段落与声音触发位置（第四版）
+# 任务：comic-scroll — 妈妈荷包蛋拌饭的前景漫画（第五版：读统一节拍表）
+
+> **第五版变化（覆盖下文冲突处）**：节奏改由统一节拍表 `src/lib/beats.json` + 全站唯一的 `<ScrollDriver>` 决定（说明见 `docs/BEATS.md`，调节页 `/dev/beats`）。
+> 本分支**不再**定义滚动区高度、不注册 ScrollTrigger、不写 `progress` / `activePanel` / `flight` / `serve`。
+> 你的组件改为 `position: fixed` 浮在厨房上，只读 `useScene().timeline`：用 `envelope(t, "chop")` 等得到 0–1 显隐（进入阶段 0→1、停留 1、退出 1→0），用 `t.phase` / `t.phaseP` / `phaseProgress()` 做位移。
+> `MomForeground` 同理：伸锅铲段进入+动作阶段滑入，接蛋段保持，入碗段进入阶段交叉淡化到端碗图。参考实现见 main 上 `src/app/dev/beats/StandIns.tsx`（集成替身），你的正式组件交付后会替换它。
+> 想改某段长度或阶段比例：在 `/dev/beats` 试好，写到本文件末尾"需要集成会话改"，由集成会话改 beats.json。下表"滚动区"一列作废，以 beats.json 为准。
+
 
 开工前：`git fetch origin && git merge origin/main`（有冲突时以 main 的 `src/lib/*`、`docs/*` 为准）。先读 `SPEC.md` §15、`docs/DESIGN.md` 第四版（§1 节拍表、§7 声音段落）、`src/lib/scene.ts`（`MOM_PANELS`、`MOM_SPATULA`、`MOM_SERVE`、锚点）、`src/lib/scene-context.tsx`。只改 DESIGN §6 分给本分支的文件。
 
