@@ -25,19 +25,22 @@ export const ANCHORS = {
   flameBox: [600, 735, 830, 790] as const,
   /** 水壶嘴，蒸汽起点 */
   kettleSpout: { x: 1200, y: 330 },
-  /** 吐司盘（前层） */
+  /** 吐司盘（前层）：故事已改为拌饭，吐司**待替换**（docs/ASSET-REQUESTS.md 第四版 K1），不作为任何终点 */
   toastBox: [0, 805, 440, 1024] as const,
-  /** 吐司面黄油附近（结尾由妈妈的漫画画面处理，厨房里暂不用） */
-  toastLand: { x: 200, y: 905 },
-  /** 蛋从锅里起跳的点（脚底中心）。kitchen-layers 实测后可修正 */
+  /** 蛋从锅里起跳的点（脚底中心）。kitchen-layers 实测建议 (742, 666) 配合锅沿遮挡层，集成锅沿层时再切换 */
   panLaunch: { x: 720, y: 618 },
-  /**
-   * 前景妈妈锅铲铲面上蛋的落点（脚底中心）。**占位值**：妈妈素材生成后按铲面实测修正。
-   * 前景妈妈预留区域见 momZone。
-   */
-  spatulaLand: { x: 1080, y: 850 },
-  /** 前景妈妈（手臂 + 锅铲）预留区域，从右下角伸入。占位值 */
-  momZone: [900, 560, 1536, 1024] as const,
+  /** 前景妈妈锅铲铲面上蛋的落点（脚底中心），由 MOM_SPATULA 摆放 + 铲面实测算出（tools/prepare_mom.py） */
+  spatulaLand: { x: 537, y: 773 },
+  /** 蛋落在锅铲上时的缩放（相对 eggSize），按铲面长度算 */
+  eggOnSpatula: 0.578,
+  /** 端碗图里饭碗中央米饭的中心（场景像素），由 MOM_SERVE 摆放 + 米饭区实测算出 */
+  bowlCenter: { x: 761, y: 775 },
+  /** 蛋放进饭碗中央时的脚底中心 */
+  bowlLand: { x: 761, y: 852 },
+  /** 蛋在饭碗里的缩放（相对 eggSize），按米饭区宽度算 */
+  eggInBowl: 0.441,
+  /** 前景妈妈（伸锅铲）占据的区域，kitchen-layers 在这里给她让位 */
+  momZone: [420, 324, 1536, 1024] as const,
 } as const;
 
 export type Box = readonly [number, number, number, number];
@@ -64,4 +67,18 @@ export const Z = {
   frontRight: 61, // 蛋壳、格纹布；妈妈出场时可淡出让位（layers）
   mom: 70, // 前景妈妈 + 锅铲（comic-scroll，经 KitchenScene 的 foreground 插槽）
   eggFlying: 80, // 起飞后的蛋（kitchen-scene）
+} as const;
+
+/**
+ * 妈妈前景图在厨房画布里的摆放（场景像素）。图片由 tools/prepare_mom.py 从用户素材裁出。
+ * 场景坐标 = (x + 图片像素 * scale, y + 图片像素 * scale)。改这里会改变 spatulaLand / bowlLand，
+ * 改完重跑 tools/prepare_mom.py 的计算或手动同步上面的锚点。
+ */
+export const MOM_SPATULA = { src: "/assets/mom/spatula.webp", w: 1446, h: 974, scale: 0.78, x: 420, y: 324 } as const;
+export const MOM_SERVE = { src: "/assets/mom/serve.webp", w: 643, h: 481, scale: 1.5, x: 286, y: 303 } as const;
+/** 前景漫画画格用的三组妈妈图（页面层，不用场景像素） */
+export const MOM_PANELS = {
+  chop: { src: "/assets/mom/chop.webp", w: 494, h: 555 },
+  stirfry: { src: "/assets/mom/stirfry.webp", w: 515, h: 561 },
+  sauce: { src: "/assets/mom/sauce.webp", w: 627, h: 479 },
 } as const;
