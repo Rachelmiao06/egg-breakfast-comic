@@ -8,28 +8,37 @@ import KitchenCharacters from "@/components/kitchen/KitchenCharacters";
 import KitchenScene from "@/components/kitchen/KitchenScene";
 import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
-import { ANCHORS, Z } from "@/lib/scene";
+import { MOM_SERVE, MOM_SPATULA, Z } from "@/lib/scene";
 import { SceneProvider, useScene } from "@/lib/scene-context";
 
-/** 开发标记：前景妈妈预留区和锅铲落点（真正的 MomForeground 由 comic-scroll 提供）。 */
-function SpatulaMarker() {
-  const { flight } = useScene();
-  const [x0, y0, x1, y1] = ANCHORS.momZone;
-  if (flight === null) return null;
+/**
+ * 开发用的前景妈妈：只为在本预览里检验蛋的落点。正式的 MomForeground 由 comic-scroll 提供，
+ * 它会用同样的 MOM_SPATULA / MOM_SERVE 摆放。
+ */
+function DevMom() {
+  const { activePanel, flight, serve } = useScene();
+  const showSpatula = (activePanel >= 5 || flight !== null) && serve === null;
+  const showServe = serve !== null;
+  const place = (m: typeof MOM_SPATULA | typeof MOM_SERVE, visible: boolean) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={m.src}
+      alt=""
+      draggable={false}
+      className="pointer-events-none absolute select-none transition-opacity duration-500"
+      style={{ left: m.x, top: m.y, width: m.w * m.scale, height: m.h * m.scale, zIndex: Z.mom, opacity: visible ? 1 : 0 }}
+    />
+  );
   return (
-    <div className="pointer-events-none absolute" style={{ left: x0, top: y0, width: x1 - x0, height: y1 - y0, zIndex: Z.mom }}>
-      <div className="absolute inset-0 rounded-3xl border-4 border-dashed border-ink/40 bg-cream/40" />
-      <span className="absolute right-6 bottom-6 font-mono text-2xl text-ink/60">占位：妈妈的手臂和锅铲</span>
-      <div
-        className="absolute h-4 w-40 -translate-x-1/2 rounded-full bg-ink/40"
-        style={{ left: ANCHORS.spatulaLand.x - x0, top: ANCHORS.spatulaLand.y - y0 }}
-      />
-    </div>
+    <>
+      {place(MOM_SPATULA, showSpatula)}
+      {place(MOM_SERVE, showServe)}
+    </>
   );
 }
 
 function DebugPanel() {
-  const { progress, setProgress, flight, setFlight } = useScene();
+  const { progress, setProgress, flight, setFlight, serve, setServe, activePanel, setActivePanel } = useScene();
   const [open, setOpen] = useState(false);
   if (!open)
     return (
@@ -44,8 +53,16 @@ function DebugPanel() {
         <input type="range" min={0} max={1} step={0.01} value={progress} onChange={(e) => setProgress(+e.target.value)} className="w-full" />
       </label>
       <label className="block">
+        activePanel {activePanel}
+        <input type="range" min={0} max={8} step={1} value={activePanel} onChange={(e) => setActivePanel(+e.target.value)} className="w-full" />
+      </label>
+      <label className="block">
         flight {flight === null ? "null（循环跳）" : flight.toFixed(2)}
         <input type="range" min={-0.05} max={1} step={0.01} value={flight ?? -0.05} onChange={(e) => setFlight(+e.target.value < 0 ? null : +e.target.value)} className="w-full" />
+      </label>
+      <label className="block">
+        serve {serve === null ? "null" : serve.toFixed(2)}
+        <input type="range" min={-0.05} max={1} step={0.01} value={serve ?? -0.05} onChange={(e) => setServe(+e.target.value < 0 ? null : +e.target.value)} className="w-full" />
       </label>
       <button type="button" onClick={() => setOpen(false)} className="text-ink/50 underline">
         收起
@@ -58,7 +75,7 @@ export default function DevScenePage() {
   return (
     <SceneProvider>
       <div className="fixed inset-0">
-        <KitchenScene foreground={<SpatulaMarker />}>
+        <KitchenScene foreground={<DevMom />}>
           <KitchenCharacters />
         </KitchenScene>
       </div>
