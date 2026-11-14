@@ -24,9 +24,10 @@
  *   列表里的文件解码失败也保持静音；available 表示至少有一条能播。
  * - 场景 → 声音的对应表在 audio-map.json（按场景编号 id 覆盖节拍数据的 audio 字段，表里没有的场景沿用原值）。
  *   这样不用改共享的 beats.json；音量、触发点都在声音分支自己的文件里。
+ *   触发点可写成阶段符号（"actionEnd" 等，见 resolveAt），按当前节拍表的 phases 换算成段内进度，新旧两版节拍共用一张表。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { crossedOneShots, locate, loopLevels, LOOP_SOUNDS, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
+import { crossedOneShots, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import audioMap from "./audio-map.json";
 
@@ -54,7 +55,22 @@ const ONESHOTS: Record<OneShotSound, { file: string; volume: number }> = {
 const ONESHOT_SOUNDS = Object.keys(ONESHOTS) as OneShotSound[];
 
 type SceneAudio = Beat["audio"];
-const SCENE_AUDIO = (audioMap as { scenes: Record<string, SceneAudio> }).scenes;
+/** audio-map.json 里一段的写法：单次音效的 at 可以是数字（段内进度 0–1），也可以是阶段符号 */
+type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: number | string }[] };
+const SCENE_AUDIO = (audioMap as { scenes: Record<string, MapScene> }).scenes;
+/**
+ * 触发点符号：enterEnd / actionEnd / holdEnd（= 该段进入 / 动作 / 停留阶段的结束处），可带偏移，如 "actionEnd-0.02"。
+ * 由当前节拍表的 phases 算出，所以同一张表同时适用于新旧两版节拍（catch 的落铲在 v1 是 0.78、v2 是 0.80）。
+ */
+const AT_SYMBOL = /^(enterEnd|actionEnd|holdEnd)([+-]\d*\.?\d+)?$/;
+export function resolveAt(b: Beat, at: number | string): number | null {
+  if (typeof at === "number") return at;
+  const m = AT_SYMBOL.exec(at.trim());
+  if (!m) return null;
+  const [, enterEnd, actionEnd, holdEnd] = phaseEdges(b);
+  const base = m[1] === "enterEnd" ? enterEnd : m[1] === "actionEnd" ? actionEnd : holdEnd;
+  return Math.min(1, Math.max(0, base + (m[2] ? parseFloat(m[2]) : 0)));
+}
 /** 真正有文件的声音；其余为空位 */
 const AVAILABLE = new Set<string>((audioMap as { available: string[] }).available);
 const warned = new Set<string>();
@@ -69,7 +85,13 @@ export function withAudioMap(beats: Beat[]): Beat[] {
       else warnOnce(`audio-map.json: 场景 ${b.id} 的循环声 ${k} 未登记`);
     }
     const fades = m.fades.filter((f) => (LOOP_SOUNDS as string[]).includes(f.sound) || !warnOnce(`audio-map.json: 场景 ${b.id} 的渐变声 ${f.sound} 未登记`));
-    const oneshots = m.oneshots.filter((o) => (ONESHOT_SOUNDS as string[]).includes(o.sound) || !warnOnce(`audio-map.json: 场景 ${b.id} 的单次音效 ${o.sound} 未登记`));
+    const oneshots: SceneAudio["oneshots"] = [];
+    for (const o of m.oneshots) {
+      if (!(ONESHOT_SOUNDS as string[]).includes(o.sound)) { warnOnce(`audio-map.json: 场景 ${b.id} 的单次音效 ${o.sound} 未登记`); continue; }
+      const at = resolveAt(b, o.at);
+      if (at === null) { warnOnce(`audio-map.json: 场景 ${b.id} 的触发点 ${String(o.at)} 不认识（数字或 enterEnd/actionEnd/holdEnd±偏移）`); continue; }
+      oneshots.push({ sound: o.sound as OneShotSound, at });
+    }
     return { ...b, audio: { loops, fades, oneshots } };
   });
 }
