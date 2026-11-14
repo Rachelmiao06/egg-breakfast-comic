@@ -8,7 +8,7 @@
 //   - 当前后景名（HUD）
 // 并在关键点截图。usage:
 //   node tools/bg_check.mjs <outDir> [base] [sizes] [stepVh]
-//   RECORD=1 node tools/bg_check.mjs <outDir> [base] 1440x900   → 连续滚动录屏（screencast 帧 → ffmpeg mp4）
+//   RECORD=1 DUR=85 node tools/bg_check.mjs <outDir> [base] 1440x900   → 连续滚动录屏（screencast 帧 → ffmpeg mp4）
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -92,7 +92,7 @@ if (process.env.RECORD) {
   await send("Page.startScreencast", { format: "jpeg", quality: 72, maxWidth: w, maxHeight: h, everyNthFrame: 1 });
   await sleep(1500);
   // 连续滚动：页面内每帧用合成 wheel 事件推 Lenis（与真实滚轮同一路径），恒定速度
-  const seconds = +(process.env.SECONDS ?? 80);
+  const seconds = +(process.env.DUR ?? 80);
   await evalJs(`new Promise(res => { const totalPx = ${total} / 100 * innerHeight; const pxPerMs = totalPx / ${seconds * 1000}; let last = performance.now();
     const tick = (now) => { const dt = now - last; last = now; window.dispatchEvent(new WheelEvent('wheel', { deltaY: pxPerMs * dt / 0.9, bubbles: true, cancelable: true }));
       if (scrollY < totalPx - 2) requestAnimationFrame(tick); else setTimeout(res, 2500); };
@@ -112,6 +112,96 @@ if (process.env.RECORD) {
   rmSync(dir, { recursive: true, force: true });
   ws.close(); chrome.kill();
   process.exit(r.status ?? 0);
+}
+
+if (process.env.FLIGHT) {
+  // 接蛋飞行逐帧检查：catch 动作阶段 p 0.22–0.80 = 飞行 0–1。每帧量蛋（中心、外接框）和接蛋格 p3e 的位置，
+  // 换算成格内比例，检查：起跳在铲面右侧、x 不往回折、最后 30% 向左下落、蛋身不碰气泡、格内蛋身在 keepRightOf 以右、蛋在画面里。
+  const bgj = JSON.parse(readFileSync(new URL("../src/app/preview/visual/backgrounds.json", import.meta.url), "utf8"));
+  const PM = bgj.eggPath.panel;
+  const ts = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1];
+  const named = { 0: "1-launch", 0.3: "2-cross", 0.6: "2b-apex", 0.85: "3-descend", 1: "4-land" };
+  const FM = `(() => { const egg=document.querySelector('img[data-active-egg]'); const pan=[...document.images].find(i=>i.src.includes('p3e'));
+    const r=e=>{if(!e)return null;const b=e.getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height}};
+    let op=1; for(let e=egg&&egg.parentElement;e&&e!==document.body;e=e.parentElement){op*=+getComputedStyle(e).opacity;}
+    const wrap=egg&&egg.parentElement;
+    // 场景舞台（SceneStage 内层 1536×1024，transform = translate + scale）：屏幕坐标 → 场景坐标，排除镜头移动的影响
+    const st=[...document.querySelectorAll('div')].find(d=>d.style.width==='1536px'&&d.style.transform.includes('scale('));
+    const M=new DOMMatrix(getComputedStyle(st).transform); const toS=(b)=>b&&({x:(b.x-M.e)/M.a,y:(b.y-M.f)/M.a,w:b.w/M.a,h:b.h/M.a});
+    // 脚底点精确值：wrap 以 (50%, 100%) 为变换原点，所以脚底 = 布局位置 (left + w/2, top + h) + 变换平移 + FollowMid 的 translate
+    const WM=new DOMMatrix(getComputedStyle(wrap).transform); const fm=(getComputedStyle(wrap.parentElement).translate||'0px 0px').split(' ').map(parseFloat);
+    const foot={x:wrap.offsetLeft+wrap.offsetWidth/2+WM.e+(fm[0]||0), y:wrap.offsetTop+wrap.offsetHeight+WM.f+(fm[1]||0)};
+    // 蛋身（不含旋转后图片外接框的透明角）：以脚底为基准、宽 = 388 × 当前缩放，取 80% 宽、85% 高
+    const sc=Math.hypot(WM.a,WM.b), bw=388*sc; const body={x:foot.x-bw*0.4,y:foot.y-bw*0.85,w:bw*0.8,h:bw*0.85};
+    return {foot, body, egg:toS(r(egg)), wrap:toS(r(wrap)), panel:toS(r(pan)), eggScreen:r(egg), panelOp: pan?+getComputedStyle(pan).opacity:0, eggOp:op, eggs:document.querySelectorAll('img[src*="egg.webp"]').length, vw:innerWidth, vh:innerHeight}; })()`;
+  const all = {};
+  const ffails = [];
+  for (const [w, h] of sizes) {
+    const key = `${w}x${h}`;
+    await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
+    await send("Page.navigate", { url: `${base}/preview/background?guides=1` });
+    await sleep(5000);
+    await go(at("hear", 0.6), 1200);
+    // 起跳前（catch 进入阶段，格子正在升起）：蛋可见、不被格子盖住
+    const pre = [];
+    for (const p of [0.05, 0.1, 0.15, 0.2]) {
+      await go(at("catch", p), 700);
+      const m = await evalJs(FM);
+      const P0 = m.panel;
+      const b = m.body; const covered = P0 && m.panelOp > 0.05 && b.x + b.w > P0.x && b.x < P0.x + P0.w && b.y + b.h > P0.y && b.y < P0.y + P0.h;
+      pre.push({ p, covered: !!covered, eggOp: m.eggOp });
+      if (p === 0.1) { const shot = await send("Page.captureScreenshot", { format: "jpeg", quality: 72 }); writeFileSync(`${out}/shots/flight-${key}-0-ready.jpg`, Buffer.from(shot.result.data, "base64")); }
+    }
+    const frames = [];
+    for (const t of ts) {
+      const vh = at("catch", 0.22 + 0.58 * t);
+      await go(vh, t === 0 ? 1500 : 900);
+      const m = await evalJs(FM);
+      // 脚底中心 = wrap 底边中点（wrap 以脚底为缩放原点）；全部换算成场景坐标
+      const c = m.foot;
+      const P = m.panel; // 落铲前用最终位置的格子（格子在飞行 0.22–0.45 滑入，之前位置不稳定）
+      frames.push({ t, foot: c, body: m.body, egg: m.egg, eggScreen: m.eggScreen, panel: P, panelOp: m.panelOp, eggOp: m.eggOp, eggs: m.eggs });
+      if (named[t] !== undefined) {
+        const shot = await send("Page.captureScreenshot", { format: "jpeg", quality: 72 });
+        writeFileSync(`${out}/shots/flight-${key}-${named[t]}.jpg`, Buffer.from(shot.result.data, "base64"));
+      }
+    }
+    const P = frames.at(-1).panel; // 落铲时格子已到位
+    const fx = (x) => (x - P.x) / P.w, fy = (y) => (y - P.y) / P.h;
+    const bub = { x0: P.x + PM.bubble[0] * P.w, x1: P.x + PM.bubble[1] * P.w, y0: P.y + PM.bubble[2] * P.h, y1: P.y + PM.bubble[3] * P.h };
+    const res = { hiddenBeforeLaunch: pre.some((q) => q.covered || q.eggOp < 0.99), launchRightOfLand: frames[0].foot.x > frames.at(-1).foot.x + 1, monotonic: true, lateDownLeft: true, bubbleHit: false, minFx: 9, inView: true, eggCount: frames.every((f) => f.eggs === 1) };
+    for (let i = 0; i < frames.length; i++) {
+      const f = frames[i], e = f.body;
+      if (i > 0 && f.foot.x > frames[i - 1].foot.x + 2) res.monotonic = false;
+      const ix0 = e.x, ix1 = e.x + e.w, iy0 = e.y, iy1 = e.y + e.h;
+      const inPanel = f.t >= 0.2 && ix1 > P.x && ix0 < P.x + P.w && iy1 > P.y && iy0 < P.y + P.h;
+      if (inPanel) { res.minFx = Math.min(res.minFx, fx(ix0)); if (ix1 > bub.x0 && ix0 < bub.x1 && iy1 > bub.y0 && iy0 < bub.y1) res.bubbleHit = true; }
+      const es = f.eggScreen;
+      if (es.x < -2 || es.x + es.w > w + 2 || es.y < -2 || es.y + es.h > h + 2) res.inView = false;
+      f.fx = +fx(f.foot.x).toFixed(3); f.fy = +fy(f.foot.y).toFixed(3);
+    }
+    // 上升段（最高点之前）蛋身不压过铲面
+    const BL = { x0: P.x + PM.blade[0] * P.w, x1: P.x + PM.blade[1] * P.w, y0: P.y + PM.blade[2] * P.h, y1: P.y + PM.blade[3] * P.h };
+    const iap = frames.reduce((m, f, i) => (f.foot.y < frames[m].foot.y ? i : m), 0);
+    res.ascentHitsBlade = frames.slice(0, iap).some((f) => { const e = f.body; return e.x + e.w > BL.x0 && e.x < BL.x1 && e.y + e.h > BL.y0 && e.y < BL.y1; });
+    // 最高点之后：每帧向下且不向右（容差 2 场景像素）；整体下降方向来自右上方
+    const ia = frames.reduce((m, f, i) => (f.foot.y < frames[m].foot.y ? i : m), 0);
+    for (let i = ia + 1; i < frames.length; i++) if (frames[i].foot.y < frames[i - 1].foot.y - 2 || frames[i].foot.x > frames[i - 1].foot.x + 2) res.lateDownLeft = false;
+    res.descentSlope = +((frames[ia].foot.x - frames.at(-1).foot.x) / Math.max(1, frames.at(-1).foot.y - frames[ia].foot.y)).toFixed(2);
+    if (res.descentSlope < bgj.eggPath.minSlope) res.lateDownLeft = false;
+    res.minFx = +res.minFx.toFixed(3);
+    res.ok = !res.hiddenBeforeLaunch && !res.ascentHitsBlade && res.launchRightOfLand && res.monotonic && res.lateDownLeft && !res.bubbleHit && res.minFx >= PM.keepRightOf && res.inView && res.eggCount;
+    if (!res.ok) ffails.push(`${key} ${JSON.stringify(res)}`);
+    res.path = frames.map((f) => `${f.t}:${f.fx},${f.fy}`).join(" ");
+    res.frames = frames.map((f) => ({ t: f.t, foot: [Math.round(f.foot.x), Math.round(f.foot.y)], body: [Math.round(f.body.x), Math.round(f.body.y), Math.round(f.body.w), Math.round(f.body.h)] }));
+    res.blade = [Math.round(BL.x0), Math.round(BL.y0), Math.round(BL.x1), Math.round(BL.y1)];
+    all[key] = res;
+    console.log(key, JSON.stringify(res));
+  }
+  writeFileSync(`${out}/flight-check.json`, JSON.stringify(all, null, 1));
+  console.log(ffails.length ? `FLIGHT FAIL ${ffails.length}\n${ffails.join("\n")}` : "FLIGHT OK");
+  ws.close(); chrome.kill();
+  process.exit(ffails.length ? 1 : 0);
 }
 
 const report = {};

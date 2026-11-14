@@ -17,6 +17,7 @@ import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import { HallwayBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
+import { eggAtTableFor, fitCatchForEgg, flightApexYFor, tableWaitFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig } from "./slots";
 import { useViewport } from "./viewport";
@@ -86,17 +87,16 @@ function StageV2() {
   const debug = useParam("debug") !== null;
   const clean = useParam("clean") !== null;
   const g = gNow(t);
-  const box = cfg.scene.catch.box;
   const anchors = {
     ...eggAnchorsFrom(cfg),
-    // 横版布局放不下时（竖屏、窄窗口）桌沿等待点也换成竖版的，免得蛋在镜头外等待
-    tableWait: cfg.narrow ? BG.anchors.portraitTableWait : BG.anchors.tableWait,
-    eggAtTable: BG.anchors.eggAtTable,
+    // 桌沿等待点 = 起跳点：在铲面落点右侧（妈妈面朝右、锅铲向右伸，蛋从她右侧、铲面右上方飞来），按视口布局算（eggPath.ts）
+    tableWait: tableWaitFor(cfg),
+    eggAtTable: eggAtTableFor(cfg),
     // 环境段 tablecall：饭桌上的碗（后景会话提供碗；这里只给蛋的脚底点和大小）
     bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
     eggInBowl: BG.anchors.eggInTableBowl,
-    // 飞行最高点在接蛋格上框之上（格高的 12%）：蛋越过格框和对白泡，再落到铲面；再高在横屏会顶出画面上沿
-    flightApexY: Math.round(box[1] - box[3] * 0.12),
+    // 飞行最高点：格上框以下 25% 格高，短弧线从右侧越过格框落到铲面，不经过气泡和妈妈视线左侧（eggPath.ts）
+    flightApexY: flightApexYFor(cfg),
   };
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;
@@ -208,13 +208,10 @@ function catchView(vw: number, vh: number) {
   return { x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s };
 }
 
-/** 新版：接蛋格整格放得进镜头就保持原位，放不下（竖屏、窄窗口）就缩到可见宽度内居中。交接格滑动也按这个可见范围 */
+/** 新版：接蛋格连同右侧的蛋位放得进接蛋镜头就保持原位，放不下就缩小、靠左、下缘贴桌面（eggPath.ts fitCatchForEgg）。交接格滑动也按这个可见范围 */
 function fitSlotsV2(cfg: SlotConfig, vw: number, vh: number): SlotConfig {
-  const v = catchView(vw, vh);
-  const [x, , w] = cfg.scene.catch.box;
-  const margin = 12;
-  const fitted = x >= v.x0 + margin && x + w <= v.x1 - margin ? cfg : fitCatchTo(cfg, (v.x0 + v.x1) / 2, v.x1 - v.x0);
-  return { ...fitted, view: v };
+  // 接蛋格右侧要留出桌沿上蛋的位置（蛋从妈妈右侧、铲面右上方飞来；格子在起跳前就已升起，会盖住格内的蛋）：见 eggPath.ts
+  return fitCatchForEgg(cfg, catchView(vw, vh));
 }
 
 export default function VisualPreviewPage() {

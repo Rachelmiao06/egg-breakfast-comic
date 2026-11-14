@@ -1,9 +1,12 @@
 #!/usr/bin/env node
-// 后景坐标约束检查（纯计算，不开浏览器）。
-// 复刻 motion.v2.ts 的 cameraV2 + SceneStage 的 cover/clamp + preview 页的 fitSlotsV2（窄布局判定），
-// 对每个视口沿镜头路径采样，检查：锅 (720,670)、桌沿等待点、起跳点、桌沿前缘是否都在画面里、
-// 蛋身（eggAtTable 缩放后的包围盒）是否完整可见。输出 Markdown 表，贴进 docs/BACKGROUND-SPEC.md。
-// usage: node tools/bg_constraints.mjs [WxH,...]
+// 后景 / 蛋路径坐标约束检查（纯计算，不开浏览器）。
+// 复刻 motion.v2.ts 的 cameraV2（含环境段跟随）+ SceneStage 的 cover/clamp + preview 页的 fitSlotsV2（窄布局接蛋格）
+// + eggPath.ts（桌沿等待点 = 起跳点、桌沿蛋缩放、飞行最高点）+ Egg.flightPoint。对每个视口检查：
+//   等待段：锅 (720,670) 在开场画面里；蛋在桌沿时脚底在 B1 桌面上、整只蛋在画面里（沿镜头路径逐点）
+//   接蛋飞行：起跳点在铲面落点右侧；整段飞行 x 不增（不往左越过落点再折返）；最后 30% 从右上方下落；
+//            蛋身不碰气泡、始终在格内 keepRightOf 以右（不经过手和妈妈视线左侧）；起跳、越框、下降、落铲四个阶段蛋都在画面里
+//   tablecall：碗 + 蛋在画面里
+// usage: node tools/bg_constraints.mjs [WxH,...]   （--json 输出明细）
 import { readFileSync } from "node:fs";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -15,20 +18,64 @@ const W = 1536, H = 1024, EGG = 388;
 const idx = (id) => beats.findIndex((b) => b.id === id);
 const gOf = (id, p) => idx(id) + p;
 const smooth = (t) => { const k = Math.min(1, Math.max(0, t)); return k * k * (3 - 2 * k); };
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 function curve(keys, g) {
   const pts = keys.map(([id, p, v]) => [gOf(id, p), v]);
   if (g <= pts[0][0]) return pts[0][1];
   for (let i = 1; i < pts.length; i++) if (g <= pts[i][0]) { const [g0, v0] = pts[i - 1], [g1, v1] = pts[i]; return v0 + (v1 - v0) * smooth((g - g0) / (g1 - g0)); }
   return pts.at(-1)[1];
 }
-// 段内阶段（与 beats.ts phaseAt 一致：enter → action → hold → exit）
 function phaseOf(b, p) {
   const ph = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15, ...(b.phases ?? {}) };
   let acc = 0;
   for (const k of ["enter", "action", "hold", "exit"]) { if (ph[k] > 0 && p < acc + ph[k]) return [k, (p - acc) / ph[k]]; acc += ph[k]; }
   return ["exit", 1];
 }
-// 与 preview 页相同：环境段（ready / inBowl）镜头按段内进度跟随蛋的站点（权重 0.85）
+function view(vw, vh, c) {
+  const s = Math.max(vw / W, vh / H) * c.zoom;
+  const x = clamp(vw * c.ax - c.x * s, vw - W * s, 0);
+  const y = clamp(vh * c.ay - c.y * s, vh - H * s, 0);
+  return { s, x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s };
+}
+// Egg.flightPoint（逐字复刻）：二次贝塞尔，最高点 = min(apexY, min(A.y,B.y) − 40)，最高点的 x 在全程 apexAt 处
+function flightPoint(A, B, apexY, t, apexAt = 0.6) {
+  const k = clamp(t, 0, 1);
+  const bez = (a, b, c, t) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
+  const Hh = Math.min(apexY, Math.min(A.y, B.y) - 40);
+  const cy = Hh - Math.sqrt((A.y - Hh) * (B.y - Hh));
+  const ts = (A.y - cy) / (A.y + B.y - 2 * cy);
+  const X = A.x + apexAt * (B.x - A.x);
+  const cx = (X - (1 - ts) ** 2 * A.x - ts ** 2 * B.x) / (2 * (1 - ts) * ts);
+  return { x: bez(A.x, cx, B.x, k), y: bez(A.y, cy, B.y, k) };
+}
+
+// ---- 布局（与 preview 页 fitSlotsV2 / fitCatchTo 相同） ----
+function layout(vw, vh) {
+  const k = bg.camera.keys.find((k) => k[0] === "catch" && k[1] >= 0.8);
+  const v = view(vw, vh, { x: k[2], y: k[3], zoom: k[4], ax: k[5], ay: k[6] });
+  const c = slots.scene.catch, P = bg.eggPath, m = P.boxMargin;
+  const eggW = (w) => EGG * bg.anchors.eggAtTable * Math.min(1, w / 900);
+  let box = c.box, narrow = false, spat = slots.egg.onSpatulaScale;
+  // eggPath.ts fitCatchForEgg：格子右侧留出蛋的位置
+  if (!(box[0] >= v.x0 + m && box[0] + box[2] + eggW(box[2]) + 2 * m + P.viewMargin <= v.x1)) {
+    const V = v.x1 - v.x0;
+    let w = Math.min(box[2], (V - 3 * m - P.viewMargin) / (1 + (EGG * bg.anchors.eggAtTable) / 900));
+    if (w >= box[2]) w = Math.min(box[2], V - 3 * m - P.viewMargin - eggW(box[2]));
+    w = Math.round(w);
+    const h = Math.round((w * box[3]) / box[2]);
+    spat *= w / box[2];
+    box = [Math.round(v.x0 + m), Math.round(Math.max(640 - h * 0.35, bg.table.topY - P.boxAboveTable - h)), w, h];
+    narrow = true;
+  }
+  const land = { x: Math.round(box[0] + c.land.fx * box[2]), y: Math.round(box[1] + c.land.fy * box[3]) };
+  const eggAtTable = bg.anchors.eggAtTable * Math.min(1, box[2] / 900);
+  const ew = EGG * eggAtTable;
+  const y = narrow ? bg.anchors.portraitTableWait.y : bg.anchors.tableWait.y;
+  const want = Math.max(land.x + P.gapEggW * ew, box[0] + box[2] + ew / 2 + m);
+  const wait = { x: Math.round(Math.max(land.x + ew * 0.3, Math.min(want, v.x1 - ew / 2 - P.viewMargin))), y };
+  const apexY = Math.round(box[1] + box[3] * P.apexFromBoxTop);
+  return { v, box, narrow, land, wait, apexY, eggAtTable, spat };
+}
 const cam = (g, wait) => {
   const K = bg.camera.keys; const ch = (j) => curve(K.map((k) => [k[0], k[1], k[j]]), g);
   const c = { x: ch(2), y: ch(3), zoom: ch(4), ax: ch(5), ay: ch(6) };
@@ -42,63 +89,85 @@ const cam = (g, wait) => {
   }
   return c;
 };
-const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-function view(vw, vh, c) {
-  const s = Math.max(vw / W, vh / H) * c.zoom;
-  const x = clamp(vw * c.ax - c.x * s, vw - W * s, 0);
-  const y = clamp(vh * c.ay - c.y * s, vh - H * s, 0);
-  return { s, x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s };
-}
-function narrowAt(vw, vh) {
-  const k = bg.camera.keys.find((k) => k[0] === "catch" && k[1] >= 0.8);
-  const v = view(vw, vh, { x: k[2], y: k[3], zoom: k[4], ax: k[5], ay: k[6] });
-  const [x, , w] = slots.scene.catch.box;
-  return !(x >= v.x0 + 12 && x + w <= v.x1 - 12);
-}
 
-const sizes = (process.argv[2] ?? "1600x900,1440x900,1024x768,860x1000,390x844").split(",").map((s) => s.split("x").map(Number));
-const A = bg.anchors, T = bg.table;
-const eggW = EGG * A.eggAtTable;
-// 蛋在桌沿的时段：drop 动作结束（落桌）→ 环境段 prejump（准备起跳）→ catch 动作开始（起跳）
-const waitFrom = gOf("drop", 0.75), waitTo = gOf("catch", 0.22);
+const sizes = (process.argv.find((a) => /^\d+x\d+/.test(a)) ?? "1600x900,1440x900,1024x768,860x1000,390x844").split(",").map((s) => s.split("x").map(Number));
+const A = bg.anchors, T = bg.table, PM = bg.eggPath.panel;
+const catchB = beats[idx("catch")];
+const ph = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15, ...catchB.phases };
+const flightStart = ph.enter, flightEnd = ph.enter + ph.action; // 动作阶段 = 飞行
 const rows = [];
 for (const [vw, vh] of sizes) {
-  const narrow = narrowAt(vw, vh);
-  const wait = narrow ? A.portraitTableWait : A.tableWait;
-  // 锅：开场全程
-  const vOpen = view(vw, vh, cam(gOf("opening", 0.5), wait));
+  const L = layout(vw, vh);
+  const ew = EGG * L.eggAtTable;
+  const vOpen = view(vw, vh, cam(gOf("opening", 0.5), L.wait));
   const panOk = A.panLaunch.x > vOpen.x0 && A.panLaunch.x < vOpen.x1 && A.panLaunch.y > vOpen.y0 && A.panLaunch.y < vOpen.y1;
-  // 桌沿等待：沿镜头路径采样最差情况
-  let worst = { left: Infinity, right: Infinity, top: Infinity, bottom: Infinity, edge: Infinity };
-  for (let g = waitFrom; g <= waitTo; g += 0.02) {
-    const v = view(vw, vh, cam(g, wait));
-    worst.left = Math.min(worst.left, (wait.x - eggW / 2 - v.x0) * v.s);
-    worst.right = Math.min(worst.right, (v.x1 - (wait.x + eggW / 2)) * v.s);
-    worst.top = Math.min(worst.top, (wait.y - eggW - v.y0) * v.s);
-    worst.bottom = Math.min(worst.bottom, (v.y1 - wait.y) * v.s);
-    worst.edge = Math.min(worst.edge, (v.y1 - T.edgeY) * v.s);
+  // 等待段（drop 落桌 → catch 起跳）
+  let wm = Infinity, wmAt = "";
+  for (let g = gOf("drop", 0.75); g <= gOf("catch", flightStart); g += 0.01) {
+    const v = view(vw, vh, cam(g, L.wait));
+    const m = Math.min((L.wait.x - ew / 2 - v.x0) * v.s, (v.x1 - (L.wait.x + ew / 2)) * v.s, (L.wait.y - ew - v.y0) * v.s, (v.y1 - L.wait.y) * v.s - 8);
+    if (m < wm) { wm = m; wmAt = `${beats[Math.floor(g)].id} ${(g % 1).toFixed(2)}`; }
   }
-  const onTop = wait.y >= T.topY && wait.y <= T.edgeY;
-  const vDrop = view(vw, vh, cam(gOf("hear", 0.5), wait));
-  // 环境段 tablecall：B3 碗（box 相对 tableBowl）和碗里的蛋整体在画面里
-  const TB = bg.anchors.tableBowl, BB = bg.bowl.box;
+  const onTop = L.wait.y >= T.topY && L.wait.y <= T.edgeY;
+  // 接蛋飞行
+  const box = L.box, fx = (x) => (x - box[0]) / box[2];
+  const bubble = { x0: box[0] + PM.bubble[0] * box[2], x1: box[0] + PM.bubble[1] * box[2], y0: box[1] + PM.bubble[2] * box[3], y1: box[1] + PM.bubble[3] * box[3] };
+  const path = [];
+  let prev = null, monotonic = true, fromUpperRight = true, bubbleHit = false, minFx = Infinity, vis = Infinity;
+  const stages = {};
+  for (let i = 0; i <= 100; i++) {
+    const t = i / 100;
+    const p = flightPoint(L.wait, L.land, L.apexY, t);
+    const sc = L.eggAtTable + (L.spat - L.eggAtTable) * t + 0.12 * Math.sin(Math.PI * t); // 与 Egg.arc 的缩放相同
+    const w = EGG * sc;
+    const r = { x0: p.x - w / 2, x1: p.x + w / 2, y0: p.y - w, y1: p.y };
+    if (prev && p.x > prev.x + 0.01) monotonic = false;
+    // 只在格内时检查（格从 flight 0.22 起出现）
+    const insideBox = r.x1 > box[0] && r.x0 < box[0] + box[2] && r.y1 > box[1] && r.y0 < box[1] + box[3];
+    if (t >= 0.2 && insideBox) {
+      // 蛋的实际轮廓比外接框小（白边、手脚），按 80% 宽度检查
+      const ix0 = p.x - w * 0.4, ix1 = p.x + w * 0.4, iy0 = p.y - w * 0.85;
+      if (ix1 > bubble.x0 && ix0 < bubble.x1 && p.y > bubble.y0 && iy0 < bubble.y1) bubbleHit = true;
+      minFx = Math.min(minFx, fx(ix0));
+    }
+    const g = gOf("catch", flightStart + (flightEnd - flightStart) * t);
+    const v = view(vw, vh, cam(g, L.wait)); // 跟随权重 0.06 忽略
+    const m = Math.min((r.x0 - v.x0) * v.s, (v.x1 - r.x1) * v.s, (r.y0 - v.y0) * v.s, (v.y1 - r.y1) * v.s);
+    vis = Math.min(vis, m);
+    if ([0, 0.3, 0.6, 0.85, 1].includes(t)) stages[t] = `${Math.round(p.x)},${Math.round(p.y)}`;
+    path.push(p);
+    prev = p;
+  }
+  // 最高点之后（下降段）：每一步都向下且不向右；整体下降方向来自右上方（横向 / 纵向 ≥ minSlope）
+  const ia = path.reduce((m, p, i) => (p.y < path[m].y ? i : m), 0);
+  for (let i = ia + 1; i < path.length; i++) if (path[i].y < path[i - 1].y - 0.01 || path[i].x > path[i - 1].x + 0.01) fromUpperRight = false;
+  const slope = (path[ia].x - L.land.x) / Math.max(1, L.land.y - path[ia].y);
+  if (slope < bg.eggPath.minSlope) fromUpperRight = false;
+  // tablecall
+  const TB = A.tableBowl, BB = bg.bowl.box;
   let bowlWorst = Infinity;
   for (let g = gOf("tablecall", 0.12); g <= gOf("tablecall", 0.9); g += 0.02) {
-    const v = view(vw, vh, cam(g, wait));
-    const eggTop = TB.y - EGG * bg.anchors.eggInTableBowl;
+    const v = view(vw, vh, cam(g, L.wait));
+    const eggTop = TB.y - EGG * A.eggInTableBowl;
     bowlWorst = Math.min(bowlWorst, (TB.x + BB[0] - v.x0) * v.s, (v.x1 - (TB.x + BB[0] + BB[2])) * v.s, (Math.min(eggTop, TB.y + BB[1]) - v.y0) * v.s, (v.y1 - (TB.y + BB[1] + BB[3])) * v.s);
   }
-  rows.push({
-    vp: `${vw}×${vh}`, ratio: (vw / vh).toFixed(2), narrow, wait: `${wait.x},${wait.y}`,
-    panOk, onTop,
-    view: `x ${Math.round(vDrop.x0)}…${Math.round(vDrop.x1)}, y ${Math.round(vDrop.y0)}…${Math.round(vDrop.y1)}`,
-    margins: `${Math.round(worst.left)} / ${Math.round(worst.right)} / ${Math.round(worst.top)} / ${Math.round(worst.bottom)}`,
-    edge: Math.round(worst.edge),
-    bowl: Math.round(bowlWorst),
-    ok: panOk && onTop && worst.left >= 0 && worst.right >= 0 && worst.top >= 0 && worst.bottom >= 8 && worst.edge >= 0 && bowlWorst >= 0,
-  });
+  const rightOfBlade = L.wait.x > L.land.x;
+  // 起跳前蛋不能在接蛋格（最终位置，及从下方升起的路径）后面：蛋身左缘在格子右缘之外
+  const clearOfPanel = L.wait.x - ew / 2 >= box[0] + box[2];
+  // 上升段（最高点之前）蛋身不压过铲面
+  const bl = { x0: box[0] + PM.blade[0] * box[2], x1: box[0] + PM.blade[1] * box[2], y0: box[1] + PM.blade[2] * box[3], y1: box[1] + PM.blade[3] * box[3] };
+  let ascentHitsBlade = false;
+  const iaa = path.reduce((mm, p, i) => (p.y < path[mm].y ? i : mm), 0);
+  for (let i = 0; i < iaa; i++) {
+    const p = path[i], t = i / 100, w = EGG * (L.eggAtTable + (L.spat - L.eggAtTable) * t + 0.12 * Math.sin(Math.PI * t));
+    if (p.x + w * 0.4 > bl.x0 && p.x - w * 0.4 < bl.x1 && p.y > bl.y0 && p.y - w * 0.85 < bl.y1) ascentHitsBlade = true;
+  }
+  const ok = panOk && onTop && wm >= 0 && rightOfBlade && clearOfPanel && !ascentHitsBlade && monotonic && fromUpperRight && !bubbleHit && minFx >= PM.keepRightOf && vis >= 0 && bowlWorst >= 0;
+  rows.push({ vp: `${vw}×${vh}`, narrow: L.narrow, box: box.join(","), land: `${L.land.x},${L.land.y}`, wait: `${L.wait.x},${L.wait.y}`, eggAtTable: +L.eggAtTable.toFixed(3), apexY: L.apexY, panOk, onTop, wm: Math.round(wm), wmAt, rightOfBlade, clearOfPanel, ascentHitsBlade, monotonic, fromUpperRight, bubbleHit, minFx: +minFx.toFixed(3), vis: Math.round(vis), bowl: Math.round(bowlWorst), slope: +slope.toFixed(2), stages, ok });
 }
-console.log("| 视口 | 宽高比 | 窄布局 | 桌沿等待点 | 锅在画面内 | 脚底在桌面上 (920–995) | hear 时可见场景 | 蛋身离屏幕边最小距离 左/右/上/下 (屏幕 px) | 前缘线离屏幕下沿 (px) | tablecall 碗 + 蛋离屏幕边最小距离 (px) | 结果 |");
-console.log("|---|---|---|---|---|---|---|---|---|---|---|");
-for (const r of rows) console.log(`| ${r.vp} | ${r.ratio} | ${r.narrow ? "是" : "否"} | ${r.wait} | ${r.panOk ? "是" : "否"} | ${r.onTop ? "是" : "否"} | ${r.view} | ${r.margins} | ${r.edge} | ${r.bowl} | ${r.ok ? "✓" : "✗"} |`);
+if (process.argv.includes("--json")) { console.log(JSON.stringify(rows, null, 1)); process.exit(rows.every((r) => r.ok) ? 0 : 1); }
+const y = (b) => (b ? "是" : "否");
+console.log("| 视口 | 窄布局 | 接蛋格 box | 铲面落点 | 桌沿等待 = 起跳点 | 桌沿蛋缩放 | 最高点 y | 起跳在落点右侧 | 起跳前不被格子盖住 | 上升时压过铲面 | 飞行不往回折 | 下降段从右上方落下（横/纵） | 碰气泡 | 格内蛋身最左 fx（≥ " + PM.keepRightOf + "） | 四阶段 起跳 / 越框 / 下降 / 落铲 | 飞行时离屏幕边最小距离 (px) | 等待段蛋离屏幕边 (px) | 脚底在桌面上 | 锅在开场画面 | tablecall 碗 + 蛋离屏幕边 (px) | 结果 |");
+console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+for (const r of rows) console.log(`| ${r.vp} | ${y(r.narrow)} | ${r.box} | ${r.land} | ${r.wait} | ${r.eggAtTable} | ${r.apexY} | ${y(r.rightOfBlade)} | ${y(r.clearOfPanel)} | ${y(r.ascentHitsBlade)} | ${y(r.monotonic)} | ${y(r.fromUpperRight)}（${r.slope}） | ${y(r.bubbleHit)} | ${r.minFx} | ${r.stages[0]} / ${r.stages[0.3]} / ${r.stages[0.85]} / ${r.stages[1]} | ${r.vis} | ${r.wm}（${r.wmAt}） | ${y(r.onTop)} | ${y(r.panOk)} | ${r.bowl} | ${r.ok ? "✓" : "✗"} |`);
 if (rows.some((r) => !r.ok)) process.exitCode = 1;

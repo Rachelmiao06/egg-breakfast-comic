@@ -18,6 +18,7 @@ import { SCENE_H, SCENE_W } from "@/lib/scene";
 import { SceneProvider, useScene } from "@/lib/scene-context";
 import { backgroundState, HallwayBackdrop, Paper } from "../visual/Backdrops";
 import ComicLayer from "../visual/ComicLayer";
+import { eggAtTableFor, fitCatchForEgg, flightApexYFor, tableWaitFor } from "../visual/eggPath";
 import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "../visual/motion.v2";
 import ScenePanels from "../visual/ScenePanels";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig } from "../visual/slots";
@@ -32,6 +33,49 @@ function useParam(name: string) {
 }
 
 type Pt = { x: number; y: number };
+
+/** 接蛋路径参考线：飞行路径（四个阶段的点）、气泡、铲面、妈妈眼睛和视线方向（都按当前视口的接蛋格算） */
+function FlightGuides({ wait, apexY }: { wait: Pt; apexY: number }) {
+  const { cfg } = useSlots();
+  const box = cfg.scene.catch.box;
+  const P = BG.eggPath.panel;
+  const land = landPoint(cfg.scene.catch);
+  const pts = Array.from({ length: 41 }, (_, i) => flightPoint(wait, land, apexY, i / 40));
+  const at = (f: number, g: number) => ({ x: box[0] + f * box[2], y: box[1] + g * box[3] });
+  const eye = at(P.eye[0], P.eye[1]);
+  const rect = (r: number[], color: string, label: string) => (
+    <g>
+      <rect x={box[0] + r[0] * box[2]} y={box[1] + r[2] * box[3]} width={(r[1] - r[0]) * box[2]} height={(r[3] - r[2]) * box[3]} fill="none" stroke={color} strokeWidth={4} strokeDasharray="10 6" />
+      <text x={box[0] + r[0] * box[2] + 6} y={box[1] + r[3] * box[3] + 22} fill={color} fontSize={20} fontFamily="monospace">{label}</text>
+    </g>
+  );
+  const stages: [number, string][] = [[0, "起跳"], [0.3, "越框"], [0.85, "下降"], [1, "落铲"]];
+  return (
+    <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width={1} height={1} style={{ zIndex: 96 }}>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#c0392b" />
+        </marker>
+      </defs>
+      {rect(P.bubble, "#8e44ad", "气泡（不可经过）")}
+      {rect(P.blade, "#16a085", "铲面")}
+      <line x1={box[0] + P.keepRightOf * box[2]} y1={box[1]} x2={box[0] + P.keepRightOf * box[2]} y2={box[1] + box[3]} stroke="#e67e22" strokeWidth={3} strokeDasharray="4 6" />
+      <circle cx={eye.x} cy={eye.y} r={10} fill="#2c3e50" />
+      <line x1={eye.x} y1={eye.y} x2={land.x - 40} y2={land.y - 20} stroke="#2c3e50" strokeWidth={3} strokeDasharray="12 8" markerEnd="url(#arr)" />
+      <text x={eye.x + 14} y={eye.y - 14} fill="#2c3e50" fontSize={20} fontFamily="monospace">视线 →</text>
+      <polyline points={pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")} fill="none" stroke="#c0392b" strokeWidth={5} markerEnd="url(#arr)" />
+      {stages.map(([t, label]) => {
+        const p = flightPoint(wait, land, apexY, t);
+        return (
+          <g key={label}>
+            <circle cx={p.x} cy={p.y} r={9} fill="#c0392b" />
+            <text x={p.x + 14} y={p.y + 6} fill="#c0392b" fontSize={22} fontFamily="monospace" fontWeight="bold">{label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 function Guides({ wait }: { wait: Pt }) {
   const { cfg } = useSlots();
@@ -51,8 +95,7 @@ function Guides({ wait }: { wait: Pt }) {
       <span className="absolute font-mono text-[16px] text-[#2a7fd4]" style={{ left: 600, top: T.topY - 24 }}>桌面上沿 y {T.topY}</span>
       <span className="absolute font-mono text-[16px] text-[#c0392b]" style={{ left: 600, top: T.edgeY + 4 }}>桌沿前缘 y {T.edgeY}</span>
       {cross(A.panLaunch, "#8e44ad", `锅 ${A.panLaunch.x},${A.panLaunch.y}`)}
-      {cross(A.tableWait, "#c0392b", `横版等待 / 起跳 ${A.tableWait.x},${A.tableWait.y}`, wait === A.tableWait)}
-      {cross(A.portraitTableWait, "#d35400", `窄版等待 / 起跳 ${A.portraitTableWait.x},${A.portraitTableWait.y}`, wait === A.portraitTableWait)}
+      {cross(wait, "#c0392b", `桌沿等待 = 起跳 ${wait.x},${wait.y}${cfg.narrow ? "（窄布局）" : ""}`)}
       {cross(landPoint(cfg.scene.catch), "#16a085", "铲面落点")}
       {cross(A.tableBowl, "#2c3e50", `饭桌碗 ${A.tableBowl.x},${A.tableBowl.y}`)}
     </div>
@@ -84,15 +127,14 @@ function Stage() {
   const clean = useParam("clean") !== null;
   const debug = useParam("debug") !== null;
   const g = gNow(t);
-  const box = cfg.scene.catch.box;
-  const wait = cfg.narrow ? BG.anchors.portraitTableWait : BG.anchors.tableWait;
+  const wait = tableWaitFor(cfg);
   const anchors = {
     ...eggAnchorsFrom(cfg),
     tableWait: wait,
-    eggAtTable: BG.anchors.eggAtTable,
+    eggAtTable: eggAtTableFor(cfg),
     bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
     eggInBowl: BG.anchors.eggInTableBowl,
-    flightApexY: Math.round(box[1] - box[3] * 0.12),
+    flightApexY: flightApexYFor(cfg),
   };
   let eggPt: Pt | null = null;
   if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight);
@@ -117,6 +159,7 @@ function Stage() {
               <Paper />
               {fg && <ScenePanels debug={debug} flow />}
               {guides && <Guides wait={wait} />}
+              {guides && <FlightGuides wait={wait} apexY={anchors.flightApexY} />}
             </>
           }
         >
@@ -142,21 +185,10 @@ function catchView(vw: number, vh: number) {
   return { x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s };
 }
 
-function fitCatchTo(cfg: SlotConfig, centerX: number, visW: number): SlotConfig {
-  const c = cfg.scene.catch;
-  const w = Math.round(visW * 0.94);
-  const h = Math.round((w * c.box[3]) / c.box[2]);
-  const k = w / c.box[2];
-  return { ...cfg, narrow: true, egg: { ...cfg.egg, onSpatulaScale: cfg.egg.onSpatulaScale * k }, scene: { ...cfg.scene, catch: { ...c, box: [Math.round(centerX - w / 2), Math.round(640 - h * 0.35), w, h] } } };
-}
-
-/** 与 preview/visual/page.tsx 的 fitSlotsV2 相同 */
+/** 与 preview/visual/page.tsx 的 fitSlotsV2 相同（接蛋格右侧留出蛋的位置） */
 function fitSlotsV2(cfg: SlotConfig, vw: number, vh: number): SlotConfig {
-  const v = catchView(vw, vh);
-  const [x, , w] = cfg.scene.catch.box;
-  const margin = 12;
-  const fitted = x >= v.x0 + margin && x + w <= v.x1 - margin ? cfg : fitCatchTo(cfg, (v.x0 + v.x1) / 2, v.x1 - v.x0);
-  return { ...fitted, view: v };
+  // 接蛋格右侧要留出桌沿上蛋的位置（蛋从妈妈右侧、铲面右上方飞来；格子在起跳前就已升起，会盖住格内的蛋）：见 eggPath.ts
+  return fitCatchForEgg(cfg, catchView(vw, vh));
 }
 
 export default function BackgroundPreviewPage() {
