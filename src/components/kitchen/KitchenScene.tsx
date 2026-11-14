@@ -4,22 +4,25 @@
  * - 底图：kitchen-clean.webp（无蛋、无火苗、无油）。feat/kitchen-layers 交付后换成 <KitchenLayers/>。
  * - children：feat/kitchen-scene 的角色层（蛋、影子、火苗、油、油泡、蒸汽）。
  * - 阅读弱化：随 progress 统一调暗、去饱和、轻微模糊，并盖一层纸色薄纱。厨房不退场，始终在背景里活动。
- *   飞行节拍（flight 非 null）时弱化退回到很轻，让整屏飞行发生在厨房里。
+ *   飞行节拍（flight 非 null）时弱化退回到很轻，让整屏飞行发生在厨房里；
+ *   同时镜头随飞行进度平移到吐司，窄屏上吐司也能完整入镜。
  */
 import type { ReactNode } from "react";
 import SceneStage from "@/components/SceneStage";
-import { SCENE_H, SCENE_W } from "@/lib/scene";
+import { ANCHORS, SCENE_H, SCENE_W } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
 export default function KitchenScene({ children, base }: { children?: ReactNode; base?: ReactNode }) {
   const { progress, flight } = useScene();
   const dim = flight !== null ? Math.min(progress, 0.15) : progress;
+  const f = flight ?? 0;
+  const focus = { x: ANCHORS.toastLand.x, y: ANCHORS.toastLand.y - 120, weight: f * f * (3 - 2 * f), at: { x: 0.35, y: 0.62 } };
   return (
     <div
       className="relative h-full w-full transition-[filter] duration-300"
       style={{ filter: `brightness(${1 - 0.18 * dim}) saturate(${1 - 0.15 * dim}) blur(${1.5 * dim}px)` }}
     >
-      <SceneStage>
+      <SceneStage focus={focus}>
         {base ?? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
