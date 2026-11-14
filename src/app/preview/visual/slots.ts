@@ -22,9 +22,13 @@ export type PanelSlot = {
   w: number;
   aspect: number;
   from: "left" | "right" | "top" | "bottom" | "seam";
+  /** 同一段里的进场先后（0 起），错开进入 */
+  order?: number;
 };
 export type SceneSlot = {
   label: string;
+  source?: string;
+  dialogueInImage?: boolean;
   box: [number, number, number, number]; // x, y, w, h（场景像素）
   land: { fx: number; fy: number };
   src: string | null;
@@ -32,7 +36,7 @@ export type SceneSlot = {
   occluderSrc: string | null;
   appearFlight?: [number, number];
 };
-export type SlotConfig = { scene: { catch: SceneSlot; bowl: SceneSlot }; egg: { onSpatulaScale: number; inBowlScale: number } };
+export type SlotConfig = { scene: { catch: SceneSlot; bowl?: SceneSlot }; egg: { onSpatulaScale: number; inBowlScale: number } };
 
 export const PANELS = data.panels as PanelSlot[];
 export const DEFAULT_SLOTS: SlotConfig = { scene: data.scene as SlotConfig["scene"], egg: data.egg };
@@ -43,7 +47,7 @@ export function eggAnchorsFrom(cfg: SlotConfig): Partial<EggAnchors> {
   return {
     panLaunch: ANCHORS.panLaunch,
     spatulaLand: landPoint(cfg.scene.catch),
-    bowlLand: landPoint(cfg.scene.bowl),
+    ...(cfg.scene.bowl ? { bowlLand: landPoint(cfg.scene.bowl) } : {}),
     eggOnSpatula: cfg.egg.onSpatulaScale,
     eggInBowl: cfg.egg.inBowlScale,
   };

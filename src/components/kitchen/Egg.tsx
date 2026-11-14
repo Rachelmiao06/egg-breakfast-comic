@@ -36,8 +36,8 @@ export const DEFAULT_EGG_ANCHORS: EggAnchors = {
   eggInBowl: ANCHORS.eggInBowl,
 };
 const JUMP_HEIGHT = 135;
-/** 接蛋弧线的控制点（二次贝塞尔）：先高高跳起，再落向前景铲面 */
-const CTRL = { x: 610, y: 260 };
+/** 接蛋弧线的控制点（二次贝塞尔）：在起落点中间、比两者都高一截，先高高跳起再落向铲面 */
+const ARC_HEIGHT = 380;
 /** 触发后按秒播放的小动作时长，来自统一节拍表（先调滚动长度，再调这里） */
 const LAND_SQUASH_S = beatById("catch").seconds.landSquash ?? 0.7;
 const BOWL_SETTLE_S = beatById("serve").seconds.bowlSettle ?? 0.6;
@@ -49,6 +49,7 @@ const bezier = (a: number, b: number, c: number, t: number) => (1 - t) ** 2 * a 
 
 function flightPose(f: number, a: EggAnchors) {
   const t = clamp01(f);
+  const CTRL = { x: (a.panLaunch.x + a.spatulaLand.x) / 2, y: Math.min(a.panLaunch.y, a.spatulaLand.y) - ARC_HEIGHT };
   return {
     x: bezier(a.panLaunch.x, CTRL.x, a.spatulaLand.x, t) - REST.x,
     y: bezier(a.panLaunch.y, CTRL.y, a.spatulaLand.y, t) - REST.y,
@@ -79,6 +80,9 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors }: { src?:
   const landedRef = useRef(false);
   const servedRef = useRef(false);
   const { reducedMotion, flight, serve, timeline, beats } = useScene();
+  // gone：已交给漫画（下一格画着蛋），后景这颗淡出隐藏，保证只有一颗蛋
+  const gone = timeline.beat.egg === "gone";
+  const goneOpacity = gone ? Math.max(0, 1 - (timeline.phase === "enter" ? timeline.phaseP * 2 : 1)) : 1;
   const flying = flight !== null;
   const zIndex = flight !== null && flight > 0.02 ? Z.eggFlying : Z.eggInPan;
 
@@ -181,9 +185,12 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors }: { src?:
   return (
     <>
       <FollowMid zIndex={Z.eggInPan}>
-        <EggShadow ref={shadowRef} />
+        <div style={{ opacity: flight === null ? 1 : 0 }}>
+          <EggShadow ref={shadowRef} />
+        </div>
       </FollowMid>
       <FollowMid zIndex={zIndex}>
+      <div style={{ opacity: goneOpacity }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={eggRef}
@@ -193,6 +200,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors }: { src?:
         className="pointer-events-none absolute select-none will-change-transform"
         style={{ left: REST.x - SIZE.w / 2, top: REST.y - SIZE.h, width: SIZE.w, height: SIZE.h }}
       />
+      </div>
       </FollowMid>
     </>
   );

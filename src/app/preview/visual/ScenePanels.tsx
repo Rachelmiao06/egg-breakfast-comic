@@ -1,57 +1,51 @@
 "use client";
 /**
- * 场景层的漫画格（和蛋用同一套场景坐标，蛋才能准确越过框线、落到铲面/饭上）。
- * 接蛋格：底图（占位 A1，无蛋）z=Z.mom；框线层（A2）z=Z.mom+1；飞行中的蛋 z=Z.eggFlying 在框线之上 → "打破次元"。
- * 饭碗格：底图（占位 A4，饭中央留空）。锅铲前沿/碗前沿遮挡层（A3/A5）缺图，先用虚线标出位置。
+ * 场景层的接蛋格（与蛋同一套场景坐标）。图片、位置、铲面落点都来自 slots.json（可替换、可调）。
+ * 顺序：后景的蛋先主动起飞 → 飞到 appearFlight 区间时这一格才出现（妈妈惊讶伸铲）→ 蛋越过这一格的框线落到铲面。
+ * 层级：格子 z = Z.mom；飞行中的蛋 z = Z.eggFlying 在格子与框线之上（"打破次元"）。
+ * 下一段（handoff）进入时，这一格和后景的蛋一起淡出，由画着蛋的下一格漫画接手，全程只有一颗蛋。
+ * 锅铲前沿遮挡层（occluderSrc）目前缺图，蛋压在铲面上方。
  */
-import { ANCHORS, Z } from "@/lib/scene";
+import { Z } from "@/lib/scene";
 import { phaseProgress } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import { Placeholder } from "./ComicLayer";
+import { landPoint, useSlots } from "./slots";
 
-type Box = [number, number, number, number];
-const CATCH_BOX: Box = [250, 470, 900, 1000];
-const BOWL_BOX: Box = [470, 600, 1070, 1010];
+const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 
-function Frame({ box, z, opacity }: { box: Box; z: number; opacity: number }) {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute"
-      style={{ left: box[0], top: box[1], width: box[2] - box[0], height: box[3] - box[1], zIndex: z, opacity, outline: "4px solid #2b2118", outlineOffset: "-4px" }}
-    />
-  );
-}
-
-function Mark({ x, y, label }: { x: number; y: number; label: string }) {
-  return (
-    <div className="pointer-events-none absolute" style={{ left: x - 110, top: y - 14, width: 220, height: 28, zIndex: Z.mom + 2 }}>
-      <div className="h-full w-full rounded-[50%] border-2 border-dashed border-[#b4532a]" />
-      <span className="absolute left-1/2 top-8 -translate-x-1/2 whitespace-nowrap font-mono text-[18px] text-[#b4532a]">{label}</span>
-    </div>
-  );
-}
-
-export default function ScenePanels() {
-  const { timeline: t } = useScene();
-  const id = t.beat.id;
-  const catchIn = id === "catch" ? phaseProgress(t, "enter") : id === "bowl" ? 1 - phaseProgress(t, "enter") : 0;
-  const bowlIn = id === "bowl" ? phaseProgress(t, "enter") : id === "ending" ? 1 - phaseProgress(t, "enter") : 0;
-  const place = (box: Box, label: string, op: number, slide: number) =>
-    op > 0 ? (
-      <div className="pointer-events-none absolute" style={{ left: box[0], top: box[1], width: box[2] - box[0], height: box[3] - box[1], zIndex: Z.mom, opacity: op, transform: `translateY(${slide}px)` }}>
-        <Placeholder label={label} align="bottom" />
-      </div>
-    ) : null;
-  const slideIn = (k: number) => (1 - (1 - Math.pow(1 - k, 3))) * 60;
+export default function ScenePanels({ debug = false }: { debug?: boolean }) {
+  const { timeline: t, flight } = useScene();
+  const { cfg } = useSlots();
+  const slot = cfg.scene.catch;
+  const [a0, a1] = slot.appearFlight ?? [0.2, 0.45];
+  let k = 0;
+  if (t.beat.egg === "flight" && flight !== null) k = Math.min(1, Math.max(0, (flight - a0) / (a1 - a0)));
+  if (t.beat.id === "handoff") k = 1 - phaseProgress(t, "enter");
+  if (k <= 0) return null;
+  const [x, y, w, h] = slot.box;
+  const lp = landPoint(slot);
+  const e = out3(k);
   return (
     <>
-      {place(CATCH_BOX, "占位 A1 · 接蛋格（无蛋底图）\n\"来，我接着\"：妈妈伸出空锅铲\n（框线 A2 单独一层，蛋从框外飞进来）", catchIn, slideIn(catchIn))}
-      {catchIn > 0 && <Frame box={CATCH_BOX} z={Z.mom + 1} opacity={catchIn} />}
-      {catchIn > 0.6 && <Mark x={ANCHORS.spatulaLand.x} y={ANCHORS.spatulaLand.y + 6} label="铲面落点（A3 锅铲前沿层缺图）" />}
-      {place(BOWL_BOX, "占位 A4 · 饭碗格（饭中央留空）\n放到饭上、淋汁、流黄", bowlIn, slideIn(bowlIn))}
-      {bowlIn > 0 && <Frame box={BOWL_BOX} z={Z.mom + 1} opacity={bowlIn} />}
-      {bowlIn > 0.6 && <Mark x={ANCHORS.bowlLand.x} y={ANCHORS.bowlLand.y + 6} label="饭中央（A5 碗前沿层缺图）" />}
+      <div
+        className="pointer-events-none absolute"
+        style={{ left: x, top: y, width: w, height: h, zIndex: Z.mom, opacity: Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * 70}px)` }}
+      >
+        {slot.src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={slot.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
+        ) : (
+          <Placeholder label={slot.label} align="bottom" />
+        )}
+      </div>
+      {slot.occluderSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={slot.occluderSrc} alt="" className="pointer-events-none absolute" style={{ left: x, top: y, width: w, height: h, zIndex: Z.eggFlying + 1, opacity: Math.min(1, k * 1.5) }} />
+      )}
+      {debug && (
+        <div className="pointer-events-none absolute" style={{ left: lp.x - 12, top: lp.y - 12, width: 24, height: 24, zIndex: Z.eggFlying + 2, border: "2px solid #e0442a", borderRadius: "50%" }} />
+      )}
     </>
   );
 }
