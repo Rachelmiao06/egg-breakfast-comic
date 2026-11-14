@@ -11,12 +11,15 @@ export type Phase = (typeof PHASES)[number];
 export type LoopSound = "room" | "sizzle" | "chop" | "stirfry" | "sauce";
 export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour";
 export type EggMode = "loop" | "flight" | "serve" | "bowl";
+/** 停留组：同组连续段落期间画面停住（sticky / pin），组结束后释放；null = 正常流动段 */
+export type PinGroup = "prep" | "catch" | "bowl";
 
 export type Beat = {
   id: string;
   n: number;
   title: string;
   lengthVh: number;
+  pin: PinGroup | null;
   phases: Record<Phase, number>;
   kitchenDim: [number, number, number];
   foreground: string;
@@ -36,7 +39,7 @@ function validate(beats: Beat[]) {
     if (Math.abs(sum - 1) > 1e-6) throw new Error(`beats.json: ${b.id} 的 phases 之和是 ${sum}，应为 1`);
     if (b.kitchenDim.length !== 3) throw new Error(`beats.json: ${b.id} 的 kitchenDim 必须是 3 个数`);
     if (!(b.lengthVh > 0)) throw new Error(`beats.json: ${b.id} 的 lengthVh 必须为正`);
-    if (b.n !== i) throw new Error(`beats.json: ${b.id} 的 n 应为 ${i}`);
+    if (b.n !== i) throw new Error(`beats.json: ${b.id} 的 n 应为 ${i}`); // 只校验完整故事表；路由子集不经过 validate
   });
   return beats;
 }
@@ -132,7 +135,8 @@ export function derive(t: Timeline): Derived {
   const [s, h, e] = b.kitchenDim;
   const progress = t.phase === "enter" ? lerp(s, h, t.phaseP) : t.phase === "exit" ? lerp(h, e, t.phaseP) : h;
   const action = phaseProgress(t, "action");
-  const flight = b.egg === "loop" ? null : b.egg === "flight" ? action : 1;
+  // 接蛋段的进入阶段蛋仍在锅里跳（null），动作阶段才起飞
+  const flight = b.egg === "loop" ? null : b.egg === "flight" ? (t.phase === "enter" ? null : action) : 1;
   const serve = b.egg === "serve" ? action : b.egg === "bowl" ? 1 : null;
   return { activePanel: b.n, progress, flight, serve };
 }
@@ -159,17 +163,48 @@ export function loopLevels(t: Timeline, beats: Beat[] = BEATS): Record<LoopSound
 }
 
 /** 从 prev 到 cur 之间越过的单次音效（只在向下滚动时触发） */
-export function crossedOneShots(prev: Timeline | null, cur: Timeline): OneShotSound[] {
+export function crossedOneShots(prev: Timeline | null, cur: Timeline, beats: Beat[] = BEATS): OneShotSound[] {
   if (!prev) return [];
   const pos = (t: Timeline) => t.index + t.p;
   if (pos(cur) <= pos(prev)) return [];
   const fired: OneShotSound[] = [];
   for (let i = prev.index; i <= cur.index; i++) {
-    const b = BEATS[i];
+    const b = beats[i];
     for (const o of b.audio.oneshots) {
       const at = i + o.at;
       if (at > pos(prev) && at <= pos(cur)) fired.push(o.sound);
     }
   }
   return fired;
+}
+
+/**
+ * 停留 / 流动状态（sticky 叙事用）。
+ * - 停留组内：pinned = true，groupP = 整组进度 0–1（组内所有段落按长度连起来），内容由 timeline 推动，位置不随滚动移动。
+ * - 流动段：pinned = false，flowVh = 本段已经滚过的距离（vh），内容应随滚动 1:1 上移（translateY = -flowVh vh），像普通文档流。
+ * releaseVh：刚离开上一个停留组多少 vh（流动段里用来让上一组的内容自然被"推走"）；不在流动段时为 0。
+ */
+export type PinState = {
+  group: PinGroup | null;
+  pinned: boolean;
+  groupP: number;
+  flowVh: number;
+  releaseVh: number;
+};
+
+export function pinState(t: Timeline, beats: Beat[] = BEATS): PinState {
+  const b = t.beat;
+  if (b.pin) {
+    let total = 0, before = 0;
+    let i = t.index;
+    while (i > 0 && beats[i - 1].pin === b.pin) i--;
+    for (let j = i; j < beats.length && beats[j].pin === b.pin; j++) {
+      if (j < t.index) before += beats[j].lengthVh;
+      total += beats[j].lengthVh;
+    }
+    return { group: b.pin, pinned: true, groupP: clamp01((before + t.p * b.lengthVh) / total), flowVh: 0, releaseVh: 0 };
+  }
+  const flowVh = t.p * b.lengthVh;
+  const prevPinned = t.index > 0 && !!beats[t.index - 1].pin;
+  return { group: null, pinned: false, groupP: 0, flowVh, releaseVh: prevPinned ? flowVh : 0 };
 }

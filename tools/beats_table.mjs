@@ -5,6 +5,7 @@ const { beats } = JSON.parse(readFileSync(new URL("../src/lib/beats.json", impor
 const pct = (v) => `${Math.round(v * 100)}%`;
 const total = beats.reduce((s, b) => s + b.lengthVh, 0);
 const PH = { enter: "进入", action: "动作", hold: "停留", exit: "退出" };
+const PIN = { prep: "📌 备菜", catch: "📌 跨景接蛋", bowl: "📌 饭碗结尾" };
 const EGG = { loop: "锅里循环跳", flight: "飞向锅铲（= 动作阶段进度）", serve: "铲面 → 碗中央（= 动作阶段进度）", bowl: "停在饭上" };
 
 let md = `# 统一场景节拍表
@@ -17,6 +18,7 @@ let md = `# 统一场景节拍表
 - 全站只有一个节奏来源：滚动位置 → 当前段 + 段内局部进度 p（0–1）+ 阶段 + 阶段内进度。由 \`<ScrollDriver>\` 计算，写进 \`useScene().timeline\`。
 - 每段分四个阶段：**进入 → 动作 → 阅读停留 → 退出**，比例写在 phases 里，和为 1。
 - 前景（画格、妈妈）、背景（厨房弱化、镜头）、角色（蛋）、声音都只读这份时间轴，用 \`envelope()\`、\`phaseProgress()\`、\`derive()\`、\`loopLevels()\` 推导。**不要另开 ScrollTrigger、不要自己计时决定节奏。**
+- **停留组**（sticky / pin）：备菜、跨景接蛋、饭碗结尾。组内画面停住，滚动推动内容变化，组结束后自然释放；其余为**流动段**，内容随滚动 1:1 移动。用 \`pinState()\` 读。避免空滚：停留组里每一段滚动都要有看得见的变化。
 - 先调每段的**滚动长度**，再调被触发后按秒播放的小动作（seconds）。
 - 声音：**循环声**是该段稳定音量，进入阶段从上一段渐变过来；**渐变声**在指定阶段内从 from 到 to；**单次音效**在向下滚过段内进度 at 时播一次，回滚不播。
 
@@ -24,11 +26,11 @@ let md = `# 统一场景节拍表
 
 ## 段落总览
 
-| # | 段 | 长度 | 进入 / 动作 / 停留 / 退出 | 厨房弱化 起→停→止 | 蛋 |
-|---|---|---|---|---|---|
+| # | 段 | 长度 | 停留组 | 进入 / 动作 / 停留 / 退出 | 厨房弱化 起→停→止 | 蛋 |
+|---|---|---|---|---|---|---|
 `;
 for (const b of beats) {
-  md += `| ${b.n} | ${b.title} | ${b.lengthVh}vh | ${["enter", "action", "hold", "exit"].map((k) => pct(b.phases[k])).join(" / ")} | ${b.kitchenDim.join(" → ")} | ${EGG[b.egg]} |\n`;
+  md += `| ${b.n} | ${b.title} | ${b.lengthVh}vh | ${b.pin ? PIN[b.pin] : "流动"} | ${["enter", "action", "hold", "exit"].map((k) => pct(b.phases[k])).join(" / ")} | ${b.kitchenDim.join(" → ")} | ${EGG[b.egg]} |\n`;
 }
 md += `\n## 每段明细\n`;
 for (const b of beats) {
@@ -43,6 +45,7 @@ for (const b of beats) {
 
 - 阶段：${edges.map(([k, s, e]) => `${PH[k]} p ${s.toFixed(2)}–${e.toFixed(2)}`).join("；")}
 - 前景：${b.foreground}
+- 停留：${b.pin ? PIN[b.pin] : "流动段"}
 - 背景：厨房弱化 ${b.kitchenDim[0]} → ${b.kitchenDim[1]} → ${b.kitchenDim[2]}
 - 角色：${EGG[b.egg]}
 - 循环声：${loops}

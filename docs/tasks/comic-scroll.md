@@ -1,4 +1,7 @@
-# 任务：comic-scroll — 妈妈荷包蛋拌饭的前景漫画（第五版：读统一节拍表）
+# 任务：comic-scroll — 妈妈荷包蛋拌饭的前景漫画（第六版：只管布局）
+
+> **第六版分工（2026-11-13）**：三路并行。本分支只管**布局**：画格裁切、版式、位置、进入/退出包络（读 timeline），交付切菜 → 炒菜 → 调汁 → 接蛋 → 端饭的完整阅读流程。
+> **运动风格**（悬挂倾斜、按滚动速度变化、镜头推进、边界打开）由 feat/scroll-motion-demo 在 `/demo/scroll-motion` 验证，用户确认后由主会话整合进正式组件，所以你的组件里先用简单的淡入/位移，不要做速度倾斜。**声音**由 feat/kitchen-audio 负责，你不播放声音。所有权见 `docs/DESIGN.md` §6。
 
 > **第五版变化（覆盖下文冲突处）**：节奏改由统一节拍表 `src/lib/beats.json` + 全站唯一的 `<ScrollDriver>` 决定（说明见 `docs/BEATS.md`，调节页 `/dev/beats`）。
 > 本分支**不再**定义滚动区高度、不注册 ScrollTrigger、不写 `progress` / `activePanel` / `flight` / `serve`。

@@ -1,7 +1,7 @@
 "use client";
 /** 节拍调节面板：时间轴、实时读数、音量条、每段长度调节和导出。改动只在本页生效，复制 JSON 后贴回 src/lib/beats.json。 */
 import { useState } from "react";
-import { BEATS, PHASES, loopLevels, totalVh, type Beat } from "@/lib/beats";
+import { BEATS, PHASES, loopLevels, pinState, totalVh, type Beat } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 
 const PHASE_COLOR: Record<string, string> = { enter: "#bfd9c4", action: "#f2c46d", hold: "#e9dcc4", exit: "#d9a59a" };
@@ -14,6 +14,8 @@ export default function TuningPanel() {
   const [copied, setCopied] = useState(false);
   const total = totalVh(beats);
   const levels = loopLevels(t, beats);
+  const pin = pinState(t, beats);
+  const PIN_ZH: Record<string, string> = { prep: "备菜", catch: "跨景接蛋", bowl: "饭碗结尾" };
 
   const setLen = (i: number, v: number) => setBeats(beats.map((b, j) => (j === i ? { ...b, lengthVh: v } : b)));
   const jumpTo = (i: number) => {
@@ -55,10 +57,16 @@ export default function TuningPanel() {
         ))}
         <span className="pointer-events-none absolute top-0 h-full w-0.5 bg-strawberry" style={{ left: `${t.overall * 100}%` }} />
       </div>
+      <div className="mb-1 flex h-1.5 w-full overflow-hidden rounded">
+        {beats.map((b) => (
+          <span key={b.id} title={b.pin ? `停留：${PIN_ZH[b.pin]}` : "流动"} style={{ width: `${(b.lengthVh / total) * 100}%`, background: b.pin ? "#6b4a2b" : "transparent" }} className="border-r border-cream" />
+        ))}
+      </div>
       <div className="mb-2 flex gap-2 text-[10px] text-ink/60">
         {PHASES.map((ph) => (
           <span key={ph} className="flex items-center gap-1"><i className="inline-block h-2 w-3 rounded-sm" style={{ background: PHASE_COLOR[ph] }} />{PHASE_ZH[ph]}</span>
         ))}
+        <span className="flex items-center gap-1"><i className="inline-block h-1.5 w-3 rounded-sm bg-ink" />停留组</span>
         <span className="ml-auto">点色块跳到该段</span>
       </div>
 
@@ -67,6 +75,7 @@ export default function TuningPanel() {
         <span>节拍</span><span>{t.beat.n} · {t.beat.title}</span>
         <span>段内进度 p</span><span>{t.p.toFixed(3)}</span>
         <span>阶段</span><span>{PHASE_ZH[t.phase]} {t.phaseP.toFixed(2)}</span>
+        <span>停留 / 流动</span><span>{pin.pinned ? `📌 ${PIN_ZH[pin.group!]} ${pin.groupP.toFixed(2)}` : `流动 ${pin.flowVh.toFixed(0)}vh`}</span>
         <span>厨房弱化</span><span>{s.progress.toFixed(2)}</span>
         <span>flight / serve</span><span>{s.flight === null ? "null" : s.flight.toFixed(2)} / {s.serve === null ? "null" : s.serve.toFixed(2)}</span>
         <span>声音</span><span>{s.soundOn ? "开" : "关（右下角开启）"}</span>
