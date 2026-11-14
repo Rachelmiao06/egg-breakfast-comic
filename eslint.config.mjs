@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 并行会话的 git worktree 放在这里，不属于本分支代码
+    ".claude/**",
   ]),
 ]);
 
