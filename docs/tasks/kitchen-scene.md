@@ -1,6 +1,6 @@
-# 任务：feat/kitchen-scene — 蛋、影子、火苗、油、油泡、蒸汽、声音（本会话，第三版）
+# 任务：feat/kitchen-scene — 同一颗活动蛋的全程运动与全部声音（主会话，第四版）
 
-- 蛋：`public/assets/scene/egg.webp`，显示 388×388 场景像素，脚底落在 `ANCHORS.eggRest`，在锅里时 z = `Z.eggInPan`（被 layers 的锅沿挡脚）。
-- 飞行：`flight` 非 null 时停止循环，沿弧线从 `panLaunch` 飞到前景锅铲的 `spatulaLand`（占位），z 切到 `Z.eggFlying`，越近越大；1 时落在铲面压扁回弹后静止。
-- 火苗、油：从原画抽出，`tools/extract_fx.py`。油泡、蒸汽：Canvas 粒子，小、淡。
-- 声音：素材库录音，文件未提供前静音预览。
+- 蛋：锅里循环跳（z 40，被锅沿挡脚）→ `flight` 0→1 从 `panLaunch` 飞到 `spatulaLand`，缩到 `eggOnSpatula`（z 80），落下压扁回弹 → `serve` 0→1 从铲面移到 `bowlLand`，缩到 `eggInBowl`，轻落在饭上。
+- 火苗、油、油泡、蒸汽：已完成。
+- 声音：按 DESIGN §7 段落，环境声连续，局部音效随 `activePanel` 交叉淡化，`flight`/`serve` 到 1 时单次音效；文件未提供前静音。
+- 第一版不做蛋黄流动和拌开。

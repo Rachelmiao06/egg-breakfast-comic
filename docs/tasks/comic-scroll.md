@@ -1,40 +1,46 @@
-# 任务：comic-scroll — 妈妈前景漫画、锅铲接蛋的滚动节拍、端出早餐（第三版）
+# 任务：comic-scroll — 妈妈荷包蛋拌饭的前景漫画、段落与声音触发位置（第四版）
 
-开工前：`git fetch origin && git merge origin/main`。先读 `SPEC.md` §14、`docs/DESIGN.md`（第三版，§1 节拍表和 §2 遮挡最重要）、`src/lib/scene-context.tsx`、`src/lib/scene.ts`、`src/components/kitchen/KitchenScene.tsx`。只改 DESIGN.md §6 分给本分支的文件。
+开工前：`git fetch origin && git merge origin/main`（有冲突时以 main 的 `src/lib/*`、`docs/*` 为准）。先读 `SPEC.md` §15、`docs/DESIGN.md` 第四版（§1 节拍表、§7 声音段落）、`src/lib/scene.ts`（`MOM_PANELS`、`MOM_SPATULA`、`MOM_SERVE`、锚点）、`src/lib/scene-context.tsx`。只改 DESIGN §6 分给本分支的文件。
 
-**旧的"六格逐格滚动"和 v2 的"两个纯荷包蛋浮动漫画、直接飞向吐司"都已作废。** 最终故事：
+**作废**：旧六格、吐司结尾、v3 的"妈妈介绍鸡蛋黄油吐司"、以及从土豆汤漫画 / 旧吐司漫画裁的占位图。已写的布局、滚动触发、调试叠层、接蛋点思路可以复用，但占位图换成下面的正式素材。
 
-> 妈妈介绍鸡蛋、黄油、吐司 → 开始煎蛋 → 发现后景的蛋一直跳 → 妈妈在前景伸出锅铲 → 同一颗蛋从后景飞到前景锅铲上 → 妈妈把它放到吐司上，端出早餐。
+## 素材（已在 main，集成会话已清理柔边并裁好）
 
-**妈妈的素材尚未生成。** 本任务先用明确标记的占位图把布局、节奏和接线搭好。占位图规则：米白底 + 棕色虚线边框 + 中间一行小字"占位：<画面内容>"，尺寸和最终素材一致。**不要裁旧六格或拿旧蛋图冒充妈妈或接蛋动作。**
+- 节拍 1–3 画格：`MOM_PANELS.chop` / `.stirfry` / `.sauce`（`public/assets/mom/*.webp`，透明背景）。
+- 节拍 5–6 场景层：`MOM_SPATULA`（妈妈伸出空锅铲），按 scene.ts 里的 x / y / scale 摆放，铲面落点 = `ANCHORS.spatulaLand`。
+- 节拍 7 场景层：`MOM_SERVE`（妈妈端碗，碗中央留空给活动蛋），按 scene.ts 摆放，碗中央 = `ANCHORS.bowlCenter`。
+- 节拍 8：用户正在生成一张**结尾近景**（完整荷包蛋在饭中央 → 淋酱汁 → 勺子划开流黄）。它只是视觉参考，**不是分层动画素材**。未到之前放一张明确标记的占位（米白底 + 虚线框 + "占位：结尾近景（淋汁、划开流黄）"），到了就把它当一张静态图放进来。
 
-## 结构（开场一屏之后）
+妈妈图都是合并插画，没有关节层：**不要让整张人物上下晃动冒充切菜/炒菜/搅汁**。允许整格入场离场和整格很轻的漂浮（±3px）。
 
-| 节拍 | 滚动区（约） | 画面 | 写入共享状态 |
+## 段落（开场一屏之后）
+
+| 节拍 | 滚动区（约） | 做什么 | 写入 |
 |---|---|---|---|
-| 1 介绍食材 | 130vh | 前景画格浮在弱化的厨房上（最大宽约 720px），占位"妈妈介绍鸡蛋、黄油、吐司"。进入：上浮 + 淡入，停留时轻微漂浮 | 用前 60vh 把 `progress` 0→1；`activePanel=1` |
-| 2 开始煎蛋 | 130vh | 第二个前景画格，占位"妈妈开始煎蛋"。1 往上飘走，2 从另一侧浮入 | `activePanel=2` |
-| 3 发现蛋在跳 | 120vh | 画格散去，`progress` 回到约 0.1，让后景锅里一直在跳的蛋重新清晰；可加一个很小的"！"或视线引导，占位"妈妈回头发现蛋在跳" | `activePanel=3` |
-| 4 伸出锅铲 | 100vh | `MomForeground` 从 `ANCHORS.momZone` 右下滑入，铲面停在 `ANCHORS.spatulaLand`（scrub） | `activePanel=4` |
-| 5 飞行 | 200vh | scrub：`flight` 0→1（回滚倒回，回到节拍 4 之前 `setFlight(null)`）。蛋本体由厨房里的 `<Egg>` 按 `flight` 飞，镜头由 KitchenScene 跟随锅铲；本分支只写数值，可加很轻的动作线点缀 | `activePanel=5`，`progress` 保持低 |
-| 6 端出早餐 | 150vh | 前景结尾画格淡入并占满视口，占位"妈妈把蛋放到吐司上，端出早餐"。停住后页面结束，不加按钮 | `activePanel=6`，`flight` 保持 1 |
+| 1 切配菜 | 130vh | chop 画格浮在弱化的厨房上（透明人物图，可加一张很淡的纸卡衬底），上浮 + 淡入 | 前 60vh `progress` 0→1；`activePanel=1` |
+| 2 炒配菜 | 130vh | stirfry 画格接替 chop | `activePanel=2` |
+| 3 调汁 | 130vh | sauce 画格接替 | `activePanel=3` |
+| 4 发现跳蛋 | 110vh | 画格散去，`progress` 回到约 0.1，后景锅里的蛋重新清晰；可以在画面外加一个很小的视线引导或"！" | `activePanel=4` |
+| 5 伸锅铲 | 90vh | `MomForeground` 渲染 `MOM_SPATULA`，从右下滑入到摆放位置（scrub） | `activePanel=5` |
+| 6 接蛋 | 180vh | scrub `flight` 0→1；回滚倒回，回到节拍 5 之前 `setFlight(null)` | `activePanel=6` |
+| 7 放进饭碗 | 150vh | `MOM_SPATULA` 交叉淡化为 `MOM_SERVE`；scrub `serve` 0→1；回滚倒回，回到节拍 6 末尾之前 `setServe(null)` | `activePanel=7`，`flight` 保持 1 |
+| 8 结尾近景 | 150vh | 静态结尾近景（或占位）全屏淡入，验证镜头从厨房切到近景；停住后页面结束 | `activePanel=8`，`serve` 保持 1 |
 
-`reducedMotion` 时：画格只淡入不漂浮；`MomForeground` 直接出现；飞行节拍直接 `setFlight(1)`。
+`reducedMotion`：画格只淡入；MomForeground 直接出现；`flight`、`serve` 直接到 1。
+**声音**：本分支不播放任何声音。声音由主会话按 `activePanel` / `flight` / `serve` 触发（DESIGN §7），你只要保证这些值在上表的滚动位置准确切换，回滚时正确倒回。
 
 ## 产出
 
-1. `src/components/comic/ComicScroll.tsx` 及子组件（`ComicPanel`、`Placeholder` 等，命名自定）：页面层（z-10）的滚动区和节拍 1、2、3、6 的前景画格，ScrollTrigger 写共享状态。
-2. `src/components/comic/MomForeground.tsx`：**场景层组件**，由 KitchenScene 的 `foreground` 插槽渲染，`position:absolute`、`zIndex: Z.mom`、场景像素定位。占位：一张覆盖 `momZone` 的半透明占位图（虚线框 + "占位：妈妈的手臂和锅铲"），并用一个小圆点标出 `spatulaLand`（铲面落点）。`activePanel >= 4` 时滑入，`< 4` 时退出；位移随 scrub。
-3. 占位图放 `public/assets/comic/placeholder-*.svg`（或直接用组件渲染），文件名写清内容。
-4. `src/app/dev/comic/page.tsx`：预览页 `<KitchenScene foreground={<MomForeground/>}>{角色占位或空}</KitchenScene>` + `<ComicScroll/>`，角落显示 `progress / activePanel / flight` 数值。蛋可以先不放（集成时由 kitchen-scene 的 `<KitchenCharacters/>` 接入）。
+- `src/components/comic/ComicScroll.tsx` 及子组件；`src/components/comic/MomForeground.tsx`（场景层，`position:absolute`、`zIndex: Z.mom`，用 `MOM_SPATULA` / `MOM_SERVE` 的摆放，不要自己另定坐标）。
+- `src/app/dev/comic/page.tsx`：`<KitchenScene foreground={<MomForeground/>}>` + `<ComicScroll/>`，角落显示 `progress / activePanel / flight / serve`，并在 `spatulaLand`、`bowlLand` 画小十字。
+- 你之前的 `catch-point.ts`（视口坐标接蛋点）不再需要：蛋和妈妈都在场景层，落点直接用 scene.ts 的锚点。
 
 ## 验收
 
-- 滚动顺序：开场 → 1 → 2 → 3 → 4 → 5 → 6，过渡连续不硬切；厨房始终在背景里动。
-- 每个占位一眼能看出是占位，且写明画面内容。
-- 回滚时 `flight` 正确倒回，回到节拍 4 之前变回 null；`MomForeground` 跟着退出。
-- `npm run lint` 和 `npm run build` 通过。每个阶段 commit 到本分支并 push，不合并 main。
-- 最终报告贴四张截图（节拍 1、4、飞行中、6）和剩余问题。
+- 顺序 0→8 连续，无硬切；厨房始终在背景动；三组画格没有整人上下晃。
+- 节拍 5 锅铲妈妈的铲面正好压在 `spatulaLand` 十字上；节拍 7 端碗妈妈的碗中央正好在 `bowlCenter`。
+- 回滚时 `flight` / `serve` 正确倒回并在对应位置变回 null。
+- `npm run lint`、`npm run build` 通过。commit 并 push 到本分支，不合并 main。报告贴节拍 1、5、7、8 截图和剩余问题。
 
 ## 需要集成会话改：
 （在这里追加）
