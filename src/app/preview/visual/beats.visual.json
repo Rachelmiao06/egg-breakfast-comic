@@ -1,0 +1,602 @@
+{
+ "note": "预览路由节拍表（六张新漫画的完整故事，试验值）。场景编号是给音效分支的稳定接口，不再改名。仍由唯一的 <ScrollDriver> 驱动。audio 是基线，音效分支用自己的按编号对照表覆盖。 depth = 本段停留时远/中/近景相对主体层（灶台、锅、蛋）的镜头位移（场景像素，试验值），进入阶段平滑过渡，主体层不动，所以盖住蛋的版位不会错开。",
+ "beats": [
+  {
+   "id": "opening",
+   "n": 0,
+   "title": "开场：活着的厨房",
+   "lengthVh": 110,
+   "pin": null,
+   "phases": {
+    "enter": 0,
+    "action": 0,
+    "hold": 0.7,
+    "exit": 0.3
+   },
+   "kitchenDim": [
+    0,
+    0,
+    0.1
+   ],
+   "egg": "loop",
+   "audio": {
+    "loops": {
+     "room": 0.2,
+     "sizzle": 0.45
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    0,
+    0
+   ]
+  },
+  {
+   "id": "bag",
+   "n": 1,
+   "title": "进门放下买菜袋：\"呼……\"",
+   "lengthVh": 160,
+   "pin": "prep",
+   "phases": {
+    "enter": 0.3,
+    "action": 0,
+    "hold": 0.55,
+    "exit": 0.15
+   },
+   "kitchenDim": [
+    0.1,
+    0.12,
+    0.12
+   ],
+   "egg": "loop",
+   "audio": {
+    "loops": {
+     "room": 0.25,
+     "sizzle": 0.12
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    -35,
+    -15
+   ]
+  },
+  {
+   "id": "idea",
+   "n": 2,
+   "title": "\"今天给宝宝做点什么呢？\" \"先炒个配菜饭吧。\"",
+   "lengthVh": 160,
+   "pin": "prep",
+   "kitchenDim": [
+    0.12,
+    0.18,
+    0.18
+   ],
+   "egg": "loop",
+   "audio": {
+    "loops": {
+     "room": 0.25,
+     "sizzle": 0.1
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    30,
+    10
+   ]
+  },
+  {
+   "id": "chop",
+   "n": 3,
+   "title": "切菜：\"哒、哒、哒\"",
+   "lengthVh": 170,
+   "pin": "prep",
+   "kitchenDim": [
+    0.18,
+    0.18,
+    0.18
+   ],
+   "egg": "loop",
+   "audio": {
+    "loops": {
+     "room": 0.2,
+     "chop": 0.5,
+     "sizzle": 0.06
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    -25,
+    15
+   ]
+  },
+  {
+   "id": "stirfry",
+   "n": 4,
+   "title": "下锅：\"滋啦——\"、翻炒",
+   "lengthVh": 160,
+   "pin": "prep",
+   "kitchenDim": [
+    0.18,
+    0.2,
+    0.2
+   ],
+   "egg": "loop",
+   "audio": {
+    "loops": {
+     "room": 0.2,
+     "stirfry": 0.5,
+     "sizzle": 0.08
+    },
+    "fades": [],
+    "oneshots": [
+     {
+      "sound": "stirfryIn",
+      "at": 0.22
+     }
+    ]
+   },
+   "camera": "full",
+   "depth": [
+    22,
+    -10
+   ]
+  },
+  {
+   "id": "sauce",
+   "n": 5,
+   "title": "调汁、盛饭",
+   "lengthVh": 150,
+   "pin": "prep",
+   "kitchenDim": [
+    0.2,
+    0.12,
+    0.12
+   ],
+   "egg": "loop",
+   "audio": {
+    "loops": {
+     "room": 0.2,
+     "sauce": 0.4,
+     "sizzle": 0.08
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    -30,
+    5
+   ]
+  },
+  {
+   "id": "missing",
+   "n": 6,
+   "title": "\"是不是还少点什么……\"",
+   "lengthVh": 140,
+   "pin": "prep",
+   "kitchenDim": [
+    0.12,
+    0.08,
+    0.08
+   ],
+   "egg": "loop",
+   "audio": {
+    "loops": {
+     "room": 0.25,
+     "sizzle": 0.2
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    25,
+    0
+   ]
+  },
+  {
+   "id": "hear",
+   "n": 7,
+   "title": "\"嗯？\" \"啵！\"",
+   "lengthVh": 140,
+   "pin": "catch",
+   "phases": {
+    "enter": 0.25,
+    "action": 0.25,
+    "hold": 0.5,
+    "exit": 0
+   },
+   "kitchenDim": [
+    0.08,
+    0,
+    0
+   ],
+   "egg": "loop",
+   "audio": {
+    "loops": {
+     "room": 0.18,
+     "sizzle": 0.6
+    },
+    "fades": [
+     {
+      "sound": "sizzle",
+      "from": 0.2,
+      "to": 0.6,
+      "phase": "action"
+     }
+    ],
+    "oneshots": [
+     {
+      "sound": "pop",
+      "at": 0.35
+     }
+    ]
+   },
+   "camera": "pan",
+   "depth": [
+    0,
+    -20
+   ]
+  },
+  {
+   "id": "catch",
+   "n": 8,
+   "title": "蛋主动飞向前景；\"哎？慢点！\" 她惊讶伸出空锅铲接住",
+   "lengthVh": 230,
+   "pin": "catch",
+   "phases": {
+    "enter": 0,
+    "action": 0.78,
+    "hold": 0.22,
+    "exit": 0
+   },
+   "kitchenDim": [
+    0,
+    0.04,
+    0.04
+   ],
+   "egg": "flight",
+   "audio": {
+    "loops": {
+     "room": 0.18,
+     "sizzle": 0.35
+    },
+    "fades": [
+     {
+      "sound": "sizzle",
+      "from": 0.35,
+      "to": 0.06,
+      "phase": "action"
+     }
+    ],
+    "oneshots": [
+     {
+      "sound": "catch",
+      "at": 0.78
+     }
+    ]
+   },
+   "seconds": {
+    "landSquash": 0.7
+   },
+   "camera": "catch",
+   "depth": [
+    0,
+    0
+   ]
+  },
+  {
+   "id": "handoff",
+   "n": 9,
+   "title": "\"正好，就差你了！\"（蛋交给漫画）",
+   "lengthVh": 150,
+   "pin": "catch",
+   "phases": {
+    "enter": 0.3,
+    "action": 0,
+    "hold": 0.55,
+    "exit": 0.15
+   },
+   "kitchenDim": [
+    0.04,
+    0.15,
+    0.15
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.2
+    },
+    "fades": [
+     {
+      "sound": "sizzle",
+      "from": 0.06,
+      "to": 0,
+      "phase": "enter"
+     }
+    ],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    20,
+    5
+   ]
+  },
+  {
+   "id": "bowl",
+   "n": 10,
+   "title": "放进碗、淋汁",
+   "lengthVh": 160,
+   "pin": "bowl",
+   "kitchenDim": [
+    0.15,
+    0.15,
+    0.15
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.2
+    },
+    "fades": [],
+    "oneshots": [
+     {
+      "sound": "bowlDown",
+      "at": 0.25
+     },
+     {
+      "sound": "pour",
+      "at": 0.55
+     }
+    ]
+   },
+   "camera": "full",
+   "depth": [
+    -25,
+    10
+   ]
+  },
+  {
+   "id": "yolk",
+   "n": 11,
+   "title": "划开流黄",
+   "lengthVh": 140,
+   "pin": "bowl",
+   "kitchenDim": [
+    0.15,
+    0.2,
+    0.2
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.2
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    25,
+    -10
+   ]
+  },
+  {
+   "id": "call",
+   "n": 12,
+   "title": "\"宝宝，来吃饭啦！\" \"我在这儿……\"",
+   "lengthVh": 160,
+   "pin": "bowl",
+   "kitchenDim": [
+    0.2,
+    0.2,
+    0.2
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.2
+    },
+    "fades": [],
+    "oneshots": [
+     {
+      "sound": "momCall",
+      "at": 0.25
+     },
+     {
+      "sound": "eggSmall",
+      "at": 0.55
+     }
+    ]
+   },
+   "camera": "full",
+   "depth": [
+    -20,
+    0
+   ]
+  },
+  {
+   "id": "search",
+   "n": 13,
+   "title": "走去女儿房门口：\"宝宝？\"、空房间",
+   "lengthVh": 170,
+   "pin": "search",
+   "kitchenDim": [
+    0.2,
+    0.55,
+    0.55
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.06,
+     "steps": 0.5
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    45,
+    15
+   ]
+  },
+  {
+   "id": "eggcall",
+   "n": 14,
+   "title": "\"妈！这里！\"、回头",
+   "lengthVh": 150,
+   "pin": "search",
+   "kitchenDim": [
+    0.55,
+    0.45,
+    0.45
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.08
+    },
+    "fades": [],
+    "oneshots": [
+     {
+      "sound": "eggCall",
+      "at": 0.25
+     }
+    ]
+   },
+   "camera": "full",
+   "depth": [
+    -45,
+    0
+   ]
+  },
+  {
+   "id": "return",
+   "n": 15,
+   "title": "回到碗前",
+   "lengthVh": 150,
+   "pin": "reunion",
+   "kitchenDim": [
+    0.45,
+    0.2,
+    0.2
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.2
+    },
+    "fades": [
+     {
+      "sound": "steps",
+      "from": 0.4,
+      "to": 0,
+      "phase": "enter"
+     }
+    ],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    15,
+    10
+   ]
+  },
+  {
+   "id": "recognize",
+   "n": 16,
+   "title": "\"……宝宝？\" \"嗯！\"",
+   "lengthVh": 150,
+   "pin": "reunion",
+   "kitchenDim": [
+    0.2,
+    0.2,
+    0.2
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.2
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    -15,
+    0
+   ]
+  },
+  {
+   "id": "punchline",
+   "n": 17,
+   "title": "\"那刚才把你戳破了怎么办？\" \"没事，是我拉稀了。\"",
+   "lengthVh": 180,
+   "pin": "reunion",
+   "phases": {
+    "enter": 0.25,
+    "action": 0,
+    "hold": 0.75,
+    "exit": 0
+   },
+   "kitchenDim": [
+    0.2,
+    0.2,
+    0.2
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.2
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full",
+   "depth": [
+    0,
+    0
+   ]
+  }
+ ],
+ "cameras": {
+  "full": {
+   "x": 768,
+   "y": 560,
+   "zoom": 1,
+   "at": {
+    "x": 0.5,
+    "y": 0.55
+   }
+  },
+  "pan": {
+   "x": 735,
+   "y": 600,
+   "zoom": 1.15,
+   "at": {
+    "x": 0.52,
+    "y": 0.6
+   }
+  },
+  "catch": {
+   "x": 700,
+   "y": 640,
+   "zoom": 1,
+   "at": {
+    "x": 0.5,
+    "y": 0.58
+   }
+  }
+ }
+}

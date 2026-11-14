@@ -731,8 +731,12 @@ def main():
     mid_rgb, mid_m = build_main(img, M)
     rim_m, ell = build_rim(img, M)
 
+    # visual-direction：远景（墙、瓷砖，完整补好）与中景（后台面、黄锅、瓶罐、水壶）分开输出，
+    # 让镜头移动时两者有不同位移；旧的合并层 back.png 仍另存一份兼容。
+    Image.fromarray(rgba(back, np.ones((H, W), np.float32))).save(OUT / "back.png", optimize=True)
     L = {
-        "back": rgba(back, np.ones((H, W), np.float32)),
+        "far": rgba(wall, np.ones((H, W), np.float32)),
+        "counter": rgba(counter, soft(counter_m)),
         "mid": rgba(mid_rgb, soft(mid_m)),
         "pan-rim": rgba(img, soft(rim_m, grow=0, feather=0.8)),
         "front-toast": rgba(img, soft(M["plate"])),
@@ -751,7 +755,7 @@ def main():
     tw, th = 768, 512
     chk = Image.new("RGB", (tw * 2 + 36, th + 52), (250, 247, 240))
     d = ImageDraw.Draw(chk)
-    for c, (name, im) in enumerate([("five layers recomposited", comp),
+    for c, (name, im) in enumerate([("six layers recomposited", comp),
                                     ("|difference vs kitchen-clean| x8 (black = identical)", np.dstack([dv] * 3))]):
         chk.paste(Image.fromarray(np.clip(im, 0, 255).astype(np.uint8)).resize((tw, th), Image.LANCZOS),
                   (12 + c * (tw + 12), 12))

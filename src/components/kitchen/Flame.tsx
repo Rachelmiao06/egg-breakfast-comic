@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ANCHORS, SCENE_H, SCENE_W, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
+import FollowMid from "./FollowMid";
 
 const [fx0, , fx1, fy1] = ANCHORS.flameBox;
 const ORIGIN = `${(fx0 + fx1) / 2}px ${fy1 + 6}px`;
@@ -39,9 +40,9 @@ export default function Flame() {
 
   const style = { width: SCENE_W, height: SCENE_H } as const;
   return (
-    <>
+    <FollowMid zIndex={Z.fx}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={a} src="/assets/scene/flame.png" alt="" draggable={false} className="pointer-events-none absolute inset-0 select-none" style={{ ...style, zIndex: Z.fx, translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" }} />
+      <img ref={a} src="/assets/scene/flame.png" alt="" draggable={false} className="pointer-events-none absolute inset-0 select-none" style={style} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={b}
@@ -49,8 +50,8 @@ export default function Flame() {
         alt=""
         draggable={false}
         className="pointer-events-none absolute inset-0 select-none"
-        style={{ ...style, filter: "brightness(1.12) saturate(1.05)", zIndex: Z.fx, translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" }}
+        style={{ ...style, filter: "brightness(1.12) saturate(1.05)" }}
       />
-    </>
+    </FollowMid>
   );
 }

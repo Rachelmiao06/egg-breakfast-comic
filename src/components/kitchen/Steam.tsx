@@ -55,7 +55,7 @@ export default function Steam() {
       ref={ref}
       aria-hidden
       className="pointer-events-none absolute"
-      style={{ left: BOX.x, top: BOX.y, width: BOX.w, height: BOX.h, zIndex: Z.steam }}
+      style={{ left: BOX.x, top: BOX.y, width: BOX.w, height: BOX.h, zIndex: Z.steam, translate: "var(--kl-counter-x, 0px) var(--kl-counter-y, 0px)" }}
     />
   );
 }
