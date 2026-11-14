@@ -1,21 +1,23 @@
 "use client";
 /**
- * 场景层的前景妈妈（comic-scroll 分支）。放进 <KitchenScene foreground={<MomForeground/>}>，
- * 和厨房一起 cover 缩放、被镜头带动，所以蛋能准确落在铲面（ANCHORS.spatulaLand）和碗中央（ANCHORS.bowlCenter）。
+ * 场景层的前景妈妈（comic-scroll 分支，第五版：只读统一节拍表）。
+ * 放进 <KitchenScene foreground={<MomForeground/>}>，和厨房一起 cover 缩放、被镜头带动，
+ * 所以蛋能准确落在铲面（ANCHORS.spatulaLand）和碗中央（ANCHORS.bowlCenter）。
  *
- * - 节拍 5：MOM_SPATULA 从右下滑入到 scene.ts 的摆放位置（进度 enter 来自 mom-store，由 ComicScroll scrub）。
- * - 节拍 6：停在摆放位置，蛋（主会话的 <Egg>）落到铲面上。
- * - 节拍 7：交叉淡化为 MOM_SERVE（进度 cross）。
- * - 节拍 8：保持端碗。
+ * 只读 useScene().timeline：
+ * - spatula 段：MOM_SPATULA 在进入 + 动作阶段从右下滑入到 scene.ts 的摆放位置，停留阶段保持。
+ * - catch 段：保持不动，蛋（主会话的 <Egg>）落到铲面上。
+ * - serve 段：进入阶段交叉淡化为 MOM_SERVE；之后（含 ending 段）保持端碗。
  * 坐标全部来自 scene.ts，这里不另定；图是合并插画，不做任何"动作"晃动。
- * reducedMotion：不滑入、不渐变，按 activePanel 直接切换。
+ * reducedMotion：不滑入、不渐变，按段直接切换。
  */
 import type { CSSProperties } from "react";
+import { phaseProgress } from "@/lib/beats";
 import { MOM_SERVE, MOM_SPATULA, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
-import { useMomState } from "./mom-store";
 
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /** 滑入起点相对摆放位置的偏移（场景像素），右下方画面外 */
 const ENTER_DX = 460;
@@ -26,11 +28,24 @@ function placement(p: { x: number; y: number; w: number; h: number; scale: numbe
 }
 
 export default function MomForeground() {
-  const { activePanel, reducedMotion } = useScene();
-  const { enter, cross } = useMomState();
+  const { timeline: t, reducedMotion } = useScene();
+  const id = t.beat.id;
+  const spatulaIndex = 5;
 
-  const e = reducedMotion ? (activePanel >= 5 ? 1 : 0) : enter;
-  const c = reducedMotion ? (activePanel >= 7 ? 1 : 0) : cross;
+  // 滑入进度：spatula 段的进入 + 动作阶段合起来 0→1（按 beats.json 的阶段比例切分），之后 1
+  let enter = 0;
+  if (id === "spatula") {
+    const { enter: pe, action: pa } = t.beat.phases;
+    const split = pe + pa > 0 ? pe / (pe + pa) : 0;
+    enter = t.phase === "enter" ? t.phaseP * split : t.phase === "action" ? split + (1 - split) * t.phaseP : 1;
+  } else if (t.index > spatulaIndex) {
+    enter = 1;
+  }
+  // 交叉淡化：serve 段进入阶段 0→1，之后 1
+  const cross = id === "serve" ? phaseProgress(t, "enter") : id === "ending" ? 1 : 0;
+
+  const e = reducedMotion ? (t.index >= spatulaIndex ? 1 : 0) : clamp01(enter);
+  const c = reducedMotion ? (id === "serve" || id === "ending" ? 1 : 0) : clamp01(cross);
   if (e <= 0) return null;
 
   const k = easeOut(e);
@@ -38,15 +53,17 @@ export default function MomForeground() {
 
   return (
     <div data-mom-foreground aria-hidden className="pointer-events-none absolute inset-0" style={{ zIndex: Z.mom }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        data-mom="spatula"
-        src={MOM_SPATULA.src}
-        alt=""
-        draggable={false}
-        className="select-none"
-        style={{ ...placement(MOM_SPATULA), transform: slide, opacity: 1 - c, willChange: "transform, opacity" }}
-      />
+      {c < 1 && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          data-mom="spatula"
+          src={MOM_SPATULA.src}
+          alt=""
+          draggable={false}
+          className="select-none"
+          style={{ ...placement(MOM_SPATULA), transform: slide, opacity: 1 - c, willChange: "transform, opacity" }}
+        />
+      )}
       {c > 0 && (
         // eslint-disable-next-line @next/next/no-img-element
         <img

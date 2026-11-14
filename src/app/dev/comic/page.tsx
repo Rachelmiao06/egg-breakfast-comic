@@ -2,17 +2,17 @@
 /**
  * 开发预览页（comic-scroll 分支自己维护）：
  * 厨房 fixed 在底层（KitchenScene 自己做弱化和镜头），MomForeground 走它的 foreground 插槽，
- * 前景漫画在上面滚动。角落 HUD 显示 progress / activePanel / flight / serve，
+ * 前景漫画 fixed 在上面；页面长度和节奏只由 <ScrollDriver> + 节拍表决定。
+ * 角落 HUD 显示 timeline（段 / p / 阶段 / 阶段进度）和推导出的 progress / activePanel / flight / serve，
  * 场景层画小十字：spatulaLand（铲面落点）、bowlLand / bowlCenter（碗）、panLaunch（起跳点）。
- * 这里没有蛋本体（主会话的 <Egg>），只验证节拍、状态值和妈妈摆放。
+ * 这里没有蛋本体（主会话的 <Egg>），只验证画格显隐、妈妈摆放和状态值。
  */
+import ScrollDriver from "@/components/ScrollDriver";
 import ComicScroll from "@/components/comic/ComicScroll";
 import MomForeground from "@/components/comic/MomForeground";
 import KitchenScene from "@/components/kitchen/KitchenScene";
 import { ANCHORS } from "@/lib/scene";
 import { SceneProvider, useScene } from "@/lib/scene-context";
-
-const BEAT_NAMES = ["开场", "切配菜", "炒配菜", "调汁", "发现跳蛋", "伸锅铲", "接蛋", "放进饭碗", "结尾近景"];
 
 function Cross({ x, y, label, color }: { x: number; y: number; label: string; color: string }) {
   return (
@@ -38,14 +38,18 @@ function AnchorCrosses() {
 }
 
 function Hud() {
-  const { progress, activePanel, flight, serve } = useScene();
+  const { timeline: t, progress, activePanel, flight, serve } = useScene();
   const fmt = (v: number | null) => (v === null ? "null" : v.toFixed(2));
   return (
-    <div className="fixed right-3 top-3 z-50 rounded bg-ink/85 px-3 py-2 font-mono text-xs leading-5 text-cream">
-      <div>progress {progress.toFixed(2)}</div>
+    <div data-hud className="fixed right-3 top-3 z-50 rounded bg-ink/85 px-3 py-2 font-mono text-xs leading-5 text-cream">
       <div>
-        activePanel {activePanel} {BEAT_NAMES[activePanel]}
+        beat {t.index} {t.beat.id} p {t.p.toFixed(2)}
       </div>
+      <div>
+        phase {t.phase} {t.phaseP.toFixed(2)}
+      </div>
+      <div>progress {progress.toFixed(2)}</div>
+      <div>activePanel {activePanel}</div>
       <div>flight {fmt(flight)}</div>
       <div>serve {fmt(serve)}</div>
     </div>
@@ -65,10 +69,11 @@ export default function DevPage() {
           }
         />
       </div>
-      <main className="relative z-10">
-        <div className="h-screen" aria-hidden />
-        <ComicScroll />
-      </main>
+      <ComicScroll />
+      {/* body 是 flex-col 且 height:100%，占位高度要 shrink-0 才不会被压成一屏 */}
+      <div className="shrink-0">
+        <ScrollDriver />
+      </div>
       <Hud />
     </SceneProvider>
   );
