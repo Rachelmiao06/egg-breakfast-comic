@@ -1,0 +1,42 @@
+{
+  "mom-point": {
+    "w": 270,
+    "h": 235
+  },
+  "mom-wink": {
+    "w": 175,
+    "h": 220
+  },
+  "mom-surprised": {
+    "w": 235,
+    "h": 175
+  },
+  "mom-board": {
+    "w": 295,
+    "h": 190
+  },
+  "mom-rest": {
+    "w": 190,
+    "h": 160
+  },
+  "prop-toast": {
+    "w": 445,
+    "h": 209
+  },
+  "prop-butter": {
+    "w": 130,
+    "h": 110
+  },
+  "prop-eggshell": {
+    "w": 330,
+    "h": 170
+  },
+  "prop-pan": {
+    "w": 895,
+    "h": 290
+  },
+  "prop-breakfast": {
+    "w": 370,
+    "h": 225
+  }
+}
