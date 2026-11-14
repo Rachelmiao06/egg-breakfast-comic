@@ -21,7 +21,27 @@ function curve(keys, g) {
   for (let i = 1; i < pts.length; i++) if (g <= pts[i][0]) { const [g0, v0] = pts[i - 1], [g1, v1] = pts[i]; return v0 + (v1 - v0) * smooth((g - g0) / (g1 - g0)); }
   return pts.at(-1)[1];
 }
-const cam = (g) => { const K = bg.camera.keys; const ch = (j) => curve(K.map((k) => [k[0], k[1], k[j]]), g); return { x: ch(2), y: ch(3), zoom: ch(4), ax: ch(5), ay: ch(6) }; };
+// 段内阶段（与 beats.ts phaseAt 一致：enter → action → hold → exit）
+function phaseOf(b, p) {
+  const ph = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15, ...(b.phases ?? {}) };
+  let acc = 0;
+  for (const k of ["enter", "action", "hold", "exit"]) { if (ph[k] > 0 && p < acc + ph[k]) return [k, (p - acc) / ph[k]]; acc += ph[k]; }
+  return ["exit", 1];
+}
+// 与 preview 页相同：环境段（ready / inBowl）镜头按段内进度跟随蛋的站点（权重 0.85）
+const cam = (g, wait) => {
+  const K = bg.camera.keys; const ch = (j) => curve(K.map((k) => [k[0], k[1], k[j]]), g);
+  const c = { x: ch(2), y: ch(3), zoom: ch(4), ax: ch(5), ay: ch(6) };
+  const i = Math.min(beats.length - 1, Math.floor(g)), b = beats[i];
+  const env = b.egg === "ready" ? wait : b.egg === "inBowl" ? bg.anchors.tableBowl : null;
+  if (env) {
+    const [ph, pp] = phaseOf(b, g - i);
+    const w = ph === "enter" ? pp : ph === "exit" ? 1 - pp : 1;
+    const f = 0.85 * smooth(w);
+    c.x += (env.x - c.x) * f; c.y += (env.y - 120 - c.y) * f;
+  }
+  return c;
+};
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 function view(vw, vh, c) {
   const s = Math.max(vw / W, vh / H) * c.zoom;
@@ -39,19 +59,19 @@ function narrowAt(vw, vh) {
 const sizes = (process.argv[2] ?? "1600x900,1440x900,1024x768,860x1000,390x844").split(",").map((s) => s.split("x").map(Number));
 const A = bg.anchors, T = bg.table;
 const eggW = EGG * A.eggAtTable;
-// 蛋在桌沿的时段：drop 动作结束（落桌）→ catch 动作开始（起跳）
+// 蛋在桌沿的时段：drop 动作结束（落桌）→ 环境段 prejump（准备起跳）→ catch 动作开始（起跳）
 const waitFrom = gOf("drop", 0.75), waitTo = gOf("catch", 0.22);
 const rows = [];
 for (const [vw, vh] of sizes) {
   const narrow = narrowAt(vw, vh);
   const wait = narrow ? A.portraitTableWait : A.tableWait;
   // 锅：开场全程
-  const vOpen = view(vw, vh, cam(gOf("opening", 0.5)));
+  const vOpen = view(vw, vh, cam(gOf("opening", 0.5), wait));
   const panOk = A.panLaunch.x > vOpen.x0 && A.panLaunch.x < vOpen.x1 && A.panLaunch.y > vOpen.y0 && A.panLaunch.y < vOpen.y1;
   // 桌沿等待：沿镜头路径采样最差情况
   let worst = { left: Infinity, right: Infinity, top: Infinity, bottom: Infinity, edge: Infinity };
   for (let g = waitFrom; g <= waitTo; g += 0.02) {
-    const v = view(vw, vh, cam(g));
+    const v = view(vw, vh, cam(g, wait));
     worst.left = Math.min(worst.left, (wait.x - eggW / 2 - v.x0) * v.s);
     worst.right = Math.min(worst.right, (v.x1 - (wait.x + eggW / 2)) * v.s);
     worst.top = Math.min(worst.top, (wait.y - eggW - v.y0) * v.s);
@@ -59,17 +79,26 @@ for (const [vw, vh] of sizes) {
     worst.edge = Math.min(worst.edge, (v.y1 - T.edgeY) * v.s);
   }
   const onTop = wait.y >= T.topY && wait.y <= T.edgeY;
-  const vDrop = view(vw, vh, cam(gOf("hear", 0.5)));
+  const vDrop = view(vw, vh, cam(gOf("hear", 0.5), wait));
+  // 环境段 tablecall：B3 碗（box 相对 tableBowl）和碗里的蛋整体在画面里
+  const TB = bg.anchors.tableBowl, BB = bg.bowl.box;
+  let bowlWorst = Infinity;
+  for (let g = gOf("tablecall", 0.12); g <= gOf("tablecall", 0.9); g += 0.02) {
+    const v = view(vw, vh, cam(g, wait));
+    const eggTop = TB.y - EGG * bg.anchors.eggInTableBowl;
+    bowlWorst = Math.min(bowlWorst, (TB.x + BB[0] - v.x0) * v.s, (v.x1 - (TB.x + BB[0] + BB[2])) * v.s, (Math.min(eggTop, TB.y + BB[1]) - v.y0) * v.s, (v.y1 - (TB.y + BB[1] + BB[3])) * v.s);
+  }
   rows.push({
     vp: `${vw}×${vh}`, ratio: (vw / vh).toFixed(2), narrow, wait: `${wait.x},${wait.y}`,
     panOk, onTop,
     view: `x ${Math.round(vDrop.x0)}…${Math.round(vDrop.x1)}, y ${Math.round(vDrop.y0)}…${Math.round(vDrop.y1)}`,
     margins: `${Math.round(worst.left)} / ${Math.round(worst.right)} / ${Math.round(worst.top)} / ${Math.round(worst.bottom)}`,
     edge: Math.round(worst.edge),
-    ok: panOk && onTop && worst.left >= 0 && worst.right >= 0 && worst.top >= 0 && worst.bottom >= 8 && worst.edge >= 0,
+    bowl: Math.round(bowlWorst),
+    ok: panOk && onTop && worst.left >= 0 && worst.right >= 0 && worst.top >= 0 && worst.bottom >= 8 && worst.edge >= 0 && bowlWorst >= 0,
   });
 }
-console.log("| 视口 | 宽高比 | 窄布局 | 桌沿等待点 | 锅在画面内 | 脚底在桌面上 (920–995) | hear 时可见场景 | 蛋身离屏幕边最小距离 左/右/上/下 (屏幕 px) | 前缘线离屏幕下沿 (px) | 结果 |");
-console.log("|---|---|---|---|---|---|---|---|---|---|");
-for (const r of rows) console.log(`| ${r.vp} | ${r.ratio} | ${r.narrow ? "是" : "否"} | ${r.wait} | ${r.panOk ? "是" : "否"} | ${r.onTop ? "是" : "否"} | ${r.view} | ${r.margins} | ${r.edge} | ${r.ok ? "✓" : "✗"} |`);
+console.log("| 视口 | 宽高比 | 窄布局 | 桌沿等待点 | 锅在画面内 | 脚底在桌面上 (920–995) | hear 时可见场景 | 蛋身离屏幕边最小距离 左/右/上/下 (屏幕 px) | 前缘线离屏幕下沿 (px) | tablecall 碗 + 蛋离屏幕边最小距离 (px) | 结果 |");
+console.log("|---|---|---|---|---|---|---|---|---|---|---|");
+for (const r of rows) console.log(`| ${r.vp} | ${r.ratio} | ${r.narrow ? "是" : "否"} | ${r.wait} | ${r.panOk ? "是" : "否"} | ${r.onTop ? "是" : "否"} | ${r.view} | ${r.margins} | ${r.edge} | ${r.bowl} | ${r.ok ? "✓" : "✗"} |`);
 if (rows.some((r) => !r.ok)) process.exitCode = 1;

@@ -1,19 +1,46 @@
 {
  "report": {
   "1440x900": {
-   "samples": 258,
+   "samples": 65,
    "eggCountBad": 0,
    "eggAfterHandoff": 0,
-   "tableChecks": 98,
+   "bowlChecks": 2,
+   "bowlBad": 0,
+   "tableChecks": 24,
    "tableBad": 0,
    "footMin": 0.599,
    "footMax": 0.601,
    "bgSeq": [
     "kitchen",
+    "table-edge+kitchen",
     "table-edge",
-    "dinner-table",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-call",
     "search",
-    "dinner-table",
+    "table-edge",
+    "ending"
+   ]
+  },
+  "390x844": {
+   "samples": 65,
+   "eggCountBad": 0,
+   "eggAfterHandoff": 0,
+   "bowlChecks": 2,
+   "bowlBad": 0,
+   "tableChecks": 24,
+   "tableBad": 0,
+   "footMin": 0.933,
+   "footMax": 0.935,
+   "bgSeq": [
+    "kitchen",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-edge+kitchen",
+    "table-edge",
+    "table-call",
+    "search",
+    "table-edge",
     "ending"
    ]
   }

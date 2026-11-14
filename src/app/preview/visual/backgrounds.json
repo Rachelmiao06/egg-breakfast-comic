@@ -30,6 +30,7 @@
    400
   ],
   "topY": 920,
+  "fadeTop": 60,
   "edgeY": 995,
   "faceY": 1060,
   "placeholder": {
@@ -39,6 +40,33 @@
    "below": "#ecdcc3"
   },
   "status": "缺图（B1）。占位只用平涂色块标出桌面（topY–edgeY）和前侧面（edgeY–faceY），无纹理；在纸面之下、桌沿蛋之下，跟随主体层视差，与蛋锁在一起"
+ },
+ "bowl": {
+  "type": "placeholder",
+  "label": "占位 · B3 饭桌上的碗（正式图：碗身 + 前沿遮挡层两张，见 docs/BACKGROUND-SPEC.md §6）",
+  "src": null,
+  "srcFront": null,
+  "box": [
+   -140,
+   -82,
+   280,
+   140
+  ],
+  "rim": {
+   "dy": -58,
+   "rx": 130,
+   "ry": 20
+  },
+  "baseDy": 35,
+  "baseHalfW": 62,
+  "footDy": 45,
+  "placeholder": {
+   "body": "#fbf7ee",
+   "inside": "#efe6d4",
+   "line": "#b7a07c",
+   "shadow": "rgba(120,88,50,0.16)"
+  },
+  "status": "缺图（B3）。全部尺寸相对 anchors.tableBowl（碗里蛋的脚底点）：box = [dx, dy, w, h]；碗身在纸面组之上、蛋之下（z 62），前沿遮挡层在蛋之上（Z.bowlFront 64），挡住蛋的下部。只在环境段 tablecall 出现（curves.bowl）"
  },
  "paper": {
   "type": "color",
@@ -264,6 +292,26 @@
     "bag",
     0.3,
     1
+   ],
+   [
+    "missing",
+    0.85,
+    1
+   ],
+   [
+    "prejump",
+    0.3,
+    0.5
+   ],
+   [
+    "prejump",
+    0.82,
+    0.5
+   ],
+   [
+    "hear",
+    0.2,
+    1
    ]
   ],
   "hallway": [
@@ -321,12 +369,34 @@
    [
     "bowl",
     0.6,
-    -32
+    0
+   ]
+  ],
+  "bowl": [
+   [
+    "call",
+    0.9,
+    0
+   ],
+   [
+    "tablecall",
+    0.12,
+    1
+   ],
+   [
+    "search",
+    0.15,
+    1
+   ],
+   [
+    "search",
+    0.3,
+    0
    ]
   ],
   "hallwayDrift": [
    [
-    "call",
+    "tablecall",
     0.85,
     1
    ],
@@ -347,7 +417,7 @@
    ]
   ]
  },
- "curvesNote": "paper / table：纸面与桌沿带的不透明度；dinner：蛋交给漫画之后，纸面 + 桌沿带整体上移的场景像素（桌子成为饭桌，露出更多桌面；蛋此时已不在场景里）；hallway：寻找段外围不透明度；hallwayDrift：外围的横向漂移（乘 hallway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。",
+ "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后，纸面 + 桌沿带整体下移的场景像素（饭桌更近，桌面让出碗的底座）；bowl：环境段 tablecall 饭桌上的碗（B3）；hallway：寻找段外围不透明度；hallwayDrift：外围的横向漂移（乘 hallway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。",
  "ending": {
   "type": "color",
   "color": "#f6eee2",

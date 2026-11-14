@@ -54,6 +54,7 @@ function Guides({ wait }: { wait: Pt }) {
       {cross(A.tableWait, "#c0392b", `横版等待 / 起跳 ${A.tableWait.x},${A.tableWait.y}`, wait === A.tableWait)}
       {cross(A.portraitTableWait, "#d35400", `窄版等待 / 起跳 ${A.portraitTableWait.x},${A.portraitTableWait.y}`, wait === A.portraitTableWait)}
       {cross(landPoint(cfg.scene.catch), "#16a085", "铲面落点")}
+      {cross(A.tableBowl, "#2c3e50", `饭桌碗 ${A.tableBowl.x},${A.tableBowl.y}`)}
     </div>
   );
 }
@@ -69,7 +70,7 @@ function Hud({ narrow }: { narrow: boolean }) {
         {t.beat.n} {t.beat.id} · p {f(t.p)} · g {f(g)} · egg {t.beat.egg} · flight {flight === null ? "–" : f(flight)} · {narrow ? "窄布局" : "横版"}
       </div>
       <div>
-        后景 <b>{s.name}</b> · 纸面 {f(s.paper)} · 桌沿 {f(s.table)} · 饭桌上移 {s.lift.toFixed(0)} · 外围 {f(s.hallway)} 漂移 {s.drift.toFixed(2)}vw · 收尾 {f(s.ending)}
+        后景 <b>{s.name}</b> · 纸面 {f(s.paper)} · 桌沿 {f(s.table)} · 饭桌下移 {s.lift.toFixed(0)} · 外围 {f(s.hallway)} 漂移 {s.drift.toFixed(2)}vw · 碗 {f(s.bowl)} · 收尾 {f(s.ending)}
       </div>
     </div>
   );
@@ -89,11 +90,21 @@ function Stage() {
     ...eggAnchorsFrom(cfg),
     tableWait: wait,
     eggAtTable: BG.anchors.eggAtTable,
+    bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
+    eggInBowl: BG.anchors.eggInTableBowl,
     flightApexY: Math.round(box[1] - box[3] * 0.12),
   };
   let eggPt: Pt | null = null;
   if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight);
-  const cam = cameraV2(g, eggPt);
+  // 与 preview/visual/page.tsx 相同：环境段镜头跟随蛋的站点
+  let follow: number | undefined;
+  const envEgg = t.beat.egg === "ready" ? anchors.tableWait : t.beat.egg === "inBowl" ? anchors.bowlLand : null;
+  if (envEgg) {
+    const w = t.phase === "enter" ? t.phaseP : t.phase === "exit" ? 1 - t.phaseP : 1;
+    eggPt = { x: envEgg.x, y: envEgg.y - 120 };
+    follow = 0.85 * (w * w * (3 - 2 * w));
+  }
+  const cam = cameraV2(g, eggPt, follow);
   return (
     <>
       <div className="fixed inset-0 z-0">

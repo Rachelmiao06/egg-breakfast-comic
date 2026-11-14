@@ -7,7 +7,11 @@
  *   → 桌沿 + 纸面：<Paper/>，场景层 z = Z.paper，在近景物件之上、桌沿蛋之下。
  *       一个跟随主体层视差（--kl-mid-x/y，和蛋的 FollowMid 同一组变量）的整体：
  *       B1 桌沿带（table）在下，纸面（paper）在上，纸面下沿羽化到桌面上。蛋和桌沿因此锁在一起。
- *   → 饭桌：蛋交给漫画之后（curves.dinner），纸面 + 桌沿整体上移几十场景像素，露出更多桌面。
+ *   → 环境段 prejump（桌沿上的蛋准备起跳）：纸面降到半透明（curves.paper），活着的厨房从桌沿后面透出来，
+ *       这一段没有漫画格，后景就是画面主体。
+ *   → 饭桌：蛋交给漫画之后（curves.dinner），纸面 + 桌沿整体下移 22 场景像素（饭桌更近，桌面让出碗的底座）。
+ *   → 环境段 tablecall（空饭桌上碗里的蛋在喊）：B3 占位碗（curves.bowl），碗身 z 62（蛋之下）、前沿遮挡层 Z.bowlFront（蛋之上），
+ *       位置全部相对 anchors.tableBowl，与蛋的脚底点对位；碗只跟随主体层视差，不跟随饭桌位移，所以永远和蛋锁在一起。
  *   → 寻找段外围：<HallwayBackdrop/> 里的 SearchSurround，页面层（fixed z-5，漫画之下），横版 / 竖版两张，
  *       进场时从右往左持续漂移（curves.hallwayDrift），像镜头转到家里另一处；淡出后露回饭桌。
  *   → 收尾：<HallwayBackdrop/> 里的 EndingSheet，干净暖米白平涂，盖住一切（含桌沿）。
@@ -33,28 +37,93 @@ export function backgroundState(g: number) {
   const table = bgCurve("table", g);
   const hallway = bgCurve("hallway", g);
   const ending = bgCurve("ending", g);
-  const name = ending > 0.5 ? "ending" : hallway > 0.5 ? "search" : table > 0.5 ? (bgCurve("dinner", g) < -1 ? "dinner-table" : "table-edge") : "kitchen";
-  return { paper, table, hallway, ending, lift: bgCurve("dinner", g), drift: bgCurve("hallwayDrift", g) * BG.hallway.driftPct, name };
+  const bowl = bgCurve("bowl", g);
+  const lift = bgCurve("dinner", g);
+  const name =
+    ending > 0.5 ? "ending" : hallway > 0.5 ? "search" : bowl > 0.5 ? "table-call" : table > 0.5 ? (lift > 1 ? "dinner-table" : paper < 0.9 ? "table-edge+kitchen" : "table-edge") : "kitchen";
+  return { paper, table, hallway, ending, bowl, lift, drift: bgCurve("hallwayDrift", g) * BG.hallway.driftPct, name };
 }
 
 const SHOW = 0.001;
 
-/** 纸面 + B1 桌沿带（场景层）。名字沿用 Paper，页面不用改。 */
+/** 纸面 + B1 桌沿带 + B3 饭桌上的碗（场景层）。名字沿用 Paper，页面不用改。 */
 export function Paper() {
   const { timeline: t } = useScene();
   const debug = useDebugFlag();
   const s = backgroundState(gNow(t));
-  if (s.paper <= SHOW && s.table <= SHOW) return null;
   return (
-    <div
-      aria-hidden
-      data-bg="table-group"
-      className="pointer-events-none absolute left-0 top-0 h-full w-full"
-      style={{ zIndex: Z.paper, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
-    >
-      {s.table > SHOW && <TableBand opacity={s.table} debug={debug} />}
-      {s.paper > SHOW && <PaperSheet opacity={s.paper} />}
-    </div>
+    <>
+      {(s.paper > SHOW || s.table > SHOW) && (
+        <div
+          aria-hidden
+          data-bg="table-group"
+          className="pointer-events-none absolute left-0 top-0 h-full w-full"
+          style={{ zIndex: Z.paper, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
+        >
+          {s.table > SHOW && <TableBand opacity={s.table} debug={debug} />}
+          {s.paper > SHOW && <PaperSheet opacity={s.paper} />}
+        </div>
+      )}
+      {s.bowl > SHOW && <TableBowl opacity={s.bowl} debug={debug} />}
+    </>
+  );
+}
+
+/**
+ * B3 饭桌上的碗：两层，夹住碗里的蛋（Z.eggOnTable 63）。
+ *   碗身 / 碗内（data-bg="bowl"）z = Z.paper，DOM 在纸面组之后，所以画在纸面之上、蛋之下；
+ *   前沿遮挡层（data-bg="bowl-front"）z = Z.bowlFront，挡住蛋的下部。
+ * 坐标全部相对 anchors.tableBowl；只跟随主体层视差（和蛋的 FollowMid 一样），不跟随饭桌位移。
+ * 正式图：bowl.src（碗身）和 bowl.srcFront（前沿遮挡层，透明底）都铺满 bowl.box。占位：平涂 SVG，无纹理。
+ */
+function TableBowl({ opacity, debug }: { opacity: number; debug: boolean }) {
+  const B = BG.bowl;
+  const a = BG.anchors.tableBowl;
+  const [bx, by, bw, bh] = B.box;
+  const cx = a.x;
+  const rimY = a.y + B.rim.dy;
+  const { rx, ry } = B.rim;
+  const baseY = a.y + B.baseDy;
+  const footY = a.y + B.footDy;
+  const hw = B.baseHalfW;
+  const P = B.placeholder;
+  const follow = { translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" } as const;
+  const layer = "pointer-events-none absolute left-0 top-0 h-full w-full";
+  // 碗身外轮廓（前半）：前沿下弧 → 右侧弧线到底座 → 底座 → 左侧弧线回到碗沿
+  const body = `M ${cx - rx} ${rimY} A ${rx} ${ry} 0 0 0 ${cx + rx} ${rimY} C ${cx + rx - 6} ${rimY + 55}, ${cx + hw + 30} ${baseY}, ${cx + hw} ${baseY} L ${cx - hw} ${baseY} C ${cx - hw - 30} ${baseY}, ${cx - rx + 6} ${rimY + 55}, ${cx - rx} ${rimY} Z`;
+  const img = (src: string) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" draggable={false} className="absolute select-none" style={{ left: cx + bx, top: a.y + by, width: bw, height: bh }} />
+  );
+  return (
+    <>
+      <div aria-hidden data-bg="bowl" className={layer} style={{ zIndex: Z.paper, opacity, ...follow }}>
+        {B.src ? (
+          img(B.src)
+        ) : (
+          <svg className="absolute left-0 top-0 overflow-visible" width={1} height={1}>
+            <ellipse cx={cx} cy={footY + 4} rx={rx * 0.8} ry={10} fill={P.shadow} />
+            <ellipse cx={cx} cy={rimY} rx={rx} ry={ry} fill={P.inside} stroke={P.line} strokeWidth={3} />
+          </svg>
+        )}
+      </div>
+      <div aria-hidden data-bg="bowl-front" className={layer} style={{ zIndex: Z.bowlFront, opacity, ...follow }}>
+        {B.srcFront ? (
+          img(B.srcFront)
+        ) : (
+          <svg className="absolute left-0 top-0 overflow-visible" width={1} height={1}>
+            <path d={body} fill={P.body} stroke={P.line} strokeWidth={3} strokeLinejoin="round" />
+            <path d={`M ${cx - hw + 8} ${baseY} L ${cx - hw + 14} ${footY} L ${cx + hw - 14} ${footY} L ${cx + hw - 8} ${baseY} Z`} fill={P.body} stroke={P.line} strokeWidth={3} strokeLinejoin="round" />
+          </svg>
+        )}
+        <div data-bg-line="bowl-rim" className="absolute h-0" style={{ left: cx - rx, top: rimY + ry, width: rx * 2 }} />
+        {debug && !B.srcFront && (
+          <span className="absolute whitespace-nowrap rounded bg-white/75 px-2 py-1 font-mono text-[16px] text-[#5b4632]" style={{ left: cx - rx, top: footY + 18 }}>
+            {B.label}
+          </span>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -85,9 +154,11 @@ function TableBand({ opacity, debug }: { opacity: number; debug: boolean }) {
   const T = BG.table;
   const [x, y, w, h] = T.showBox;
   const P = T.placeholder;
+  const fade = `linear-gradient(to bottom, transparent 0, #000 ${T.fadeTop}px)`;
   const band = (y0: number, y1: number, color: string): CSSProperties => ({ position: "absolute", left: 0, width: w, top: y0 - y, height: y1 - y0, background: color });
   return (
-    <div data-bg="table" className="absolute" style={{ left: x, top: y, width: w, height: h, opacity }}>
+    // 上沿 fadeTop 场景像素做透明渐变（遮罩，正式图同样适用）：纸面变薄时（环境段 prejump）厨房和桌沿之间没有硬边
+    <div data-bg="table" className="absolute" style={{ left: x, top: y, width: w, height: h, opacity, maskImage: fade, WebkitMaskImage: fade }}>
       {T.src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={T.src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" style={{ objectFit: "fill" }} />

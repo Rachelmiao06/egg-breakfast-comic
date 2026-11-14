@@ -2,7 +2,8 @@
 // 后景无头检查（headless Chrome over CDP，不依赖 puppeteer）。
 // 对每个视口，从头到尾按固定步长滚过 /preview/background，每个采样点量：
 //   - 蛋元素个数（img[src*="egg.webp"]，必须始终 = 1）
-//   - 交接之后（handoff 进入阶段结束起）蛋是否完全不可见
+//   - 交接之后（handoff 进入阶段结束起）蛋是否完全不可见；唯一例外是环境段 tablecall（碗里的蛋），
+//     这时蛋必须在 B3 碗里（碗不透明度 ≥ 0.9，脚底在碗前沿线之下 = 被前沿遮挡层挡住）
 //   - 蛋在桌沿时（drop 落桌后 → catch 起跳前）脚底是否落在桌面上（B1 的 top 线 ≤ 脚底 ≤ edge 线）且整只蛋在视口内
 //   - 当前后景名（HUD）
 // 并在关键点截图。usage:
@@ -25,7 +26,7 @@ let acc = 0;
 for (const b of beats) { starts[b.id] = acc; acc += b.lengthVh; }
 const total = acc;
 const at = (id, p) => starts[id] + p * beats.find((b) => b.id === id).lengthVh;
-const SHOTS = { opening: at("opening", 0.4), dropMid: at("drop", 0.45), tableLanded: at("drop", 0.95), bag: at("bag", 0.5), hear: at("hear", 0.5), catchFlight: at("catch", 0.45), catchHold: at("catch", 0.92), handoff: at("handoff", 0.6), bowl: at("bowl", 0.8), call: at("call", 0.95), search: at("search", 0.6), eggcall: at("eggcall", 0.5), return: at("return", 0.6), punchline: at("punchline", 0.5), closeup: at("closeup", 0.8) };
+const SHOTS = { opening: at("opening", 0.4), dropMid: at("drop", 0.45), tableLanded: at("drop", 0.95), bag: at("bag", 0.5), prejump: at("prejump", 0.6), hear: at("hear", 0.5), catchFlight: at("catch", 0.45), catchHold: at("catch", 0.92), handoff: at("handoff", 0.6), bowl: at("bowl", 0.8), call: at("call", 0.95), tablecall: at("tablecall", 0.6), tablecallOut: at("tablecall", 0.93), search: at("search", 0.6), eggcall: at("eggcall", 0.5), return: at("return", 0.6), punchline: at("punchline", 0.5), closeup: at("closeup", 0.8) };
 
 const port = 9481;
 // Chrome 配置目录放系统临时目录，不放进仓库（否则 eslint 会扫到里面的 JS）
@@ -55,10 +56,11 @@ const MEASURE = `(() => {
   const W=r(wrap);
   const top=document.querySelector('[data-bg-line="top"]'), edge=document.querySelector('[data-bg-line="edge"]');
   const table=document.querySelector('[data-bg="table"]');
+  const rim=document.querySelector('[data-bg-line="bowl-rim"]'), bowl=document.querySelector('[data-bg="bowl"]');
   const hud=document.querySelector('[data-hud]');
   return {eggCount:eggs.length, eggOpacity:+op.toFixed(3), egg:W, foot:W&&+(W.y+W.h).toFixed(1), cx:W&&+(W.x+W.w/2).toFixed(1),
     topY:top?+top.getBoundingClientRect().y.toFixed(1):null, edgeY:edge?+edge.getBoundingClientRect().y.toFixed(1):null,
-    tableOpacity:table?+getComputedStyle(table).opacity:0, hud:hud?hud.innerText.replace(/\\n/g,' | '):null, vw:innerWidth, vh:innerHeight, vhNow:+(scrollY/innerHeight*100).toFixed(1)};
+    tableOpacity:table?+getComputedStyle(table).opacity:0, rimY:rim?+rim.getBoundingClientRect().y.toFixed(1):null, bowlOpacity:bowl?+getComputedStyle(bowl).opacity:0, hud:hud?hud.innerText.replace(/\\n/g,' | '):null, vw:innerWidth, vh:innerHeight, vhNow:+(scrollY/innerHeight*100).toFixed(1)};
 })()`;
 
 const go = async (vh, settle = 700) => {
@@ -69,6 +71,7 @@ const beatOf = (vh) => { let b = beats[0]; for (const x of beats) if (vh >= star
 // 蛋在桌沿：drop 落定（动作阶段 0.15+0.6 = 0.75 之后，留 0.05 余量）→ catch 起跳（enter 0.22）之前
 const onTable = (vh) => vh >= at("drop", 0.8) && vh <= at("catch", 0.2);
 const afterHandoff = (vh) => vh >= at("handoff", 0.36);
+const inTablecall = (vh) => vh >= starts.tablecall && vh < starts.search;
 
 if (process.env.RECORD) {
   const [w, h] = sizes[0];
@@ -119,7 +122,7 @@ for (const [w, h] of sizes) {
   await send("Page.navigate", { url: `${base}/preview/background` });
   await sleep(5000);
   const samples = [];
-  const stat = { samples: 0, eggCountBad: 0, eggAfterHandoff: 0, tableChecks: 0, tableBad: 0, footMin: Infinity, footMax: -Infinity, bgSeq: [] };
+  const stat = { samples: 0, eggCountBad: 0, eggAfterHandoff: 0, bowlChecks: 0, bowlBad: 0, tableChecks: 0, tableBad: 0, footMin: Infinity, footMax: -Infinity, bgSeq: [] };
   for (let vh = 0; vh <= total; vh += step) {
     await go(vh, 350);
     const m = await evalJs(MEASURE);
@@ -128,7 +131,12 @@ for (const [w, h] of sizes) {
     if (stat.bgSeq.at(-1) !== bg) stat.bgSeq.push(bg);
     stat.samples++;
     if (m.eggCount !== 1) { stat.eggCountBad++; fails.push(`${key} ${vh}vh ${b.id}: ${m.eggCount} egg elements`); }
-    if (afterHandoff(vh) && m.eggOpacity > 0.001) { stat.eggAfterHandoff++; fails.push(`${key} ${vh}vh ${b.id} p${b.p.toFixed(2)}: egg visible after handoff (opacity ${m.eggOpacity})`); }
+    if (inTablecall(vh) && m.eggOpacity > 0.05) {
+      stat.bowlChecks++;
+      const inView = m.egg.x >= 0 && m.egg.x + m.egg.w <= m.vw && m.egg.y >= 0 && m.foot <= m.vh;
+      const inBowl = m.bowlOpacity >= 0.9 && m.rimY !== null && m.foot > m.rimY;
+      if (!inView || !inBowl) { stat.bowlBad++; fails.push(`${key} ${vh}vh tablecall p${b.p.toFixed(2)}: egg foot ${m.foot}, bowl rim ${m.rimY}, bowl opacity ${m.bowlOpacity}, inView ${inView}`); }
+    } else if (afterHandoff(vh) && !inTablecall(vh) && m.eggOpacity > 0.001) { stat.eggAfterHandoff++; fails.push(`${key} ${vh}vh ${b.id} p${b.p.toFixed(2)}: egg visible after handoff (opacity ${m.eggOpacity})`); }
     if (onTable(vh)) {
       stat.tableChecks++;
       // 脚底相对桌面（屏幕 px）：0 = 上沿，1 = 前缘
