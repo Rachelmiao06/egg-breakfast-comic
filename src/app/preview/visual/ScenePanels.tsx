@@ -22,8 +22,9 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
   const [a0, a1] = slot.appearFlight ?? [0.2, 0.45];
   let k = 0;
   if (flow) {
-    // 新版：蛋在桌沿等着时，妈妈这一格先从下方升起；蛋随后起跳飞进来
-    if (t.beat.egg === "flight") k = t.phase === "enter" ? t.phaseP : 1;
+    // 新版：蛋在桌沿等着时，妈妈这一格先从下方升起，在进入阶段的 62% 处就落定；
+    // 剩下约 17vh 格子静止、铲面留空，镜头拉回让右侧等待的蛋入画，动作阶段开始蛋才起跳（不会先飞向空白）
+    if (t.beat.egg === "flight") k = t.phase === "enter" ? Math.min(1, t.phaseP / 0.62) : 1;
   } else if (t.beat.egg === "flight" && flight !== null) k = Math.min(1, Math.max(0, (flight - a0) / (a1 - a0)));
   const handIn = t.beat.id === "handoff" ? phaseProgress(t, "enter") : 0;
   // 交接：接蛋格先较快淡出，交接格稍后淡入，减少两格重叠的时间
