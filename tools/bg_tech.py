@@ -32,17 +32,23 @@ EGG = 388  # egg.webp 边长（元素像素）
 def egg_box(foot, scale):  # 场景像素：蛋身外接框（含轻跳 23、压扁加宽 16%）
     w = EGG * scale; hop = 46 * scale
     return (foot["x"] - w * 0.58, foot["y"] - w - hop, foot["x"] + w * 0.58, foot["y"] + 8 * scale + 23 * scale)
-# 桌沿等待点 = 起跳点（feat/background-scenes 的 eggPath.ts，按布局推出：铲面落点右侧 0.8 个蛋宽，夹在接蛋镜头内；
-# 窄布局蛋按接蛋格缩小比例缩小）。这里按各视口的接蛋格宽度重算缩放；x 取该会话当前算出的值。
-def narrow_scale(vw, vh):
-    s = max(vw / 1536, vh / 1024) * 1.08; vis = vw / s
-    return 0.5 * min(1, vis * 0.94 / 900)
+# 桌沿等待点 = 起跳点和桌沿蛋缩放：由 src/app/preview/visual/eggPath.ts 按各视口布局算出（铲面落点右侧、接蛋格右缘之外，
+# 夹在接蛋镜头内；窄布局蛋按接蛋格缩小比例缩小）。这里不手写数值，直接调用 tools/bg_constraints.mjs --json（它逐行复刻 eggPath.ts），
+# 所以表格和模板里的每个数都能从代码重算出来。
+import subprocess
+_rows = json.loads(subprocess.run(["node", "tools/bg_constraints.mjs", "--json", "1600x900,1440x900,1024x768,860x1000,390x844"],
+                                  capture_output=True, text=True, env={**os.environ}).stdout)
+_R = {r["vp"]: r for r in _rows}
+def _egg(vp):
+    r = _R[vp]; x, y = map(int, r["wait"].split(","))
+    return ({"x": x, "y": y}, r["eggAtTable"])
 eggs = {
-    "16:9 / 16:10": ({"x": 1233, "y": 965}, 0.5),
-    "4:3 1024×768": ({"x": 1122, "y": 990}, narrow_scale(1024, 768)),
-    "860×1000": ({"x": 943, "y": 990}, narrow_scale(860, 1000)),
-    "390×844": ({"x": 793, "y": 990}, narrow_scale(390, 844)),
+    "16:9 1600×900 / 16:10 1440×900": _egg("1600×900"),
+    "4:3 1024×768": _egg("1024×768"),
+    "860×1000": _egg("860×1000"),
+    "390×844": _egg("390×844"),
 }
+assert _egg("1600×900") == _egg("1440×900"), "16:9 与 16:10 的等待点不同，需要分开列"
 b1 = {
     "file": "table-band.png（或 .webp），放 public/assets/scene/",
     "canvas_px": [IW, IH], "aspect": f"{IW // 800}:{IH // 800}（5:1）",

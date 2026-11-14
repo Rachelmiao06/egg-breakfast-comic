@@ -8,7 +8,7 @@
  * 听见格 p3d：原格 → 抬眼 → 疑惑，只换眉眼和嘴（与原格逐像素对齐），硬切，不做交叉淡化，不晃动整张脸；停在疑惑。
  *   同样在越过 0.36（“啵”之后）开始，先停 0.5 秒再抬眼，1.3 秒时露出疑惑。
  * 两格表演进行时在 <html data-comic-perf> 上做标记，后景的蛋暂缓小跳，不抢前景。
- * 减少动态效果或 ?perf=0：显示原静态格（对比录屏用）。
+ * 减少动态效果或 ?perf=0：显示原静态格（对比录屏用）；切菜格仍在同一时机按同样节奏放三下刀声，画面不动。
  */
 import gsap from "gsap";
 import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
@@ -77,10 +77,16 @@ export function ChopPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place
   };
   const play = () => {
     const el = arm.current;
-    if (!el) return;
     reset();
-    flag(true);
     const contact = () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit" } }));
+    if (!animate || !el) {
+      // 静态格（减少动态效果 / ?perf=0）：画面不动，刀声按同样的节奏响三下（切菜循环已撤，否则这一段没有刀声）
+      const t = gsap.timeline({ delay: 0.3 + 0.295, onComplete: () => { tl.current = null; } });
+      t.call(contact).call(contact, [], "+=0.58").call(contact, [], "+=0.58");
+      tl.current = t;
+      return;
+    }
+    flag(true);
     const t = gsap.timeline({ delay: 0.3, onComplete: () => { tl.current = null; flag(false); } });
     for (let i = 0; i < 3; i++) {
       t.to(el, { rotation: -9, yPercent: -3, duration: 0.17, ease: "power2.out" }) // 抬刀（绕袖口）
@@ -92,7 +98,7 @@ export function ChopPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place
     }
     tl.current = t;
   };
-  useCrossing(q, animate, play, stop, reset);
+  useCrossing(q, true, play, stop, reset); // 静态格也走同一套越过 / 复位逻辑（只放刀声）
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>

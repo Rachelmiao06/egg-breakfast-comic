@@ -1,53 +1,232 @@
 "use client";
 /**
- * 后景换场（新版）：配置在 backgrounds.json。
- * - Paper：场景层里的浅纸面，盖住厨房（灶台、锅、墙），下沿留出连续的桌沿；在近景物件之上、桌沿蛋之下。
- * - Hallway：寻找段的外围背景占位：干净暖米白平涂（无纹理），页面层，在漫画之下；占位说明只在 ?debug=1 显示。
- * 两者都只改不透明度，不卸载任何角色层。
+ * 后景换场（连续版）。全部数据在 backgrounds.json；正式图到位后只改那里的 src / srcPortrait，不改这个文件。
+ *
+ * 一条连续的后景，按故事顺序：
+ *   厨房分层（KitchenLayers，只读）
+ *   → 桌沿 + 纸面：<Paper/>，场景层 z = Z.paper，在近景物件之上、桌沿蛋之下。
+ *       一个跟随主体层视差（--kl-mid-x/y，和蛋的 FollowMid 同一组变量）的整体：
+ *       B1 桌沿带（table）在下，纸面（paper）在上，纸面下沿羽化到桌面上。蛋和桌沿因此锁在一起。
+ *   → 环境段 prejump（桌沿上的蛋准备起跳）：纸面降到半透明（curves.paper），活着的厨房从桌沿后面透出来，
+ *       这一段没有漫画格，后景就是画面主体。
+ *   → 饭桌：蛋交给漫画之后（curves.dinner），纸面 + 桌沿整体下移 22 场景像素（饭桌更近，桌面让出碗的底座）。
+ *   → 环境段 tablecall（空饭桌上碗里的蛋在喊）：B3 占位碗（curves.bowl），碗身 z 62（蛋之下）、前沿遮挡层 Z.bowlFront（蛋之上），
+ *       位置全部相对 anchors.tableBowl，与蛋的脚底点对位；碗只跟随主体层视差，不跟随饭桌位移，所以永远和蛋锁在一起。
+ *   → 寻找段外围：<HallwayBackdrop/> 里的 SearchSurround，页面层（fixed z-5，漫画之下），横版 / 竖版两张，
+ *       进场时从右往左持续漂移（curves.hallwayDrift），像镜头转到家里另一处；淡出后露回饭桌。
+ *   → 收尾：<HallwayBackdrop/> 里的 EndingSheet，干净暖米白平涂，盖住一切（含桌沿）。
+ *
+ * 规则：只改不透明度和位移；不卸载任何角色层（各层自己在不透明度≈0 时返回 null，蛋不受影响）；
+ * 不画第二只蛋或锅；占位只用平涂色块，说明文字只在 ?debug=1 显示。
+ * 导出名 Paper / HallwayBackdrop 不变，preview/visual/page.tsx 不需要改。
  */
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type CSSProperties } from "react";
 import { Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import { BG, curve, gNow } from "./motion.v2";
+import { useViewport } from "./viewport";
 
+type Keys = [string, number, number][];
+type CurveName = keyof typeof BG.curves;
+/** 读一条后景曲线（backgrounds.json curves） */
+export const bgCurve = (name: CurveName, g: number) => curve(BG.curves[name] as Keys, g);
+
+/** 当前各后景层的状态（预览 HUD 和无头检查也读它） */
+export function backgroundState(g: number) {
+  const paper = bgCurve("paper", g);
+  const table = bgCurve("table", g);
+  const hallway = bgCurve("hallway", g);
+  const ending = bgCurve("ending", g);
+  const bowl = bgCurve("bowl", g);
+  const lift = bgCurve("dinner", g);
+  const name =
+    ending > 0.5 ? "ending" : hallway > 0.5 ? "search" : bowl > 0.5 ? "table-call" : table > 0.5 ? (lift > 1 ? "dinner-table" : paper < 0.9 ? "table-edge+kitchen" : "table-edge") : "kitchen";
+  return { paper, table, hallway, ending, bowl, lift, drift: bgCurve("hallwayDrift", g) * BG.hallway.driftPct, name };
+}
+
+const SHOW = 0.001;
+
+/** 纸面 + B1 桌沿带 + B3 饭桌上的碗（场景层）。名字沿用 Paper，页面不用改。 */
 export function Paper() {
   const { timeline: t } = useScene();
-  const a = curve(BG.curves.paper as [string, number, number][], gNow(t));
-  if (a <= 0.001) return null;
+  const debug = useDebugFlag();
+  const s = backgroundState(gNow(t));
+  return (
+    <>
+      {(s.paper > SHOW || s.table > SHOW) && (
+        <div
+          aria-hidden
+          data-bg="table-group"
+          className="pointer-events-none absolute left-0 top-0 h-full w-full"
+          style={{ zIndex: Z.paper, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
+        >
+          {s.table > SHOW && <TableBand opacity={s.table} debug={debug} />}
+          {s.paper > SHOW && <PaperSheet opacity={s.paper} />}
+        </div>
+      )}
+      {s.bowl > SHOW && <TableBowl opacity={s.bowl} debug={debug} />}
+    </>
+  );
+}
+
+/**
+ * B3 饭桌上的碗：两层，夹住碗里的蛋（Z.eggOnTable 63）。
+ *   碗身 / 碗内（data-bg="bowl"）z = Z.paper，DOM 在纸面组之后，所以画在纸面之上、蛋之下；
+ *   前沿遮挡层（data-bg="bowl-front"）z = Z.bowlFront，挡住蛋的下部。
+ * 坐标全部相对 anchors.tableBowl；只跟随主体层视差（和蛋的 FollowMid 一样），不跟随饭桌位移。
+ * 图片：bowl.src（碗身）和 bowl.srcFront（前沿遮挡层，透明底）都铺满 bowl.box。现在接的是复用素材（第 3 页 p3b 的碗，tools/prepare_bowl.py）；
+ * 两个 src 都为 null 时退回平涂 SVG 占位，无纹理。
+ */
+function TableBowl({ opacity, debug }: { opacity: number; debug: boolean }) {
+  const B = BG.bowl;
+  const a = BG.anchors.tableBowl;
+  const [bx, by, bw, bh] = B.box;
+  const cx = a.x;
+  const rimY = a.y + B.rim.dy;
+  const { rx, ry } = B.rim;
+  const baseY = a.y + B.baseDy;
+  const footY = a.y + B.footDy;
+  const hw = B.baseHalfW;
+  const P = B.placeholder;
+  const follow = { translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" } as const;
+  const layer = "pointer-events-none absolute left-0 top-0 h-full w-full";
+  // 碗身外轮廓（前半）：前沿下弧 → 右侧弧线到底座 → 底座 → 左侧弧线回到碗沿
+  const body = `M ${cx - rx} ${rimY} A ${rx} ${ry} 0 0 0 ${cx + rx} ${rimY} C ${cx + rx - 6} ${rimY + 55}, ${cx + hw + 30} ${baseY}, ${cx + hw} ${baseY} L ${cx - hw} ${baseY} C ${cx - hw - 30} ${baseY}, ${cx - rx + 6} ${rimY + 55}, ${cx - rx} ${rimY} Z`;
+  const img = (src: string) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" draggable={false} className="absolute select-none" style={{ left: cx + bx, top: a.y + by, width: bw, height: bh }} />
+  );
+  return (
+    <>
+      <div aria-hidden data-bg="bowl" className={layer} style={{ zIndex: Z.paper, opacity, ...follow }}>
+        {/* 接触阴影（代码画，平涂）：正式图和占位都用 */}
+        <svg className="absolute left-0 top-0 overflow-visible" width={1} height={1}>
+          <ellipse cx={cx} cy={footY + 2} rx={rx * 0.62} ry={9} fill={P.shadow} />
+          {!B.src && <ellipse cx={cx} cy={rimY} rx={rx} ry={ry} fill={P.inside} stroke={P.line} strokeWidth={3} />}
+        </svg>
+        {B.src && img(B.src)}
+      </div>
+      <div aria-hidden data-bg="bowl-front" className={layer} style={{ zIndex: Z.bowlFront, opacity, ...follow }}>
+        {B.srcFront ? (
+          img(B.srcFront)
+        ) : (
+          <svg className="absolute left-0 top-0 overflow-visible" width={1} height={1}>
+            <path d={body} fill={P.body} stroke={P.line} strokeWidth={3} strokeLinejoin="round" />
+            <path d={`M ${cx - hw + 8} ${baseY} L ${cx - hw + 14} ${footY} L ${cx + hw - 14} ${footY} L ${cx + hw - 8} ${baseY} Z`} fill={P.body} stroke={P.line} strokeWidth={3} strokeLinejoin="round" />
+          </svg>
+        )}
+        <div data-bg-line="bowl-rim" className="absolute h-0" style={{ left: cx - rx, top: rimY + ry, width: rx * 2 }} />
+        {debug && !B.srcFront && (
+          <span className="absolute whitespace-nowrap rounded bg-white/75 px-2 py-1 font-mono text-[16px] text-[#5b4632]" style={{ left: cx - rx, top: footY + 18 }}>
+            {B.label}
+          </span>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** 纸面：盖住厨房（灶台、锅、墙），下沿在 paper.edgeY 处羽化，露出桌面 */
+function PaperSheet({ opacity }: { opacity: number }) {
   const { edgeY, feather, color } = BG.paper;
   return (
     <div
-      aria-hidden
-      className="pointer-events-none absolute"
+      data-bg="paper"
+      className="absolute"
       style={{
         left: -400,
         top: -400,
         width: 1536 + 800,
         height: edgeY + 400,
-        zIndex: Z.paper,
-        opacity: a,
-        background: `linear-gradient(to bottom, ${color} 0, ${color} calc(100% - ${feather}px), rgba(247,238,221,0) 100%)`,
+        opacity,
+        background: `linear-gradient(to bottom, ${color} 0, ${color} calc(100% - ${feather}px), ${transparent(color)} 100%)`,
       }}
     />
   );
 }
 
+/**
+ * B1 桌沿带。正式图：table.src 铺满 table.showBox（场景像素）。占位：平涂色块。
+ * 两条零高度标记线（data-bg-line="top" / "edge"）给无头检查量“蛋脚底是否在桌面上”。
+ */
+function TableBand({ opacity, debug }: { opacity: number; debug: boolean }) {
+  const T = BG.table;
+  const [x, y, w, h] = T.showBox;
+  const P = T.placeholder;
+  const fade = `linear-gradient(to bottom, transparent 0, #000 ${T.fadeTop}px)`;
+  const band = (y0: number, y1: number, color: string): CSSProperties => ({ position: "absolute", left: 0, width: w, top: y0 - y, height: y1 - y0, background: color });
+  return (
+    // 上沿 fadeTop 场景像素做透明渐变（遮罩，正式图同样适用）：纸面变薄时（环境段 prejump）厨房和桌沿之间没有硬边
+    <div data-bg="table" className="absolute" style={{ left: x, top: y, width: w, height: h, opacity, maskImage: fade, WebkitMaskImage: fade }}>
+      {T.src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={T.src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" style={{ objectFit: "fill" }} />
+      ) : (
+        <>
+          <div style={band(y, T.topY, P.paper)} />
+          <div style={band(T.topY, T.edgeY, P.top)} />
+          <div style={band(T.edgeY, T.faceY, P.face)} />
+          <div style={band(T.faceY, y + h, P.below)} />
+        </>
+      )}
+      <div data-bg-line="top" className="absolute left-0 h-0" style={{ top: T.topY - y, width: w }} />
+      <div data-bg-line="edge" className="absolute left-0 h-0" style={{ top: T.edgeY - y, width: w, borderTop: debug ? "2px dashed rgba(180,60,40,.6)" : undefined }} />
+      {debug && !T.src && (
+        <span className="absolute rounded bg-white/75 px-2 py-1 font-mono text-[18px] text-[#5b4632]" style={{ left: 232 + 700, top: T.edgeY - y + 12 }}>
+          {T.label}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** 寻找段外围 + 收尾（页面层，漫画之下）。名字沿用 HallwayBackdrop，页面不用改。 */
 export function HallwayBackdrop() {
   const { timeline: t } = useScene();
   const debug = useDebugFlag();
-  // 寻找段外围 + 收尾：同一层干净暖米白平涂（收尾时盖住桌腿和木纹横带）
-  const a = Math.max(curve(BG.curves.hallway as [string, number, number][], gNow(t)), curve(BG.curves.ending as [string, number, number][], gNow(t)));
-  if (a <= 0.001) return null;
-  // 正式后景到位前：干净的暖米白平涂，不加任何装饰纹理；占位说明只在 ?debug=1 显示
+  const s = backgroundState(gNow(t));
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none fixed inset-0 z-[5] grid place-items-end justify-items-start p-6"
-      style={{ opacity: a, background: BG.hallway.color }}
-    >
-      {debug && <span className="rounded bg-white/70 px-2 py-1 font-mono text-[12px] text-[#5b4632]">{BG.hallway.label}（{BG.hallway.status}）</span>}
+    <>
+      {s.hallway > SHOW && <SearchSurround opacity={s.hallway} driftPct={s.drift} debug={debug} />}
+      {s.ending > SHOW && <EndingSheet opacity={s.ending} />}
+    </>
+  );
+}
+
+/** B2 寻找段外围：浅色墙面 + 局部门框 + 纸白。横版 / 竖版按视口选；占位是平涂 */
+function SearchSurround({ opacity, driftPct, debug }: { opacity: number; driftPct: number; debug: boolean }) {
+  const H = BG.hallway;
+  const vp = useViewport();
+  // 视口宽高比低于 portraitBelow（竖屏、窄窗口 860×1000）用竖版，否则横版
+  const portrait = vp.w / vp.h < H.portraitBelow;
+  const src = portrait ? (H.srcPortrait ?? H.src) : H.src;
+  const pad = H.driftPct;
+  return (
+    <div aria-hidden data-bg="search" className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity, background: H.color }}>
+      {/* 比视口左右各宽 driftPct%，漂移时不露边 */}
+      <div className="absolute inset-y-0" style={{ left: `-${pad}%`, right: `-${pad}%`, transform: `translateX(${driftPct.toFixed(3)}vw)` }}>
+        {src && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none object-cover" style={{ objectPosition: `${H.focus[0] * 100}% ${H.focus[1] * 100}%` }} />
+        )}
+      </div>
+      {debug && !src && (
+        <span className="absolute bottom-6 left-6 rounded bg-white/70 px-2 py-1 font-mono text-[12px] text-[#5b4632]">
+          {H.label}（{portrait ? "竖版" : "横版"}，{H.status}）
+        </span>
+      )}
     </div>
   );
+}
+
+/** 收尾：干净暖米白平涂，盖住桌腿和木纹横带 */
+function EndingSheet({ opacity }: { opacity: number }) {
+  return <div aria-hidden data-bg="ending" className="pointer-events-none fixed inset-0 z-[5]" style={{ opacity, background: BG.ending.color }} />;
+}
+
+function transparent(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0)`;
 }
 
 function useDebugFlag() {

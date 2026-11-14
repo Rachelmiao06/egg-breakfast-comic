@@ -81,7 +81,8 @@ function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number,
   return {
     x: bez(A.x, cx, B.x, k),
     y: bez(A.y, cy, B.y, k),
-    scale: A.scale + (B.scale - A.scale) * k + 0.12 * Math.sin(Math.PI * k),
+    // 中途略放大（靠近镜头）：按起落两站中较小的缩放取相对量，窄屏缩小的蛋不会在半空突然变大一半
+    scale: A.scale + (B.scale - A.scale) * k + 0.24 * Math.min(A.scale, B.scale) * Math.sin(Math.PI * k),
     rotation: spin * Math.sin(Math.PI * k),
   };
 }
