@@ -60,9 +60,11 @@ const MEASURE = `(() => {
   const table=document.querySelector('[data-bg="table"]');
   const rim=document.querySelector('[data-bg-line="bowl-rim"]'), bowl=document.querySelector('[data-bg="bowl"]');
   const hud=document.querySelector('[data-hud]');
+  const actors=[...document.querySelectorAll('[data-actor]')].map(e=>e.style.transform);
+  const egg2=[...document.images].filter(i=>i.src.includes('egg.webp')).length;
   return {eggCount:eggs.length, eggOpacity:+op.toFixed(3), egg:W, foot:W&&+(W.y+W.h).toFixed(1), cx:W&&+(W.x+W.w/2).toFixed(1),
     topY:top?+top.getBoundingClientRect().y.toFixed(1):null, edgeY:edge?+edge.getBoundingClientRect().y.toFixed(1):null,
-    tableOpacity:table?+getComputedStyle(table).opacity:0, rimY:rim?+rim.getBoundingClientRect().y.toFixed(1):null, bowlOpacity:bowl?+getComputedStyle(bowl).opacity:0, hud:hud?hud.innerText.replace(/\\n/g,' | '):null, vw:innerWidth, vh:innerHeight, vhNow:+(scrollY/innerHeight*100).toFixed(1)};
+    tableOpacity:table?+getComputedStyle(table).opacity:0, actors, rimY:rim?+rim.getBoundingClientRect().y.toFixed(1):null, bowlOpacity:bowl?+getComputedStyle(bowl).opacity:0, hud:hud?hud.innerText.replace(/\\n/g,' | '):null, vw:innerWidth, vh:innerHeight, vhNow:+(scrollY/innerHeight*100).toFixed(1)};
 })()`;
 
 const go = async (vh, settle = 700) => {
@@ -211,6 +213,8 @@ const fails = [];
 for (const [w, h] of sizes) {
   const key = `${w}x${h}`;
   await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
+  // REDUCED=1：模拟“减少动态效果”
+  await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: process.env.REDUCED ? "reduce" : "no-preference" }] });
   await send("Page.navigate", { url: `${base}/preview/background` });
   await sleep(5000);
   if (SHOTS_ONLY) {
@@ -224,13 +228,19 @@ for (const [w, h] of sizes) {
   }
   const samples = [];
   const stat = { samples: 0, eggCountBad: 0, eggAfterHandoff: 0, bowlChecks: 0, bowlBad: 0, tableChecks: 0, tableBad: 0, footMin: Infinity, footMax: -Infinity, bgSeq: [] };
-  for (let vh = 0; vh <= total; vh += step) {
+  // REVERSE=1：从结尾往开头倒着滚；JUMPS=n：在全程随机跳 n 次（快速跳段）
+  let order = [];
+  for (let vh = 0; vh <= total; vh += step) order.push(vh);
+  if (process.env.REVERSE) order.reverse();
+  if (process.env.JUMPS) { let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647); order = Array.from({ length: +process.env.JUMPS }, () => Math.round(rnd() * total)); }
+  for (const vh of order) {
     await go(vh, 350);
     const m = await evalJs(MEASURE);
     const b = beatOf(vh);
     const bg = m.hud?.match(/后景 (\S+)/)?.[1] ?? "?";
     if (stat.bgSeq.at(-1) !== bg) stat.bgSeq.push(bg);
     stat.samples++;
+    if (process.env.REDUCED && m.actors.some((t) => !/rotate\(0(\.00)?deg\)/.test(t))) fails.push(`${key} ${vh}vh: actor moves under reduced motion ${m.actors.join(" ")}`);
     if (m.eggCount !== 1) { stat.eggCountBad++; fails.push(`${key} ${vh}vh ${b.id}: ${m.eggCount} egg elements`); }
     if (inTablecall(vh) && m.eggOpacity > 0.05) {
       stat.bowlChecks++;
@@ -250,7 +260,7 @@ for (const [w, h] of sizes) {
     }
     samples.push({ vh, beat: b.id, p: +b.p.toFixed(3), bg, ...m, hud: undefined });
   }
-  for (const [name, vh] of Object.entries(SHOTS)) {
+  for (const [name, vh] of Object.entries(process.env.REVERSE || process.env.JUMPS || process.env.REDUCED ? {} : SHOTS)) {
     await go(vh - 4, 300);
     await go(vh, 1600);
     const shot = await send("Page.captureScreenshot", { format: "jpeg", quality: 70 });

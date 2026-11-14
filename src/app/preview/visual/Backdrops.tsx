@@ -105,14 +105,66 @@ export function Paper() {
 function ReadingKitchen({ opacity }: { opacity: number }) {
   const R = BG.reading;
   const vp = useViewport();
+  const { timeline: t, reducedMotion } = useScene();
   const portrait = !!R.srcPortrait && vp.w / vp.h < R.portraitBelow;
   const [x, y, w, h] = portrait ? R.boxPortrait : R.box;
   const c = portrait ? R.counterPortrait : R.counter;
-  const src = portrait ? R.srcPortrait : R.src;
+  // 横版有拆好的小角色层：底图换成补好的那张，角色和遮挡物叠在上面（角度 0 时与原图一致）
+  const actors = !portrait && R.srcBase ? R.actors : [];
+  const src = portrait ? R.srcPortrait : actors.length ? R.srcBase : R.src;
+  const [iw, ih] = R.size;
+  const pct = (b: number[]) => ({ left: `${(b[0] / iw) * 100}%`, top: `${(b[1] / ih) * 100}%`, width: `${(b[2] / iw) * 100}%`, height: `${(b[3] / ih) * 100}%` });
+  const g = gNow(t);
   return (
     <div data-bg="reading" data-variant={portrait ? "portrait" : "landscape"} className="absolute" style={{ left: x, top: y, width: w, height: h, opacity }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
+      {actors.map((a) => {
+        const deg = reducedMotion ? 0 : Math.min(a.range[1], Math.max(a.range[0], bgCurve(a.curve as CurveName, g)));
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={a.id}
+            data-actor={a.id}
+            src={a.src}
+            alt=""
+            draggable={false}
+            className="absolute select-none"
+            style={{ ...pct(a.img), transform: `rotate(${deg.toFixed(2)}deg)`, transformOrigin: `${((a.pivot[0] - a.img[0]) / a.img[2]) * 100}% ${((a.pivot[1] - a.img[1]) / a.img[3]) * 100}%` }}
+          />
+        );
+      })}
+      {/* 远景：窗外的树比墙面慢一点（横向），阅读停留时镜头不动，它也不动；减少动态效果时不做 */}
+      {!portrait &&
+        !reducedMotion &&
+        R.window.panes.map((p, i) => {
+          const pw = p[2] - p[0], ph = p[3] - p[1];
+          return (
+            <div key={i} data-window-pane={i} className="absolute overflow-hidden" style={pct([p[0], p[1], pw, ph])}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                draggable={false}
+                className="absolute max-w-none select-none"
+                style={{
+                  left: `${(-p[0] / pw) * 100}%`,
+                  top: `${(-p[1] / ph) * 100}%`,
+                  width: `${(iw / pw) * 100}%`,
+                  height: `${(ih / ph) * 100}%`,
+                  transformOrigin: `${((p[0] + pw / 2) / iw) * 100}% ${((p[1] + ph / 2) / ih) * 100}%`,
+                  transform: `scale(${R.window.scale})`,
+                  translate: `calc((var(--kl-counter-x, 0px) - var(--kl-mid-x, 0px)) * ${R.window.parallax}) 0px`,
+                }}
+              />
+            </div>
+          );
+        })}
+      {actors.length > 0 &&
+        R.occluders.map((o) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={o.id} data-occluder={o.id} src={o.src} alt="" draggable={false} className="absolute select-none" style={pct(o.img)} />
+        ))}
       <div data-bg-line="top" className="absolute left-0 h-0 w-full" style={{ top: c.backY - y }} />
       <div data-bg-line="edge" className="absolute left-0 h-0 w-full" style={{ top: c.frontY - y }} />
     </div>
