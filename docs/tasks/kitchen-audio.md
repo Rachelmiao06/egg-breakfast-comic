@@ -42,6 +42,17 @@
 - 浏览器验证（/preview/visual，背景标签页用计时器代替 rAF 驱动滚动）：见本文件下方"验证记录"。
 - **未能做到：人耳监听。** 我没有音频输出通路，所有"听感"项（接缝是否可闻、sauce/chop 是否太轻、炒菜段 sizzle 是否自然）只能交给用户用上面的 mp3/mp4 或预览页判断。iOS 真机未测。
 
+## 循环接缝修复与空位决定（2026-11-14 晚）
+
+- room 回绕掉音已修（根因：限幅器 5 ms 前瞻在文件开头写入约 4 ms 静音，四个循环都有）。修法和 1 ms 分辨率的前后对比见 `public/assets/audio/README.md`「循环接缝」，验收命令 `node tools/audio_seam_check.mjs`。真实浏览器录音待素材会话重跑；人耳未试听。
+- 用户决定：翻炒复用 sizzle、不新增文件；pour 留空；momCall / eggCall / eggSmall 保留漫画文字、不加合成配音、留空。
+- steps / pop 候选（已核对许可页，**未下载、未试听**，下载需用户同意）：
+  - steps：「01-24 Footsteps, Rug, Slippers, Slow Pace」，SpliceSound（Freesound）/ freesound_community，Pixabay Content License，30 s，地毯上穿拖鞋慢走。https://pixabay.com/sound-effects/film-special-effects-01-24-footsteps-rug-slippers-slow-pace-73912/
+    备选（CC0，Freesound 下载需登录）：dynamique「Quiet footsteps indoors rubber shoes」18 s，https://freesound.org/people/dynamique/sounds/613723/ ；sturmankin「wood_03b_slippers_shuffle」36 s（拖鞋蹭地，非走路），https://freesound.org/people/sturmankin/sounds/273378/
+  - pop：「Happy Pop 1」，floraphonic（与 sizzle、chop 同一作者），Pixabay Content License，约 1 s，可爱的小气泡「啵」。https://pixabay.com/sound-effects/film-special-effects-happy-pop-1-185286/
+    备选：floraphonic「Jug Pop 1」约 1 s（口腔「啵」声）。
+  - 批准后的处理：steps 取一段做零交叉旋转 + 交叉淡化循环、电平按 search 段 0.5 起步再按听感调；pop 裁到起音、短淡出；两者加进 `available`、LICENSES.md / CREDITS.md 记一行。
+
 ## 需要集成会话改：
 
 - 无需改 beats 数据：音量和触发点都在 audio-map.json。若试听后要调 sauce（0.4）/ chop（0.5）/ 炒菜段 sizzle（0.45），改 audio-map.json 即可。
