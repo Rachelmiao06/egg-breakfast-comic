@@ -11,5 +11,7 @@
 | 05-egg-on-spatula.mp3 | soft plop | https://pixabay.com/sound-effects/film-special-effects-soft-plop-97691/ | freesound_community | Pixabay Content License |
 | 06-bowl-on-table.wav | Bowl placed on table (id 1799) | https://mixkit.co/free-sound-effects/kitchen/ | Mixkit | Mixkit Sound Effects Free License |
 | 08-kitchen-ambience.mp3 | Kitchen room tone day | https://pixabay.com/sound-effects/film-special-effects-kitchen-room-tone-day-61809/ | freesound_community | Pixabay Content License |
+| footsteps-loop.mp3（2026-11-14 补） | 01-24 Footsteps, Rug, Slippers, Slow Pace | https://pixabay.com/sound-effects/film-special-effects-01-24-footsteps-rug-slippers-slow-pace-73912/ | SpliceSound（Freesound）/ freesound_community | Pixabay Content License |
+| pop.mp3（2026-11-14 补） | Happy Pop 1 | https://pixabay.com/sound-effects/film-special-effects-happy-pop-1-185286/ | floraphonic | Pixabay Content License |
 
 使用提示（来自测量，未试听）：03 前 0.9 s 静音、04 前 0.8 s 静音、05 前 0.3 s 静音，接入时可裁掉；08 原文件约 -46 LUFS，需明显提升音量；01 可直接首尾循环。

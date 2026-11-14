@@ -21,24 +21,25 @@
 
 场景 → 声音的对应表在 `src/components/kitchen/audio-map.json`（按场景编号覆盖节拍数据的 audio 字段，表里没有的场景沿用节拍数据原值；场景编号与 `src/app/preview/visual/beats.visual-v2.json` / `beats.visual.json` 一致）。单次音效的触发点可写成阶段符号（`enterEnd` / `actionEnd` / `holdEnd`，可带偏移），由混音器按当前节拍表的 phases 换算，新旧两版节拍共用一张表。
 音量是相对电平（0–1），素材本身已按 `tools/audio_build.sh` 处理（原档在 `tools/audio_raw/`，测量用 `tools/audio_measure.sh`；`tools/audio_render_demo.mjs` 可把整个故事离线混成一条音频 + mp4 供试听）。
-**空位 = 还没有音源，接口里已登记、保持静音；不要用不相关的声音填补。** 混音器只为 `audio-map.json` 的 `available` 列表里的 7 个声音创建 `<audio>` 并请求文件，空位不发请求（没有 404）。补上文件后：放进本目录、加到 `available`、LICENSES.md 记一行、本表状态改为"已接入"。
+**空位 = 还没有音源，接口里已登记、保持静音；不要用不相关的声音填补。** 混音器只为 `audio-map.json` 的 `available` 列表里的 9 个声音（chop 循环换成了 chopHit）创建 `<audio>` 并请求文件，空位不发请求（没有 404）。补上文件后：放进本目录、加到 `available`、LICENSES.md 记一行、本表状态改为"已接入"。
 
 | 声音 id | 文件 | 方式 | 场景编号（音量 / 触发点） | 状态 |
 |---|---|---|---|---|
 | room | room-loop.mp3（40 s 循环） | 循环，全程 | opening/drop/chop/stirfry/sauce/handoff/bowl/yolk/return 0.2；bag/idea/missing 0.25；hear/catch 0.18；eggcall 0.08；search 0.06；对白留空间：call / recognize 停留阶段 0.2→0.14，punchline 0.2→0.12 | 已接入 |
 | sizzle | sizzle-loop.mp3（20 s 循环） | 循环，主要动作声 | opening 0.45；drop（仅 v2）动作阶段 0.45→0.2、停留 0.2（蛋跳到桌沿、厨房转为纸面）；bag 0.12；idea 0.1→停留阶段 0.05；chop 0.06；**stirfry 0.45（承担翻炒底声，待试听）**；sauce 0.08；missing 0.2→停留阶段 0.04（意外前的安静）；hear 进入阶段自动 0.04→0.6、停留阶段 0.6→0.3；catch 动作阶段 0.3→0.38 + 低通随 flight 从 1.5 kHz 开到 16 kHz（由远到近）；handoff 进入阶段 0.38→0 | 已接入 |
-| chop | chop-loop.mp3（6.5 s 循环） | 循环，主要动作声 | chop 0.5 | 已接入 |
+| chop | chop-loop.mp3（6.5 s 循环） | 循环 | 2026-11-14 起不再使用：切菜格改为逐刀触发 chopHit | 文件保留，不加载 |
+| chopHit | chop-hit.mp3（0.26 s） | 单次，**由前景动画逐刀触发**（window 事件 `kitchen:oneshot`，detail.sound = "chopHit"） | chop 段落刀接触的那一帧，每刀一次（前景三刀）；电平 0.5 = 原来循环里每一刀 | 已接入（未试听） |
 | stirfryIn | stirfry-in.mp3（1.8 s） | 单次 | stirfry @ p=0.22（下锅"滋啦"） | 已接入 |
-| stirfry | stirfry-loop.mp3 | 循环 | 暂不使用：炒菜段由 sizzle 承担底声 | **空位**（不强加） |
+| stirfry | stirfry-loop.mp3 | 循环 | 用户决定：翻炒复用 sizzle，不新增文件 | **空位**（永久） |
 | sauce | sauce-stir-loop.mp3（17.7 s 循环） | 循环，主要动作声 | sauce 0.4（调汁、盛饭） | 已接入 |
-| pop | pop.mp3 | 单次 | hear @ p=0.35（"啵！"） | **空位** |
+| pop | pop.mp3（0.28 s） | 单次 | hear @ p=0.35（"啵！"，播放电平 0.5） | 已接入（2026-11-14，未试听） |
 | catch | catch.mp3（0.6 s） | 单次 | catch @ actionEnd（动作阶段结束 = 蛋落到空锅铲；v1 节拍 p=0.78，v2 p=0.80） | 已接入 |
 | bowlDown | bowl-down.mp3（1.1 s） | 单次 | bowl @ p=0.25（碗落桌） | 已接入 |
-| pour | pour.mp3 | 单次 | bowl @ p=0.55（淋汁） | **空位** |
-| momCall | mom-call.mp3 | 单次 | call @ p=0.25（"宝宝，来吃饭啦！"） | **空位** |
-| eggSmall | egg-small.mp3 | 单次 | call @ p=0.55（"我在这儿……"） | **空位** |
-| steps | footsteps-loop.mp3 | 循环，主要动作声 | search 0.5；return 进入阶段 0.4→0 | **空位** |
-| eggCall | egg-call.mp3 | 单次 | eggcall @ p=0.25（"妈！这里！"） | **空位** |
+| pour | pour.mp3 | 单次 | bowl @ p=0.55（淋汁） | **空位**（用户决定保持） |
+| momCall | mom-call.mp3 | 单次 | call @ p=0.25（"宝宝，来吃饭啦！"） | **空位**（用户决定：保留漫画文字，不配音） |
+| eggSmall | egg-small.mp3 | 单次 | call @ p=0.55、tablecall @ p=0.5（"我在这儿……"） | **空位**（同上） |
+| steps | footsteps-loop.mp3（7.56 s 循环） | 循环，主要动作声 | search 0.3（地毯上拖鞋慢走，低而温和）；eggcall 进入阶段退掉（停下听）；return 进入阶段 0→0.3、停留阶段 0.3→0（走回去、到达） | 已接入（2026-11-14，未试听） |
+| eggCall | egg-call.mp3 | 单次 | eggcall @ p=0.25（"妈！这里！"） | **空位**（同上） |
 
 旧版 9 段节拍表（`/`、`/dev/beats`）里与新故事同名的场景（opening/chop/stirfry/sauce/catch）也会套用上表的值；其余旧场景 notice/spatula/serve/ending 沿用 beats.json 原值。
 
@@ -93,7 +94,17 @@
 | chop-loop | 两端静音段，跳变 0.0005 → 0.0000 | 首 5 ms → 0 ms | 30.3 → 3.4 dB |
 | sauce-stir-loop | 2.5× → 0.6× | 首 5 ms → 0 ms | 36.7 → 2.0 dB |
 
-这些都是解码后的文件测量。真实浏览器输出里的回绕需要素材会话重跑录音确认；人耳仍未试听。
+这些都是解码后的文件测量。
+
+真实浏览器复测（素材会话，Chrome 开发预览，AudioContext 实际输出，修复后版本）：文件本身干净，拼接跳变 0.0047，正常值 0.0083。但 room 7 次回绕里有 4 次仍有 3–8 ms、低于中位 10 dB 以上的掉落，位置固定在回绕点后约 61–68 ms；另外 3 次干净，随机对照最长 3 ms。sizzle 5 次、sauce 3 次回绕都干净。文件里没有这个掉落，位置又固定，所以应是 Chrome 用 `<audio loop>` 循环 mp3 时自己时有时无插入的间隙，文件处理改不掉。
+
+是否可闻要人耳判断，不阻塞集成。要根治：循环声改用 `decodeAudioData` + `AudioBufferSourceNode`（loop=true）做采样级循环，单次音效可保留 `<audio>`。这是混音器结构改动，等用户试听后决定。人耳仍未试听。
+
+### 切菜逐刀（chopHit，2026-11-14）
+
+- 文件：从 chop-loop 同一原档取第二刀 [1.177, 1.437]，起音在文件第 2 ms（≤ 5 ms），+40 ms 是刀碰案板的峰值，尾部 0.08 s 淡出；-2.3 dBTP。
+- 混音器：收到 `kitchen:oneshot` 就把解码好的 AudioBuffer 新建一个节点播放，快速连刀可以重叠。浏览器 DOM / 节点读数：三刀间隔 300 ms 派发，节点启动在 0 / 301 / 601 ms；50 ms 间隔连派 5 次，5 个节点都启动；静音、模拟后台、模拟未解锁（AudioContext 非 running）时都不启动，回前台不补播。离线渲染工具不含逐刀声（触发时刻在动画里）。
+- 顺带修正：裁切改为从头解码后 atrim，不再用 mp3 输入寻址（寻址后第一帧约 24 ms 解码为静音）。catch 和 stirfry-in 的开头因此不再被吃掉一帧；所有循环重建后接缝检查仍全部通过，响度变化 ≤ 0.1 LU。
 
 ### 浏览器行为（Chromium，/preview/visual，DOM 读数）
 
