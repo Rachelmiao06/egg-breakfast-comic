@@ -10,7 +10,7 @@ import { Z } from "@/lib/scene";
 import { phaseProgress } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import { Placeholder } from "./ComicLayer";
-import { landPoint, useSlots } from "./slots";
+import { handoffBox, landPoint, useSlots } from "./slots";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -21,8 +21,24 @@ export default function ScenePanels({ debug = false }: { debug?: boolean }) {
   const [a0, a1] = slot.appearFlight ?? [0.2, 0.45];
   let k = 0;
   if (t.beat.egg === "flight" && flight !== null) k = Math.min(1, Math.max(0, (flight - a0) / (a1 - a0)));
-  if (t.beat.id === "handoff") k = 1 - phaseProgress(t, "enter");
-  if (k <= 0) return null;
+  const handIn = t.beat.id === "handoff" ? phaseProgress(t, "enter") : 0;
+  // 交接：接蛋格先较快淡出，交接格稍后淡入，减少两格重叠的时间
+  if (t.beat.id === "handoff") k = 1 - Math.min(1, handIn * 1.6);
+  const handOp = Math.min(1, Math.max(0, (handIn - 0.25) / 0.75));
+  const hb = handoffBox(cfg);
+  const hand = cfg.scene.handoff;
+  const handNode =
+    hand && hb && handIn > 0 && t.beat.id === "handoff" ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={hand.src}
+        alt=""
+        draggable={false}
+        className="pointer-events-none absolute select-none"
+        style={{ left: hb[0], top: hb[1], width: hb[2], height: hb[3], zIndex: Z.mom + 2, opacity: handOp }}
+      />
+    ) : null;
+  if (k <= 0) return handNode;
   const [x, y, w, h] = slot.box;
   const lp = landPoint(slot);
   const e = out3(k);
@@ -46,6 +62,7 @@ export default function ScenePanels({ debug = false }: { debug?: boolean }) {
       {debug && (
         <div className="pointer-events-none absolute" style={{ left: lp.x - 12, top: lp.y - 12, width: 24, height: 24, zIndex: Z.eggFlying + 2, border: "2px solid #e0442a", borderRadius: "50%" }} />
       )}
+      {handNode}
     </>
   );
 }

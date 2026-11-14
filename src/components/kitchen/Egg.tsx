@@ -82,7 +82,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors }: { src?:
   const { reducedMotion, flight, serve, timeline, beats } = useScene();
   // gone：已交给漫画（下一格画着蛋），后景这颗淡出隐藏，保证只有一颗蛋
   const gone = timeline.beat.egg === "gone";
-  const goneOpacity = gone ? Math.max(0, 1 - (timeline.phase === "enter" ? timeline.phaseP * 2 : 1)) : 1;
+  // 与交接格的淡入同步：进入阶段 1 → 0（交叉淡化，看起来是同一颗蛋变成漫画里的蛋）
+  const goneOpacity = gone ? (timeline.phase === "enter" ? 1 - Math.min(1, Math.max(0, (timeline.phaseP - 0.25) / 0.75)) : 0) : 1;
   const flying = flight !== null;
   const zIndex = flight !== null && flight > 0.02 ? Z.eggFlying : Z.eggInPan;
 

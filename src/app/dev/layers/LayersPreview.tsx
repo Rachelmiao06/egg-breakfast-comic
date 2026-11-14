@@ -5,7 +5,7 @@ import KitchenLayers, { type KitchenLayerName } from "@/components/kitchen/Kitch
 import { ANCHORS, SCENE_H, SCENE_W, Z, boxStyle } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
-const LAYERS: KitchenLayerName[] = ["back", "mid", "pan-rim", "front-toast", "front-right"];
+const LAYERS: KitchenLayerName[] = ["far", "mid", "pan-rim", "front-toast", "front-right"];
 /** measured by tools/split_scene.py: cooking-surface ellipse; its lower arc is the rim line */
 const PAN_FLOOR = { cx: 743, cy: 579, rx: 398, ry: 77 };
 /** suggested ANCHORS.panLaunch (see docs/tasks/kitchen-layers.md) */

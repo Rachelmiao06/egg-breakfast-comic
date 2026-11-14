@@ -36,10 +36,34 @@ export type SceneSlot = {
   occluderSrc: string | null;
   appearFlight?: [number, number];
 };
-export type SlotConfig = { scene: { catch: SceneSlot; bowl?: SceneSlot }; egg: { onSpatulaScale: number; inBowlScale: number } };
+/** 交接格：位置不写死，由活动蛋的位置和大小算出，让格里画的蛋与活动蛋重合 */
+export type HandoffSlot = {
+  label: string;
+  src: string;
+  source?: string;
+  imageSize: [number, number];
+  eggCenter: { fx: number; fy: number };
+  eggWidthFrac: number;
+};
+export type SlotConfig = { scene: { catch: SceneSlot; handoff?: HandoffSlot; bowl?: SceneSlot }; egg: { onSpatulaScale: number; inBowlScale: number } };
+
+/** 活动蛋落在铲面上时的中心与宽度（场景像素）。蛋图 388×388，脚底在 land 点。 */
+export function landedEgg(cfg: SlotConfig) {
+  const lp = landPoint(cfg.scene.catch);
+  const size = 388 * cfg.egg.onSpatulaScale;
+  return { cx: lp.x, cy: lp.y - size / 2, w: size };
+}
+export function handoffBox(cfg: SlotConfig): [number, number, number, number] | null {
+  const h = cfg.scene.handoff;
+  if (!h) return null;
+  const e = landedEgg(cfg);
+  const w = e.w / h.eggWidthFrac;
+  const hh = (w * h.imageSize[1]) / h.imageSize[0];
+  return [Math.round(e.cx - h.eggCenter.fx * w), Math.round(e.cy - h.eggCenter.fy * hh), Math.round(w), Math.round(hh)];
+}
 
 export const PANELS = data.panels as PanelSlot[];
-export const DEFAULT_SLOTS: SlotConfig = { scene: data.scene as SlotConfig["scene"], egg: data.egg };
+export const DEFAULT_SLOTS: SlotConfig = { scene: data.scene as unknown as SlotConfig["scene"], egg: data.egg };
 
 export const landPoint = (s: SceneSlot) => ({ x: Math.round(s.box[0] + s.land.fx * s.box[2]), y: Math.round(s.box[1] + s.land.fy * s.box[3]) });
 

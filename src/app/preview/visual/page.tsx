@@ -11,10 +11,11 @@ import KitchenScene from "@/components/kitchen/KitchenScene";
 import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
 import { SceneProvider, useScene } from "@/lib/scene-context";
-import { cameraAt, VISUAL_BEATS } from "./beats.visual";
+import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import ComicLayer from "./ComicLayer";
 import ScenePanels from "./ScenePanels";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig } from "./slots";
+import { useViewport } from "./viewport";
 
 function Debug() {
   const { timeline: t, progress, flight, serve } = useScene();
@@ -56,6 +57,7 @@ function Stage() {
   const { timeline: t } = useScene();
   const { cfg } = useSlots();
   const cam = cameraAt(t.index, t.phase, t.phaseP);
+  const depth = depthAt(t.index, t.phase, t.phaseP);
   const debug = useSyncExternalStore(
     () => () => {},
     () => new URLSearchParams(window.location.search).has("debug"),
@@ -64,7 +66,7 @@ function Stage() {
   return (
     <>
       <div className="fixed inset-0 z-0">
-        <KitchenScene camera={{ x: cam.x, y: cam.y, weight: 1, zoom: cam.zoom, at: cam.at }} foreground={<ScenePanels debug={debug} />}>
+        <KitchenScene camera={{ x: cam.x, y: cam.y, weight: 1, zoom: cam.zoom, at: cam.at }} depth={depth} foreground={<ScenePanels debug={debug} />}>
           <KitchenCharacters eggAnchors={eggAnchorsFrom(cfg)} />
         </KitchenScene>
       </div>
@@ -78,8 +80,19 @@ function Stage() {
   );
 }
 
+/** 竖屏手机：接蛋格缩到可见宽度内，落点随格子一起算，所以蛋仍落在铲面上 */
+function mobileSlots(cfg: SlotConfig, vw: number, vh: number): SlotConfig {
+  const c = cfg.scene.catch;
+  const visW = 1024 * (vw / vh); // 竖屏时舞台按高度铺满，可见的场景宽度
+  const w = Math.round(visW * 0.94);
+  const h = Math.round((w * c.box[3]) / c.box[2]);
+  return { ...cfg, scene: { ...cfg.scene, catch: { ...c, box: [Math.round(700 - w / 2), Math.round(640 - h * 0.35), w, h] } } };
+}
+
 export default function VisualPreviewPage() {
-  const [cfg, setCfg] = useState<SlotConfig>(DEFAULT_SLOTS);
+  const [base, setCfg] = useState<SlotConfig>(DEFAULT_SLOTS);
+  const vp = useViewport();
+  const cfg = vp.portrait ? mobileSlots(base, vp.w, vp.h) : base;
   return (
     <SlotContext.Provider value={{ cfg, setCfg }}>
       <SceneProvider initialBeats={VISUAL_BEATS}>

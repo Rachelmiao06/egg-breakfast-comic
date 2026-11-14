@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
+import { useViewport } from "./viewport";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -95,13 +96,16 @@ function useNaturalAspect(src: string | undefined, fallback: number) {
   return ar ?? fallback;
 }
 
-function Panel({ p, k, opacity, exitShift, seamProgress }: { p: PanelSpec; k: number; opacity: number; exitShift: number; seamProgress: number }) {
+type Place = { x: number; y: number; w: number }; // vw / vh / vw
+
+function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec; k: number; opacity: number; exitShift: number; seamProgress: number; place?: Place }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   const [dx, dy] = p.from === "seam" ? [0, 0] : offsetFor(p.from, k);
+  const pos = place ?? { x: p.x, y: p.y, w: p.w };
   const style: CSSProperties = {
-    left: `${p.x}vw`,
-    top: `${p.y}vh`,
-    width: `${p.w}vw`,
+    left: `${pos.x}vw`,
+    top: `${pos.y}vh`,
+    width: `${pos.w}vw`,
     aspectRatio: `${aspect}`,
     transform: `translate(${dx}vw, calc(${dy}vh + ${exitShift}vh))`,
     opacity: p.from === "seam" ? opacity : opacity * Math.min(1, k * 1.4),
@@ -133,11 +137,30 @@ function Panel({ p, k, opacity, exitShift, seamProgress }: { p: PanelSpec; k: nu
   );
 }
 
+/** 竖屏手机：本段各格按顺序纵向堆叠、居中，整体放得进一屏（保持原比例） */
+function stackPlaces(list: PanelSpec[], vw: number, vh: number): Record<string, Place> {
+  const sorted = [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const gapVh = 1.6;
+  let w = 92; // vw
+  const heightVh = (ww: number) => sorted.reduce((s, p) => s + ((ww * vw) / 100 / p.aspect / vh) * 100, 0) + gapVh * (sorted.length - 1);
+  const maxH = 90;
+  if (heightVh(w) > maxH) w = w * (maxH / heightVh(w));
+  let y = (100 - heightVh(w)) / 2;
+  const out: Record<string, Place> = {};
+  for (const p of sorted) {
+    out[p.key] = { x: (100 - w) / 2, y, w };
+    y += ((w * vw) / 100 / p.aspect / vh) * 100 + gapVh;
+  }
+  return out;
+}
+
 export default function ComicLayer() {
   const { timeline: t, beats } = useScene();
+  const vp = useViewport();
   const beat = beats[t.index];
   const list = PANELS.filter((p) => p.beat === beat.id);
   const n = Math.max(1, list.length);
+  const places = vp.portrait ? stackPlaces(list, vp.w, vp.h) : null;
   return (
     <div className="pointer-events-none fixed inset-0 z-10">
       {list.map((p) => {
@@ -150,7 +173,7 @@ export default function ComicLayer() {
         const opacity = t.phase === "exit" ? 1 - in2(t.phaseP) : 1;
         const exitShift = t.phase === "exit" ? -in2(t.phaseP) * 12 : 0; // 退出时加速向上离开
         const seamProgress = t.phase === "enter" ? local : 1;
-        return <Panel key={p.key} p={p} k={k} opacity={opacity} exitShift={exitShift} seamProgress={seamProgress} />;
+        return <Panel key={p.key} p={p} k={k} opacity={opacity} exitShift={exitShift} seamProgress={seamProgress} place={places?.[p.key]} />;
       })}
     </div>
   );

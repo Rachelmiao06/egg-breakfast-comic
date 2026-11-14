@@ -1,5 +1,5 @@
 {
- "note": "素材替换接口：换图只改这里的 src（必要时改 land / box）。比例按图片实际尺寸自动读取，aspect 只是图未加载前的占位比例，不是规格。x / y / w 是试验版位（vw / vh）。scene 下的接蛋格用场景像素，land 是铲面落点在格内的相对位置（0–1），蛋的落点由它算出。",
+ "note": "素材替换接口：换图只改这里的 src（必要时改 land / box）。比例按图片实际尺寸自动读取，aspect 只是图未加载前的占位比例，不是规格。x / y / w 是试验版位（vw / vh）。scene 下的接蛋格用场景像素，land 是铲面落点在格内的相对位置（0–1），蛋的落点由它算出。 scene.handoff 的位置不写死：按活动蛋在铲面上的位置和大小自动对齐。",
  "panels": [
   {
    "key": "p1a",
@@ -168,19 +168,6 @@
    "w": 26,
    "aspect": 0.848,
    "from": "right",
-   "order": 0
-  },
-  {
-   "key": "p4a",
-   "beat": "handoff",
-   "src": "/assets/comic-v3/p4a.webp",
-   "source": "04-catch-and-call.png A 格",
-   "dialogueInImage": true,
-   "x": 10,
-   "y": 8,
-   "w": 80,
-   "aspect": 2.845,
-   "from": "top",
    "order": 0
   },
   {
@@ -419,7 +406,7 @@
    ],
    "land": {
     "fx": 0.81,
-    "fy": 0.45
+    "fy": 0.53
    },
    "frameSrc": null,
    "occluderSrc": null,
@@ -427,6 +414,22 @@
     0.22,
     0.45
    ]
+  },
+  "handoff": {
+   "label": "第 4 页 A 格：\"正好，就差你了！\"（格里画的蛋与活动蛋对齐，交叉淡化接手）",
+   "src": "/assets/comic-v3/p4a.webp",
+   "source": "04-catch-and-call.png A 格",
+   "dialogueInImage": true,
+   "imageSize": [
+    1007,
+    354
+   ],
+   "eggCenter": {
+    "fx": 0.2056,
+    "fy": 0.53
+   },
+   "eggWidthFrac": 0.2304,
+   "note": "box 由活动蛋落定的位置和大小自动算出：让格里画的蛋（eggCenter、eggWidthFrac）与活动蛋重合"
   }
  },
  "egg": {
