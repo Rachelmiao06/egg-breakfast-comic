@@ -17,14 +17,16 @@
  *   每个元素上的 data-level / data-target / data-fired 是给调试和验收读的。
  * - 自动播放解锁：第一次 pointerup / touchend / keydown 时 resume AudioContext，并把每个元素都"预热"一次
  *   （play 后立刻 pause，iOS 要求每个媒体元素各自在手势里 play 过）。
- * - 页面切到后台：全部暂停；回到前台恢复循环；后台期间越过的触发点不补播。
+ * - 页面切到后台：全部暂停；回到前台恢复循环；后台期间越过的触发点不补播——后台里 rAF 停了，<ScrollDriver> 不更新
+ *   时间轴，回前台后时间轴会一次跳过后台期间滚过的距离，所以在 visibilitychange→visible 时先把"上一次时间轴"
+ *   重同步到当前滚动位置（只重同步、不触发），之后只有用户真实滚动产生的越过才会触发。
  * - 只为 audio-map.json 的 available 列表里的声音创建 <audio>（空位不发请求、保持静音，避免 404）；
  *   列表里的文件解码失败也保持静音；available 表示至少有一条能播。
  * - 场景 → 声音的对应表在 audio-map.json（按场景编号 id 覆盖节拍数据的 audio 字段，表里没有的场景沿用原值）。
  *   这样不用改共享的 beats.json；音量、触发点都在声音分支自己的文件里。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { crossedOneShots, loopLevels, LOOP_SOUNDS, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
+import { crossedOneShots, locate, loopLevels, LOOP_SOUNDS, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import audioMap from "./audio-map.json";
 
@@ -342,11 +344,27 @@ export function useKitchenAudio() {
   // 单次音效：向下滚动越过节拍表里的触发点时播一次
   const prevT = useRef<Timeline | null>(null);
   useEffect(() => {
+    if (document.visibilityState === "hidden") {
+      // 后台里时间轴若有变化只重同步，不触发
+      prevT.current = timeline;
+      return;
+    }
     const fired = crossedOneShots(prevT.current, timeline, beats);
     prevT.current = timeline;
     if (!soundOn) return;
     for (const name of fired) mixer.current?.fire(name);
   }, [timeline, soundOn, beats]);
+
+  // 回到前台：把"上一次时间轴"重同步到当前滚动位置（后台期间越过的触发点不补播；之后的真实滚动照常触发）
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const vh = (window.scrollY / Math.max(1, window.innerHeight)) * 100;
+      prevT.current = locate(vh, rawBeats);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [rawBeats]);
 
   return { available };
 }

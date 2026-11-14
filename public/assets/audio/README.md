@@ -83,4 +83,5 @@
 - 场景电平：idea 退出阶段 sizzle 0.05；missing 停留 0.19→0.05；hear 进入中段 0.31、停留开始 0.58、停留末 0.32；catch p=0.1 / 0.5 / 0.9 sizzle 0.31 / 0.35 / 0.38，低通 2032 / 6840 / 16000 Hz；handoff 只剩 room。
 - 快速前后滚：在 bowl 触发点两侧 5 次来回（间隔 80 ms），bowlDown 触发计数 +5，始终只有 1 个元素，结束时 paused；元素总数始终等于 available 列表长度（7）。倒滚不触发。
 - 切后台：全部 paused；后台期间滚过触发点不播；回前台只恢复循环声。
+- 后台恢复不补播（素材会话在真实 Chrome 里报的缺陷，已修）：后台里 rAF 停止、时间轴不更新，回前台时时间轴一次跳过后台滚过的距离。现在 visibilitychange→visible 时先把"上一次时间轴"重同步到当前滚动位置再放行。复现脚本（rAF 排队模拟后台，catch p=0.5 → 后台 scrollTo bowl p=0.6 → 恢复）：恢复后 catch / bowlDown 触发计数保持 0，只有 room 播放；之后真实滚动 bowl 0.1→0.5 触发 bowlDown 一次。真实最小化窗口的复测由素材会话的录制脚本做。
 - 未测：iOS 真机、Safari 桌面版。
