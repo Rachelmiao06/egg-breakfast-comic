@@ -18,7 +18,7 @@ import { SCENE_H, SCENE_W } from "@/lib/scene";
 import { SceneProvider, useScene } from "@/lib/scene-context";
 import { backgroundState, SearchBackdrop, Paper } from "../visual/Backdrops";
 import ComicLayer from "../visual/ComicLayer";
-import { eggAtTableFor, fitCatchForEgg, flightApexYFor, tableWaitFor } from "../visual/eggPath";
+import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, tableWaitFor } from "../visual/eggPath";
 import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "../visual/motion.v2";
 import ScenePanels from "../visual/ScenePanels";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig } from "../visual/slots";
@@ -35,12 +35,12 @@ function useParam(name: string) {
 type Pt = { x: number; y: number };
 
 /** 接蛋路径参考线：飞行路径（四个阶段的点）、气泡、铲面、妈妈眼睛和视线方向（都按当前视口的接蛋格算） */
-function FlightGuides({ wait, apexY }: { wait: Pt; apexY: number }) {
+function FlightGuides({ wait, apexY, easeX }: { wait: Pt; apexY: number; easeX: boolean }) {
   const { cfg } = useSlots();
   const box = cfg.scene.catch.box;
   const P = BG.eggPath.panel;
   const land = landPoint(cfg.scene.catch);
-  const pts = Array.from({ length: 41 }, (_, i) => flightPoint(wait, land, apexY, i / 40));
+  const pts = Array.from({ length: 41 }, (_, i) => flightPoint(wait, land, apexY, i / 40, 0.6, easeX));
   const at = (f: number, g: number) => ({ x: box[0] + f * box[2], y: box[1] + g * box[3] });
   const eye = at(P.eye[0], P.eye[1]);
   const rect = (r: number[], color: string, label: string) => (
@@ -65,7 +65,7 @@ function FlightGuides({ wait, apexY }: { wait: Pt; apexY: number }) {
       <text x={eye.x + 14} y={eye.y - 14} fill="#2c3e50" fontSize={20} fontFamily="monospace">视线 →</text>
       <polyline points={pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")} fill="none" stroke="#c0392b" strokeWidth={5} markerEnd="url(#arr)" />
       {stages.map(([t, label]) => {
-        const p = flightPoint(wait, land, apexY, t);
+        const p = flightPoint(wait, land, apexY, t, 0.6, easeX);
         return (
           <g key={label}>
             <circle cx={p.x} cy={p.y} r={9} fill="#c0392b" />
@@ -135,9 +135,10 @@ function Stage() {
     bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
     eggInBowl: BG.anchors.eggInTableBowl,
     flightApexY: flightApexYFor(cfg),
+    flightEaseX: flightEaseXFor(cfg), // 与 preview/visual/page.tsx 相同：只在窄屏 narrowSlot = "below" 时为 true
   };
   let eggPt: Pt | null = null;
-  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight);
+  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight, 0.6, anchors.flightEaseX);
   // 与 preview/visual/page.tsx 相同：环境段镜头跟随蛋的站点
   let follow: number | undefined;
   const envEgg = t.beat.egg === "ready" ? anchors.tableWait : t.beat.egg === "inBowl" ? anchors.bowlLand : null;
@@ -159,7 +160,7 @@ function Stage() {
               <Paper />
               {fg && <ScenePanels debug={debug} flow />}
               {guides && <Guides wait={wait} />}
-              {guides && <FlightGuides wait={wait} apexY={anchors.flightApexY} />}
+              {guides && <FlightGuides wait={wait} apexY={anchors.flightApexY} easeX={anchors.flightEaseX} />}
             </>
           }
         >

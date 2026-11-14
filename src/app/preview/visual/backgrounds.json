@@ -266,7 +266,7 @@
   "eggInTableBowl": 0.42
  },
  "eggPath": {
-  "note": "narrowSlot（默认 right）：right（默认，窄屏格子缩小、蛋在格子右侧）或 below（窄屏格子保持正常适配宽度，蛋在格子下方偏右、铲尖右侧 tipGap 处起跳，可伸出屏幕右缘最多 maxOverhang 个蛋宽；需要接蛋格 z 低于桌沿蛋，见 Z.catchPanel）。接蛋路径（src/app/preview/visual/eggPath.ts）：桌沿等待点 = 起跳点放在铲面落点右侧 gapEggW 个蛋宽，夹在接蛋镜头可见范围内（离右缘 viewMargin）；飞行最高点在格上框以下 apexFromBoxTop × 格高。panel 是接蛋格 p3e 画面里的位置（格内比例），检查工具用它验证路径不碰气泡、不越过妈妈视线左侧。 below 模式要配合 Egg.flightPoint 的横向 ease-in（flightEaseXFor），否则上升时会掠过铲尖。",
+  "note": "narrowSlot（现在 below；right 为旧行为）：right（默认，窄屏格子缩小、蛋在格子右侧）或 below（窄屏格子保持正常适配宽度，蛋在格子下方偏右、铲尖右侧 tipGap 处起跳，可伸出屏幕右缘最多 maxOverhang 个蛋宽；需要接蛋格 z 低于桌沿蛋，见 Z.catchPanel）。接蛋路径（src/app/preview/visual/eggPath.ts）：桌沿等待点 = 起跳点放在铲面落点右侧 gapEggW 个蛋宽，夹在接蛋镜头可见范围内（离右缘 viewMargin）；飞行最高点在格上框以下 apexFromBoxTop × 格高。panel 是接蛋格 p3e 画面里的位置（格内比例），检查工具用它验证路径不碰气泡、不越过妈妈视线左侧。 below 模式要配合 Egg.flightPoint 的横向 ease-in（flightEaseXFor），否则上升时会掠过铲尖。 maxOverhang 为负表示起跳点至少离屏幕右缘 0.1 个蛋宽（飞行中半空放大也不出屏）。",
   "gapEggW": 0.8,
   "viewMargin": 22,
   "boxMargin": 12,
@@ -292,9 +292,9 @@
    ],
    "keepRightOf": 0.6
   },
-  "narrowSlot": "right",
-  "tipGap": 24,
-  "maxOverhang": 0.1
+  "narrowSlot": "below",
+  "tipGap": 20,
+  "maxOverhang": -0.1
  },
  "camera": {
   "note": "新版镜头关键帧（beat, p）→ 焦点 x,y（场景像素）、zoom、焦点放在视口的 at 位置。相邻关键帧之间用平滑插值连续过渡，没有平台期。",

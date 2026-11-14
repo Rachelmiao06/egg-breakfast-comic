@@ -38,7 +38,7 @@ function view(vw, vh, c) {
   return { s, x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s };
 }
 // Egg.flightPoint（逐字复刻）：二次贝塞尔，最高点 = min(apexY, min(A.y,B.y) − 40)，最高点的 x 在全程 apexAt 处
-function flightPoint(A, B, apexY, t, apexAt = 0.6) {
+function flightPoint(A, B, apexY, t, apexAt = 0.6, easeX = false) {
   const k = clamp(t, 0, 1);
   const bez = (a, b, c, t) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
   const Hh = Math.min(apexY, Math.min(A.y, B.y) - 40);
@@ -47,7 +47,8 @@ function flightPoint(A, B, apexY, t, apexAt = 0.6) {
   const X = A.x + apexAt * (B.x - A.x);
   const cx = (X - (1 - ts) ** 2 * A.x - ts ** 2 * B.x) / (2 * (1 - ts) * ts);
   // 试算（XEASE=1）：横向改成 ease-in（x = A.x + (B.x − A.x)·k²），先近乎竖直上升、后段再向左落到铲面；不往右鼓
-  if (process.env.XEASE) return { x: A.x + (B.x - A.x) * k * k, y: bez(A.y, cy, B.y, k) };
+  // easeX（below 模式，Egg.flightPoint 第 6 个参数）：横向 ease-in
+  if (easeX || process.env.XEASE) return { x: A.x + (B.x - A.x) * k * k, y: bez(A.y, cy, B.y, k) };
   return { x: bez(A.x, cx, B.x, k), y: bez(A.y, cy, B.y, k) };
 }
 
@@ -142,7 +143,7 @@ if (process.argv.includes("--views")) {
   for (const [vw, vh] of sizes) {
     const L = layout(vw, vh);
     for (let i = 0; i <= 100; i++) {
-      const t = i / 100, p = flightPoint(L.wait, L.land, L.apexY, t, L.apexAt), w = EGG * (L.eggAtTable + (L.spat - L.eggAtTable) * t + 0.24 * Math.min(L.eggAtTable, L.spat) * Math.sin(Math.PI * t));
+      const t = i / 100, p = flightPoint(L.wait, L.land, L.apexY, t, L.apexAt, L.below), w = EGG * (L.eggAtTable + (L.spat - L.eggAtTable) * t + 0.24 * Math.min(L.eggAtTable, L.spat) * Math.sin(Math.PI * t));
       C = [Math.min(C[0], p.x - w * 0.4), Math.min(C[1], p.y - w * 0.85), Math.max(C[2], p.x + w * 0.4), Math.max(C[3], p.y)];
     }
   }
@@ -170,7 +171,7 @@ for (const [vw, vh] of sizes) {
   let wm = Infinity, wmAt = "";
   for (let g = gOf("drop", 0.75); g <= gOf("catch", flightStart); g += 0.01) {
     const v = view(vw, vh, cam(g, L.wait));
-    const allowW = L.below && g >= gOf("catch", 0) ? bg.eggPath.maxOverhang * ew : 0;
+    const allowW = L.below && g >= gOf("catch", 0) ? Math.max(0, bg.eggPath.maxOverhang) * ew : 0;
     const m = Math.min((L.wait.x - ew / 2 - v.x0) * v.s, (v.x1 + allowW - (L.wait.x + ew / 2)) * v.s, (L.wait.y - ew - v.y0) * v.s, (v.y1 - L.wait.y) * v.s - 8);
     if (m < wm) { wm = m; wmAt = `${beats[Math.floor(g)].id} ${(g % 1).toFixed(2)}`; }
   }
@@ -183,7 +184,7 @@ for (const [vw, vh] of sizes) {
   const stages = {};
   for (let i = 0; i <= 100; i++) {
     const t = i / 100;
-    const p = flightPoint(L.wait, L.land, L.apexY, t, L.apexAt);
+    const p = flightPoint(L.wait, L.land, L.apexY, t, L.apexAt, L.below);
     const sc = L.eggAtTable + (L.spat - L.eggAtTable) * t + 0.24 * Math.min(L.eggAtTable, L.spat) * Math.sin(Math.PI * t); // 与 Egg.arc 的缩放相同
     const w = EGG * sc;
     const r = { x0: p.x - w / 2, x1: p.x + w / 2, y0: p.y - w, y1: p.y };
@@ -198,7 +199,7 @@ for (const [vw, vh] of sizes) {
     }
     const g = gOf("catch", flightStart + (flightEnd - flightStart) * t);
     const v = view(vw, vh, cam(g, L.wait)); // 跟随权重 0.06 忽略
-    const allowR = L.below ? bg.eggPath.maxOverhang * w : 0; // below 模式允许起跳时伸出右缘最多 maxOverhang 个蛋宽
+    const allowR = L.below ? Math.max(0, bg.eggPath.maxOverhang) * w : 0; // below 模式允许起跳时伸出右缘最多 maxOverhang 个蛋宽
     const m = Math.min((r.x0 - v.x0) * v.s, (v.x1 + allowR - r.x1) * v.s, (r.y0 - v.y0) * v.s, (v.y1 - r.y1) * v.s);
     vis = Math.min(vis, m);
     if ([0, 0.3, 0.6, 0.85, 1].includes(t)) stages[t] = `${Math.round(p.x)},${Math.round(p.y)}`;
