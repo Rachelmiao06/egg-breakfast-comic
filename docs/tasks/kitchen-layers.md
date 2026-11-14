@@ -1,30 +1,28 @@
-# 任务：feat/kitchen-layers — 厨房前中后景拆分、补图、鼠标视差
+# 任务：kitchen-layers — 厨房环境、视差、锅沿遮挡，清除吐司终点（第四版）
 
-先读 `docs/DESIGN.md`、`SPEC.md` §2–§4、`src/lib/scene.ts`。只改 DESIGN.md §6 里分给本分支的文件。
+开工前：`git fetch origin && git merge origin/main`（冲突时以 main 的 `src/lib/*`、`docs/*` 为准）。先读 `docs/DESIGN.md` 第四版（§1、§2 Z 顺序、§4）、`src/lib/scene.ts`。只改 DESIGN §6 分给本分支的文件。
+
+**变化**：菜品改为"妈妈的荷包蛋拌饭"，吐司结尾撤销。你已经完成的分层（back / mid / main / pan-rim / front / flame）可以保留，按下面调整：
+
+1. **火苗不归本分支**：`flame.png` 由主会话从原画抽取（已在 feat/kitchen-scene），请不要再产出或修改 `public/assets/scene/flame.png`，从你的分支里去掉它。
+2. **不要改 `src/lib/scene.ts`**：你实测的锚点（eggRest 742,666、panInner、panRimBox、flameBox、kettleSpout）很有用，请把它们写到本文件末尾"需要集成会话改"，由主会话合并。把你分支里对 `src/lib/scene.ts` 的修改撤回。
+3. **吐司盘**：拆成单独一层 `front-toast.png`，`KitchenLayers` 默认**不渲染**它（吐司已不在故事里）。它身后的木纹在 main/mid 层补好，这样去掉吐司后桌面完整。若补不好，在本文件末尾标"待替换"，用户会生成替换图（ASSET-REQUESTS 第四版 K1）。
+4. **为前景妈妈让位**：`ANCHORS.momZone` = [420, 324, 1536, 1024]，节拍 5 起妈妈伸锅铲占据这一块。把落在这块里的前景物件（蛋壳、格纹布）放在 `front-right.png`，`activePanel >= 5` 时 0.5s 淡出，回到 < 5 时淡回。
+5. **锅沿遮挡**：保留 `pan-rim.png`，z = `Z.panRim`，与锅身同一视差值；请确认它挡住锅里蛋的脚但不挡起跳后的蛋（起跳后蛋 z = 80）。
+6. 视差与漂移照旧：front ±10、mid/pan-rim ±5、back ±2 px；`progress` 只带来轻微景深漂移，不退场、不调暗。
 
 ## 产出
 
-1. `tools/split_scene.py`（PIL / numpy / cv2 都可用，可重跑）：从 `source/kitchen-main.png` 生成 `public/assets/scene/` 下五张 1536×1024 透明 PNG：
-   - `back.png`：墙面、瓷砖、台面、黄锅、瓶罐、水壶。补：蛋身后的墙面与瓷砖（瓷砖按行周期克隆、砖缝对齐）、蛋旁动作线、红锅与手柄身后的瓷砖和台面（约 x 350–1480, y 505–770）。台面前沿以下透明。
-   - `mid.png`：木桌、灶台、红锅、锅内油。补：吐司盘、蛋壳、格纹布身后的木纹；锅上方两滴飞溅油星用锅内纹理盖掉；火苗抽走后填暗色炉心。
-   - `front.png`：吐司盘、蛋壳、格纹布。
-   - `egg.png`：荷包蛋含小手小脚，边缘羽化 1–2 px，不带背景色。（cv2.grabCut + 手工矩形/种子效果不错）
-   - `flame.png`：只含火苗，用橙/蓝色相键控。
-2. `tools/check_overlay.png`：五层叠回去与原图做差，差异只允许在刻意清除的区域。把差图和各层缩略图贴到最终报告里。
-3. `src/components/kitchen/KitchenLayers.tsx`：渲染 back/mid/front（场景像素，`position:absolute; inset:0`），
-   - 鼠标视差：front ±10 px、mid ±5 px、back ±2 px，缓动跟随，`useScene().isTouch` 时关闭；
-   - 按 `useScene().progress`（0→1）做退场：front 上移 1.6×、mid 1.0×、back 0.4× 视口高度，同时整体亮度降到 0.7、轻微模糊 2px（进入漫画后厨房仍作为背景存在，不消失）。
-4. `src/app/dev/layers/page.tsx`：预览页，用 `<KitchenLayers mouse />` 替换占位图，加一个滑块临时驱动 progress 方便验收。
-5. 实测后修正 `src/lib/scene.ts` 里的 ANCHORS 数值（只改数值）。
+- `tools/split_scene.py` 更新；`public/assets/scene/{back,mid 或 main,pan-rim,front-toast,front-right}.png`；叠合差图。
+- `src/components/kitchen/KitchenLayers.tsx`（层名按你的实际文件，z 用 `Z`）。
+- `src/app/dev/layers/page.tsx`：预览，滑块驱动 progress 和 activePanel，画出 momZone 虚线框。
 
 ## 验收
 
-- 五层叠合与原图一致，100% 显示看不出补痕；没有重复的蛋/火苗/油星。
-- 鼠标移动前景明显、背景轻微；progress 拖到 1 时前景先走、墙面最慢。
-- `npm run lint` 和 `npm run build` 通过。每个阶段 commit 到 feat/kitchen-layers 并 push，不合并 main。
-
-## 用户可能会用 ChatGPT 重生成素材
-如果手工补图效果不过关，在本文件末尾写清需要生成什么（例如"同一张厨房、没有蛋和火苗的干净版"），集成会话会转给用户。
+- 去掉吐司后的桌面看不出补痕；叠合（含吐司层）与 kitchen-clean 一致。
+- `activePanel` 拖到 5 时蛋壳、格纹布淡出，momZone 内干净。
+- 锅沿挡住 `eggRest` 处蛋的脚，视差时锅沿和锅身不脱节。
+- `npm run lint`、`npm run build` 通过；commit 并 push 本分支，不合并 main。报告贴分层缩略图、差图、预览截图（activePanel 0 和 5）。
 
 ## 需要集成会话改：
-（在这里追加）
+（在这里追加实测锚点等）
