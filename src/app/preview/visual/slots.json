@@ -471,11 +471,21 @@
  "egg": {
   "onSpatulaScale": 0.4,
   "inBowlScale": 0.441,
-  "onSpatulaTilt": -8,
-  "flightLean": -8,
+  "onSpatulaTilt": 0,
+  "flightLean": 0,
   "faces": {
-   "fly": null,
-   "rest": null
+   "note": "接蛋表情图（用户 2026-11-14 交付）：fly = Leftward flight of a watercolor egg.png；rest = 同一身体底图 + Watercolor egg character sprite.png 的脸（只换蛋黄里五官附近，tools/egg_face_check.py --zone features）。全尺寸副本在 source/egg-catch/。身体已经朝左下的妈妈，所以 onSpatulaTilt / flightLean 为 0，不再叠加旧倾角。",
+   "fly": "/assets/scene/egg-catch-fly.webp",
+   "rest": "/assets/scene/egg-catch-rest.webp",
+   "contact": {
+    "fx": 0.5167,
+    "fy": 0.8134
+   },
+   "bodyWidthFrac": 0.736,
+   "yolk": {
+    "fx": 0.4606,
+    "fy": 0.5017
+   }
   },
   "outlineWidthFrac": 0.9729,
   "yolkCenter": {

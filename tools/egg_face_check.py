@@ -63,10 +63,15 @@ def main():
     ap.add_argument("--kind", required=True, choices=["fly", "rest"])
     ap.add_argument("--out", default=".")
     ap.add_argument("--install", choices=["raw", "composite"])
+    ap.add_argument("--orig", default=ORIG, help="body image the face variant must match (default: public/assets/scene/egg.webp)")
+    ap.add_argument("--dst", help="install target path under public/ (default: /assets/scene/egg-<kind>.png)")
+    ap.add_argument("--no-slots", action="store_true", help="install the file only, do not touch slots.json")
+    ap.add_argument("--zone", choices=["yolk", "features"], default="yolk",
+                    help="composite zone: the whole yolk, or only around the face features of both images (keeps the body's yolk highlight)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
-    o = np.asarray(Image.open(ORIG).convert("RGBA"))
+    o = np.asarray(Image.open(args.orig).convert("RGBA"))
     cimg = Image.open(args.candidate)
     rep = {"candidate": os.path.abspath(args.candidate), "kind": args.kind, "mode": cimg.mode, "size": list(cimg.size), "orig_size": [o.shape[1], o.shape[0]]}
     checks = {}
@@ -125,7 +130,7 @@ def main():
     rep["pass"] = all(checks.values())
 
     if args.install:
-        dst_rel = f"/assets/scene/egg-{args.kind}.png"
+        dst_rel = args.dst or f"/assets/scene/egg-{args.kind}.png"
         dst = os.path.join(ROOT, "public" + dst_rel)
         if args.install == "raw":
             if not rep["pass"]:
@@ -134,25 +139,39 @@ def main():
                 shutil.copyfile(args.candidate, dst); rep["install"] = dst_rel
         else:
             base_ok = checks["same_canvas"] and checks["yolk_same_place"] and checks["face_changed_at_all"]
-            # feather inside the yolk: candidate fully inside (yolk eroded 18 px), original outside the yolk
-            inner = cv2.erode(yo.astype(np.uint8), np.ones((37, 37), np.uint8)).astype(np.float32)
-            w = cv2.GaussianBlur(inner, (0, 0), 5)
-            w = np.clip(w * yo, 0, 1)[..., None]
+            def face_features(img):
+                R_, G_, B_ = [img[..., i].astype(int) for i in range(3)]
+                f_ = (((R_ + G_ + B_) < 330) | ((R_ > 215) & (G_ < 175) & (B_ > 110) & (R_ - G_ > 50))) & yo
+                return cv2.morphologyEx(f_.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)).astype(bool)
+            if args.zone == "features":
+                # only around the eyes / mouth / blush of both images; yolk texture and highlight stay the body's
+                zone = cv2.dilate((face_features(c) | face_features(o)).astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (61, 61)))
+                zone = (zone.astype(bool) & cv2.erode(yo.astype(np.uint8), np.ones((13, 13), np.uint8)).astype(bool)).astype(np.float32)
+                w = cv2.GaussianBlur(zone, (0, 0), 6)
+                w = np.clip(w * 1.25, 0, 1) * yo
+                w = w[..., None]
+            else:
+                # feather inside the yolk: candidate fully inside (yolk eroded 18 px), original outside the yolk
+                inner = cv2.erode(yo.astype(np.uint8), np.ones((37, 37), np.uint8)).astype(np.float32)
+                w = cv2.GaussianBlur(inner, (0, 0), 5)
+                w = np.clip(w * yo, 0, 1)[..., None]
             comp = (c.astype(np.float32) * w + o.astype(np.float32) * (1 - w)).round().astype(np.uint8)
             comp[..., 3] = o[..., 3]  # silhouette is the original, exactly
             band = (w[..., 0] > 0.05) & (w[..., 0] < 0.95)
             seam = float(np.abs(o[..., :3].astype(int) - c[..., :3].astype(int))[band].mean()) if band.any() else 0.0
             rep["composite_seam_mean_rgb"] = round(seam, 2)
             # every face feature of the candidate must be inside the full-weight zone, otherwise it gets cut
-            feat = (np.abs(c[..., :3].astype(int) - o[..., :3].astype(int)).max(axis=2) > 40) & yo
-            cut = feat & (w[..., 0] < 0.95)
+            # face features of either image (dark strokes, blush) must sit where the candidate fully wins,
+            # otherwise a feature is cut or a remnant of the old face is left behind
+            feat = face_features(c) | face_features(o)
+            cut = feat & (w[..., 0] < 0.97)
             rep["composite_features_in_feather_px"] = int(cut.sum())
             if not base_ok or seam > MAX_SEAM or cut.sum() > 40:
                 rep["install"] = "refused: composite would show a seam or cut a feature (see composite_* fields)"
             else:
                 Image.fromarray(comp, "RGBA").save(dst); rep["install"] = dst_rel + " (composite: outline = original)"
                 Image.fromarray(np.concatenate([on_bg(o), on_bg(comp)], axis=1)).resize((o.shape[1], o.shape[0] // 2), Image.LANCZOS).save(os.path.join(args.out, f"{args.kind}-composite.png"))
-        if rep.get("install", "").startswith("/assets"):
+        if rep.get("install", "").startswith("/assets") and not args.no_slots:
             s = json.load(open(SLOTS))
             s["egg"].setdefault("faces", {})[args.kind] = dst_rel
             with open(SLOTS, "w") as f:

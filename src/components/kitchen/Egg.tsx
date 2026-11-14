@@ -60,7 +60,11 @@ export type EggAnchors = {
 export const HANDOFF = { straighten: [0, 0.35], panelIn: [0.47, 0.5], swap: 0.5, catchOut: [0.5, 0.68] } as const;
 
 /** 可选的表情图：与 egg.webp 同画布、同轮廓、同脚底锚点，只改脸。没给（null）就一直用原图 */
-export type EggFaces = { fly?: string | null; rest?: string | null };
+/**
+ * box：表情图在蛋的布局框（eggSize，脚底 = 底边中点）里的位置和大小（场景像素）。表情图的身体姿态和透明边距
+ * 与原图不同时用它把图里的接触点放到脚底、外轮廓宽度对齐原图；不给就和原图一样铺满布局框。
+ */
+export type EggFaces = { fly?: string | null; rest?: string | null; box?: { left: number; top: number; width: number; height: number } };
 type Face = "base" | "fly" | "rest";
 const span = (v: number, [a, b]: readonly [number, number]) => clamp01((v - a) / (b - a));
 export const DEFAULT_EGG_ANCHORS: EggAnchors = {
@@ -252,7 +256,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   const flying = b_isFlight(timeline.beat) && P.station === null;
   useEffect(() => {
     if (flying) { restArmed.current = false; setFace("fly"); }
-    else if (onSpatula) { if (restArmed.current || reducedMotion) setFace("rest"); }
+    // 在铲面上：落铲事件切到 rest 之后保持；直接跳进交接段（没有经过落地，P.landing 为空）也直接用 rest
+    else if (onSpatula) { if (restArmed.current || reducedMotion || P.landing === null) setFace("rest"); }
     else { restArmed.current = false; setFace("base"); }
   });
 
@@ -387,7 +392,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
             background: "radial-gradient(ellipse at center, rgba(70,42,18,0.5) 0%, rgba(70,42,18,0.22) 45%, rgba(70,42,18,0) 72%)",
             opacity: showShadow ? 0.45 : 0,
             transform: P.station === "pan" ? "translateY(-23px)" : undefined,
-            transition: "opacity 0.2s",
+            // 出现时短暂淡入；离开桌沿（起跳）时立即消失，后景不残留影子
+            transition: showShadow ? "opacity 0.2s" : "none",
           }}
         />
         <div ref={eggRef} className="absolute inset-0 will-change-transform">
@@ -396,11 +402,11 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           {/* 表情图预先加载、默认隐藏；切换只改 visibility，同一帧内只有一张脸 */}
           {faces?.fly && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img ref={flyImgRef} src={faces.fly} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" style={{ visibility: "hidden" }} />
+            <img ref={flyImgRef} src={faces.fly} alt="" draggable={false} className={`absolute select-none ${faces.box ? "" : "inset-0 h-full w-full"}`} style={{ visibility: "hidden", maxWidth: "none", ...faces.box }} />
           )}
           {faces?.rest && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img ref={restImgRef} src={faces.rest} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" style={{ visibility: "hidden" }} />
+            <img ref={restImgRef} src={faces.rest} alt="" draggable={false} className={`absolute select-none ${faces.box ? "" : "inset-0 h-full w-full"}`} style={{ visibility: "hidden", maxWidth: "none", ...faces.box }} />
           )}
         </div>
       </div>

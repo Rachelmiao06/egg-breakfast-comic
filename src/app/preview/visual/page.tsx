@@ -19,7 +19,7 @@ import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, tableWaitFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
-import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor } from "./slots";
+import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
 import { useViewport } from "./viewport";
 
 function Debug() {
@@ -130,7 +130,7 @@ function StageV2() {
             </>
           }
         >
-          <KitchenCharacters eggAnchors={anchors} eggFaces={cfg.egg.faces} direct />
+          <KitchenCharacters eggAnchors={anchors} eggFaces={eggFacesFor(cfg)} direct />
         </KitchenScene>
       </div>
       <SearchBackdrop />
