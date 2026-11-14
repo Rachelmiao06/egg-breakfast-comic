@@ -266,6 +266,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
       }
       const jump = () => {
         if (settleRef.current) return;
+        // 前景漫画格在表演（切菜、表情）时，后景的蛋先不跳，避免抢眼
+        if (document.documentElement.dataset.comicPerf) { gsap.delayedCall(0.5, jump); return; }
         busy = true;
         const k = idle === "pan" ? 1 : 0.8;
         gsap

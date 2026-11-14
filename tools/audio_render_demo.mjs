@@ -29,7 +29,7 @@ const AUDIO_DIR = join(ROOT, "public/assets/audio");
 const PHASES = ["enter", "action", "hold", "exit"];
 const LOOP_SOUNDS = ["room", "sizzle", "chop", "stirfry", "sauce", "steps"];
 const LOOP_FILES = { room: "room-loop.mp3", sizzle: "sizzle-loop.mp3", chop: "chop-loop.mp3", stirfry: "stirfry-loop.mp3", sauce: "sauce-stir-loop.mp3", steps: "footsteps-loop.mp3" };
-const ONESHOTS = { stirfryIn: ["stirfry-in.mp3", 0.6], catch: ["catch.mp3", 0.6], bowlDown: ["bowl-down.mp3", 0.6], pour: ["pour.mp3", 0.5], momCall: ["mom-call.mp3", 0.6], eggCall: ["egg-call.mp3", 0.6], pop: ["pop.mp3", 0.6], eggSmall: ["egg-small.mp3", 0.5] };
+const ONESHOTS = { stirfryIn: ["stirfry-in.mp3", 0.6], catch: ["catch.mp3", 0.6], bowlDown: ["bowl-down.mp3", 0.6], pour: ["pour.mp3", 0.5], momCall: ["mom-call.mp3", 0.6], eggCall: ["egg-call.mp3", 0.6], pop: ["pop.mp3", 0.5], eggSmall: ["egg-small.mp3", 0.5] };
 const DEFAULT_PHASES = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 };
 
 const raw = JSON.parse(readFileSync(BEATS_PATH, "utf8"));
