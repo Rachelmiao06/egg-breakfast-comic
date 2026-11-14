@@ -29,7 +29,8 @@ const AUDIO_DIR = join(ROOT, "public/assets/audio");
 const PHASES = ["enter", "action", "hold", "exit"];
 const LOOP_SOUNDS = ["room", "sizzle", "chop", "stirfry", "sauce", "steps"];
 const LOOP_FILES = { room: "room-loop.mp3", sizzle: "sizzle-loop.mp3", chop: "chop-loop.mp3", stirfry: "stirfry-loop.mp3", sauce: "sauce-stir-loop.mp3", steps: "footsteps-loop.mp3" };
-const ONESHOTS = { stirfryIn: ["stirfry-in.mp3", 0.6], catch: ["catch.mp3", 0.6], bowlDown: ["bowl-down.mp3", 0.6], pour: ["pour.mp3", 0.5], momCall: ["mom-call.mp3", 0.6], eggCall: ["egg-call.mp3", 0.6], pop: ["pop.mp3", 0.5], eggSmall: ["egg-small.mp3", 0.5] };
+// [文件, 电平, 声像(-1 左 … 1 右，可省略)]；chopHit 由前景动画逐刀触发，离线渲染里没有
+const ONESHOTS = { stirfryIn: ["stirfry-in.mp3", 0.6], catch: ["catch.mp3", 0.6], bowlDown: ["bowl-down.mp3", 0.6], pour: ["pour.mp3", 0.5], momCall: ["mom-call.mp3", 0.6], eggCall: ["egg-call.mp3", 0.6], pop: ["pop.mp3", 0.5], eggSmall: ["egg-small.mp3", 0.5], bowlTap1: ["bowl-tap-1.mp3", 0.3, -0.6], bowlTap2: ["bowl-tap-2.mp3", 0.3, -0.6] };
 const DEFAULT_PHASES = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 };
 
 const raw = JSON.parse(readFileSync(BEATS_PATH, "utf8"));
@@ -37,12 +38,14 @@ const map = JSON.parse(readFileSync(join(ROOT, "src/components/kitchen/audio-map
 // 触发点（与 useKitchenAudio.resolveAt / beats.ts eventAt 相同）：数字；"@eggOnTable" / "@eggOnSpatula" / "@eggInBowl"
 // 共享事件（该段 egg 模式对上时 = 动作阶段结束）；或 enterEnd / actionEnd / holdEnd。都可带 ± 偏移
 const EGG_EVENTS = { eggOnTable: "toTable", eggOnSpatula: "flight", eggInBowl: "serve" };
-function resolveAt(phases, at, egg) {
+function resolveAt(phases, at, egg, events) {
   if (typeof at === "number") return at;
   const ev = /^@(\w+)([+-]\d*\.?\d+)?$/.exec(String(at).trim());
   if (ev) {
+    const off = ev[2] ? parseFloat(ev[2]) : 0;
+    if (events && ev[1] in events) return Math.min(1, Math.max(0, events[ev[1]] + off)); // 节拍里的 events（如 quiet 的 @tap1）
     if (!EGG_EVENTS[ev[1]] || EGG_EVENTS[ev[1]] !== egg) throw new Error(`事件 ${at} 与本段蛋模式 ${egg} 对不上`);
-    return Math.min(1, Math.max(0, phases.enter + phases.action + (ev[2] ? parseFloat(ev[2]) : 0)));
+    return Math.min(1, Math.max(0, phases.enter + phases.action + off));
   }
   const m = /^(enterEnd|actionEnd|holdEnd)([+-]\d*\.?\d+)?$/.exec(String(at).trim());
   if (!m) throw new Error(`不认识的触发点 ${at}`);
@@ -53,7 +56,11 @@ function resolveAt(phases, at, egg) {
 const beats = (raw.beats ?? raw).map((b) => {
   const phases = b.phases ?? DEFAULT_PHASES;
   const audio = map[b.id] ?? b.audio ?? { loops: {}, fades: [], oneshots: [] };
-  return { ...b, phases, audio: { ...audio, oneshots: audio.oneshots.map((o) => ({ sound: o.sound, atSpec: o.at, at: resolveAt(phases, o.at, b.egg) })) } };
+  const R = (x) => resolveAt(phases, x, b.egg, b.events);
+  const ramps = (audio.ramps ?? []).map((r) => ({ ...r, start: R(r.start), end: R(r.end) })).sort((x, y) => x.start - y.start);
+  const loops = { ...audio.loops };
+  for (const r of ramps) loops[r.sound] = r.to; // 与 useKitchenAudio.withAudioMap 相同：loops 取最后一条斜坡的 to
+  return { ...b, phases, ramps, audio: { ...audio, loops, oneshots: audio.oneshots.map((o) => ({ sound: o.sound, atSpec: o.at, at: R(o.at) })) } };
 });
 const totalVh = beats.reduce((s, b) => s + b.lengthVh, 0);
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -71,6 +78,9 @@ function locate(vh) {
 const phaseProgress = (t, phase) => { const o = PHASES.indexOf(phase), c = PHASES.indexOf(t.phase); return c < o ? 0 : c > o ? 1 : t.phaseP; };
 function loopLevelInBeat(b, t, s) { const f = b.audio.fades.find((x) => x.sound === s); if (f) return t ? lerp(f.from, f.to, phaseProgress(t, f.phase)) : f.to; return b.audio.loops[s] ?? 0; }
 function loopLevels(t) { const prev = t.index > 0 ? beats[t.index - 1] : null; const out = {}; for (const s of LOOP_SOUNDS) { const cur = loopLevelInBeat(t.beat, t, s); out[s] = t.phase === "enter" && prev ? lerp(loopLevelInBeat(prev, null, s), cur, t.phaseP) : cur; } return out; }
+// ramps（与 useKitchenAudio.rampValue / mappedLevels 相同）：有斜坡的声音在本段完全由斜坡决定
+function rampValue(rs, s, p) { let v = null; for (const r of rs) { if (r.sound !== s) continue; if (v === null && p < r.start) return r.from; if (p < r.start) break; v = p >= r.end || r.end === r.start ? r.to : r.from + (r.to - r.from) * ((p - r.start) / (r.end - r.start)); } return v; }
+function mappedLevels(t) { const out = loopLevels(t); for (const s of LOOP_SOUNDS) { const v = rampValue(t.beat.ramps ?? [], s, t.p); if (v !== null) out[s] = v; } return out; }
 function crossedOneShots(prev, cur) { if (!prev) return []; const pos = (t) => t.index + t.p; if (pos(cur) <= pos(prev)) return []; const f = []; for (let i = prev.index; i <= cur.index; i++) for (const o of beats[i].audio.oneshots) { const at = i + o.at; if (at > pos(prev) && at <= pos(cur)) f.push(o.sound); } return f; }
 
 // ---- 解码素材 ----
@@ -93,9 +103,9 @@ let prevT = null; const cur = Object.fromEntries(LOOP_SOUNDS.map((s) => [s, 0]))
 for (let k = 0; k <= nTicks; k++) {
   const time = k * TICK; const t = locate(Math.min(totalVh, time * SPEED));
   if (!sceneTimes.length || sceneTimes.at(-1).id !== t.beat.id) { if (sceneTimes.length) sceneTimes.at(-1).t1 = time; sceneTimes.push({ t0: time, t1: duration, id: t.beat.id, n: t.beat.n, title: t.beat.title }); }
-  const target = loopLevels(t);
+  const target = mappedLevels(t);
   for (const s of LOOP_SOUNDS) { const d = target[s] - cur[s]; cur[s] += Math.sign(d) * Math.min(Math.abs(d), SLEW * TICK); levels[s][k] = cur[s]; }
-  for (const s of crossedOneShots(prevT, t)) fires.push({ t: time, sound: s, has: !!shotPcm[s] });
+  { const c = crossedOneShots(prevT, t); if (c.length) { const s = c[c.length - 1]; fires.push({ t: time, sound: s, has: !!shotPcm[s], skipped: c.slice(0, -1) }); } } // 同一次越过多个只播最后一个（与网页相同）
   prevT = t;
 }
 
@@ -106,7 +116,19 @@ for (const s of LOOP_SOUNDS) {
   const pcm = loopPcm[s]; if (!pcm) continue; const len = pcm.length / 2; const lv = levels[s];
   for (let i = 0; i < total; i++) { const k = (i / SR) / TICK; const k0 = Math.min(nTicks - 1, Math.floor(k)); const g = lv[k0] + (lv[k0 + 1] - lv[k0]) * (k - k0); if (g <= 0) continue; const j = (i % len) * 2; mix[i * 2] += pcm[j] * g; mix[i * 2 + 1] += pcm[j + 1] * g; }
 }
-for (const f of fires) { const pcm = shotPcm[f.sound]; if (!pcm) continue; const g = ONESHOTS[f.sound][1]; const start = Math.floor(f.t * SR); for (let j = 0; j < pcm.length / 2 && start + j < total; j++) { mix[(start + j) * 2] += pcm[j * 2] * g; mix[(start + j) * 2 + 1] += pcm[j * 2 + 1] * g; } }
+for (const f of fires) {
+  const pcm = shotPcm[f.sound]; if (!pcm) continue;
+  const g = ONESHOTS[f.sound][1], pan = ONESHOTS[f.sound][2] ?? 0;
+  // 与 Web Audio StereoPannerNode 相同的立体声声像（pan ≤ 0 时右声道并入左声道）
+  const x = pan <= 0 ? pan + 1 : pan, gL = Math.cos((x * Math.PI) / 2), gR = Math.sin((x * Math.PI) / 2);
+  const start = Math.floor(f.t * SR);
+  for (let j = 0; j < pcm.length / 2 && start + j < total; j++) {
+    const L = pcm[j * 2], Rr = pcm[j * 2 + 1];
+    let oL = L, oR = Rr;
+    if (pan < 0) { oL = L + Rr * gL; oR = Rr * gR; } else if (pan > 0) { oL = L * gL; oR = Rr + L * gR; }
+    mix[(start + j) * 2] += oL * g; mix[(start + j) * 2 + 1] += oR * g;
+  }
+}
 
 mkdirSync(OUT, { recursive: true });
 const rawPath = join(OUT, "mix.f32"); writeFileSync(rawPath, Buffer.from(mix.buffer));
