@@ -1,77 +1,36 @@
 "use client";
 /**
- * 开发预览页（comic-scroll 分支自己维护）：
- * 厨房 fixed 在底层（KitchenScene 自己做弱化和镜头），MomForeground 走它的 foreground 插槽，
- * 前景漫画 fixed 在上面；页面长度和节奏只由 <ScrollDriver> + 节拍表决定。
- * 角落 HUD 显示 timeline（段 / p / 阶段 / 阶段进度）和推导出的 progress / activePanel / flight / serve，
- * 场景层画小十字：spatulaLand（铲面落点）、bowlLand / bowlCenter（碗）、panLaunch（起跳点）。
- * 这里没有蛋本体（主会话的 <Egg>），只验证画格显隐、妈妈摆放和状态值。
+ * 漫画页版式预览 /dev/comic（comic-scroll 分支自己维护）：静态，不接 timeline，没有滚动动效。
+ * 第一页"切配菜"四格（占位）放在视口偏左的纸面上；厨房（含蛋、火苗、油泡、蒸汽）在底层活动，
+ * 用 <KitchenScene camera> 把锅和跳蛋取到纸页右侧露出来。
+ * 滚动流程预览在 /dev/comic/flow。
  */
-import ScrollDriver from "@/components/ScrollDriver";
-import ComicScroll from "@/components/comic/ComicScroll";
-import MomForeground from "@/components/comic/MomForeground";
+import ComicPage from "@/components/comic/ComicPage";
+import { CHOP_PAGE } from "@/components/comic/pages";
+import KitchenCharacters from "@/components/kitchen/KitchenCharacters";
 import KitchenScene from "@/components/kitchen/KitchenScene";
 import { ANCHORS } from "@/lib/scene";
-import { SceneProvider, useScene } from "@/lib/scene-context";
+import { SceneProvider } from "@/lib/scene-context";
 
-function Cross({ x, y, label, color }: { x: number; y: number; label: string; color: string }) {
-  return (
-    <div aria-hidden className="pointer-events-none absolute" style={{ left: x, top: y, zIndex: 95 }}>
-      <div className="absolute -left-4 -top-[2px] h-1 w-8" style={{ background: color }} />
-      <div className="absolute -left-[2px] -top-4 h-8 w-1" style={{ background: color }} />
-      <div className="absolute left-3 top-2 whitespace-nowrap rounded bg-black/60 px-1.5 py-0.5 text-[13px] font-bold text-white">
-        {label} {x},{y}
-      </div>
-    </div>
-  );
-}
+/** 取景：推近 1.35 倍，把锅底中心放到视口右侧偏下，纸页盖不住锅和蛋 */
+const CAMERA = { x: ANCHORS.panInner.cx, y: ANCHORS.panInner.cy + 40, weight: 1, at: { x: 0.86, y: 0.7 }, zoom: 1.35 };
 
-function AnchorCrosses() {
-  return (
-    <>
-      <Cross x={ANCHORS.panLaunch.x} y={ANCHORS.panLaunch.y} label="panLaunch" color="#d9534f" />
-      <Cross x={ANCHORS.spatulaLand.x} y={ANCHORS.spatulaLand.y} label="spatulaLand" color="#d9534f" />
-      <Cross x={ANCHORS.bowlCenter.x} y={ANCHORS.bowlCenter.y} label="bowlCenter" color="#2a7fd4" />
-      <Cross x={ANCHORS.bowlLand.x} y={ANCHORS.bowlLand.y} label="bowlLand" color="#2a7fd4" />
-    </>
-  );
-}
-
-function Hud() {
-  const { timeline: t, progress, activePanel, flight, serve } = useScene();
-  const fmt = (v: number | null) => (v === null ? "null" : v.toFixed(2));
-  return (
-    <div data-hud className="fixed right-3 top-3 z-50 rounded bg-ink/85 px-3 py-2 font-mono text-xs leading-5 text-cream">
-      <div>
-        beat {t.index} {t.beat.id} p {t.p.toFixed(2)}
-      </div>
-      <div>
-        phase {t.phase} {t.phaseP.toFixed(2)}
-      </div>
-      <div>progress {progress.toFixed(2)}</div>
-      <div>activePanel {activePanel}</div>
-      <div>flight {fmt(flight)}</div>
-      <div>serve {fmt(serve)}</div>
-    </div>
-  );
-}
-
-export default function DevPage() {
+export default function ComicPagePreview() {
   return (
     <SceneProvider>
       <div className="fixed inset-0 z-0">
-        <KitchenScene
-          foreground={
-            <>
-              <MomForeground />
-              <AnchorCrosses />
-            </>
-          }
-        />
+        <KitchenScene camera={CAMERA}>
+          <KitchenCharacters />
+        </KitchenScene>
       </div>
-      <ComicScroll />
-      <ScrollDriver />
-      <Hud />
+      <div className="pointer-events-none fixed inset-0 z-10">
+        <div className="absolute left-[4vw] top-1/2 -translate-y-1/2">
+          <ComicPage page={CHOP_PAGE} style={{ width: "min(1180px, 86vw, 118vh)" }} />
+        </div>
+      </div>
+      <div className="fixed bottom-2 left-3 z-20 rounded bg-ink/80 px-2 py-1 font-mono text-[11px] text-cream">
+        /dev/comic · 切配菜页 · 静态占位版式 · 滚动流程见 /dev/comic/flow
+      </div>
     </SceneProvider>
   );
 }
