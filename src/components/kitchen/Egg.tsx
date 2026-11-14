@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useRef } from "react";
 import gsap from "gsap";
-import { beatById, type Beat, type Timeline } from "@/lib/beats";
+import { beatById, eggTravel, type Beat, type Timeline } from "@/lib/beats";
 import { ANCHORS, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import FollowMid from "./FollowMid";
@@ -99,7 +99,11 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
   const b = t.beat;
   const next = beats[t.index + 1];
   const exiting = t.phase === "exit";
-  const actionP = t.phase === "action" ? t.phaseP : t.phase === "enter" ? 0 : 1;
+  // 行进进度与落点都读共享事件（beats.ts eggTravel / eventAt），声音的落铲触发点读的是同一个值
+  const trav = eggTravel(b);
+  const actionP = trav ? clamp01((t.p - trav.start) / Math.max(1e-6, trav.land - trav.start)) : t.phase === "action" ? t.phaseP : t.phase === "enter" ? 0 : 1;
+  const before = trav ? t.p < trav.start : t.phase === "enter";
+  const travelling = trav ? t.p >= trav.start && t.p < trav.land : t.phase === "action";
   const base = (st: Station, idle: Plan["idle"], z: number): Plan => ({ pose: stationPose(st, a), station: st, idle, settle: false, z, opacity: 1, landing: null });
   switch (b.egg) {
     case "loop": {
@@ -108,8 +112,8 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       return P;
     }
     case "toTable": {
-      if (t.phase === "enter") return { ...base("pan", "pan", Z.eggInPan), settle: true };
-      if (t.phase === "action") return { pose: arc("pan", "table", smooth(actionP), a, 260, 12), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null };
+      if (before) return { ...base("pan", "pan", Z.eggInPan), settle: true };
+      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 260, 12), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null };
       const P = base("table", "table", Z.eggOnTable);
       P.landing = "table";
       P.settle = !!next && next.egg === "flight" && exiting;
@@ -122,13 +126,13 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
     }
     case "flight": {
       const from = lastStationBefore(beats, t.index);
-      if (t.phase === "enter") return { ...base(from, from === "pan" ? "pan" : "table", from === "pan" ? Z.eggInPan : Z.eggOnTable), settle: true };
-      if (t.phase === "action") return { pose: arc(from, "spatula", actionP, a, 380, -18), station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null };
+      if (before) return { ...base(from, from === "pan" ? "pan" : "table", from === "pan" ? Z.eggInPan : Z.eggOnTable), settle: true };
+      if (travelling) return { pose: arc(from, "spatula", actionP, a, 380, -18), station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null };
       return { ...base("spatula", null, Z.eggFlying), landing: "spatula" };
     }
     case "serve": {
-      if (t.phase === "action") return { pose: arc("spatula", "bowl", actionP, a, 110, 8), station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null };
-      return t.phase === "enter" ? base("spatula", null, Z.eggFlying) : { ...base("bowl", null, Z.eggFlying), landing: "bowl" };
+      if (travelling) return { pose: arc("spatula", "bowl", actionP, a, 110, 8), station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null };
+      return before ? base("spatula", null, Z.eggFlying) : { ...base("bowl", null, Z.eggFlying), landing: "bowl" };
     }
     case "bowl":
       return base("bowl", null, Z.eggFlying);

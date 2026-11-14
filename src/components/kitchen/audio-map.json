@@ -1,6 +1,7 @@
 {
   "_doc": [
     "按场景编号（节拍表的 id）覆盖每段的 audio 字段，由 useKitchenAudio 读取；表里没有的场景沿用节拍数据里原来的值。同一张表同时适用于 src/app/preview/visual/beats.visual-v2.json（默认动效，19 段，含 drop）和 beats.visual.json（?motion=v1，18 段，无 drop）。",
+    "共享事件位置（优先用）：at 写 \"@eggOnSpatula\" / \"@eggOnTable\" / \"@eggInBowl\"，由 src/lib/beats.ts 的 eventAt 换算；蛋的动画（Egg.tsx）读同一个函数，所以声音和画面永远落在同一点，两边都不写死数字。catch 用 @eggOnSpatula（v2 = 0.80，v1 = 0.78）。",
     "单次音效的 at：数字 = 段内进度 0–1；或阶段符号 enterEnd / actionEnd / holdEnd（可带偏移，如 actionEnd-0.02），由混音器按当前节拍表的 phases 换算，这样新旧两版节拍的动作结束点不同也只写一次（catch 落铲 = actionEnd：v1 0.78、v2 0.80）。",
     "drop（只在 v2 有）：蛋从锅里跳到桌沿、灶台上移退出、厨房转为纸面，所以 room 保持低位、sizzle 在动作阶段从开场的 0.45 渐降到 0.2，停留阶段保持 0.2，之后 bag 进入阶段再降到 0.12；不加新声音。",
     "混音原则：任何时刻 = 很轻的环境底声 room + 一个当前主要动作声（sizzle / chop / sauce / steps 之一）+ 必要的单次音效。跨段切换：进入阶段里上一段的动作声按进度退下、本段的进入（loopLevels 的进入渐变），重叠只发生在进入阶段内；fades 只写在该段确实存在的阶段上（hear 没有动作阶段，所以用 hold）。",
@@ -30,7 +31,7 @@
     "sauce": { "loops": { "room": 0.2, "sizzle": 0.08, "sauce": 0.4 }, "fades": [], "oneshots": [] },
     "missing": { "loops": { "room": 0.25, "sizzle": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.2, "to": 0.04, "phase": "hold" } ], "oneshots": [] },
     "hear": { "loops": { "room": 0.18, "sizzle": 0.6 }, "fades": [ { "sound": "sizzle", "from": 0.6, "to": 0.3, "phase": "hold" } ], "oneshots": [ { "sound": "pop", "at": 0.35 } ] },
-    "catch": { "loops": { "room": 0.18, "sizzle": 0.38 }, "fades": [ { "sound": "sizzle", "from": 0.3, "to": 0.38, "phase": "action" } ], "oneshots": [ { "sound": "catch", "at": "actionEnd" } ] },
+    "catch": { "loops": { "room": 0.18, "sizzle": 0.38 }, "fades": [ { "sound": "sizzle", "from": 0.3, "to": 0.38, "phase": "action" } ], "oneshots": [ { "sound": "catch", "at": "@eggOnSpatula" } ] },
     "handoff": { "loops": { "room": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.38, "to": 0, "phase": "enter" } ], "oneshots": [] },
     "bowl": { "loops": { "room": 0.2 }, "fades": [], "oneshots": [ { "sound": "bowlDown", "at": 0.25 }, { "sound": "pour", "at": 0.55 } ] },
     "yolk": { "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
