@@ -1,0 +1,34 @@
+{
+  "note": "素材替换接口：换图只改这里的 src（和必要时的 land / box），比例按图片实际尺寸自动读取，不必重排全页。x / y / w 是试验版位（vw / vh），aspect 只是图未加载前的占位比例，不是规格。scene 下的格子用场景像素，落点 land 是在格子里的相对位置（0–1），蛋的交接点由它算出。",
+  "panels": [
+    { "key": "bag", "beat": "bag", "label": "占位 B1 · 取买菜袋，有点累\n妈妈提着买菜袋进门，略显疲惫", "dialogueInImage": null, "x": 6, "y": 11, "w": 40, "aspect": 1.333, "from": "seam" },
+    { "key": "prepare", "beat": "prepare", "label": "占位 B2 · 准备配菜饭\n妈妈盛饭、摆好配菜", "dialogueInImage": null, "x": 54, "y": 12, "w": 40, "aspect": 1.333, "from": "right" },
+    { "key": "chop-medium", "beat": "chop", "src": "/assets/comic-v2/p1d-chop-medium.webp", "source": "source/comic-v2/page1-choose-prep.png 第四格", "dialogueInImage": true, "x": 17, "y": 3, "w": 58, "aspect": 2.158, "from": "left" },
+    { "key": "chop-hands", "beat": "chop", "src": "/assets/comic-v2/closeup-chop.webp", "source": "source/comic-v2/chop-hands-closeup.png", "dialogueInImage": false, "frame": true, "x": 31, "y": 44, "w": 41, "aspect": 1.5, "from": "bottom" },
+    { "key": "stirfry", "beat": "stirfry", "label": "占位 B3 · 炒菜\n妈妈翻炒配菜", "dialogueInImage": null, "x": 61, "y": 8, "w": 35, "aspect": 1.333, "from": "top" },
+    { "key": "sauce", "beat": "sauce", "label": "占位 B4 · 调汁\n妈妈在碗里调酱汁", "dialogueInImage": null, "x": 4, "y": 48, "w": 34, "aspect": 1.333, "from": "bottom" },
+    { "key": "missing", "beat": "missing", "label": "占位 B5 · 端详饭碗，觉得少点什么\n妈妈端着配菜饭看了看：\"好像少了点什么……\"", "dialogueInImage": null, "x": 3, "y": 8, "w": 34, "aspect": 1.333, "from": "left" },
+    { "key": "hear", "beat": "hear", "kind": "head", "src": "/assets/comic-v2/head-up-surprised.webp", "source": "source/comic-v2/mom-heads-3pose.png 中间", "dialogueInImage": false, "x": 5, "y": 26, "w": 22, "aspect": 0.92, "from": "bottom" },
+    { "key": "call", "beat": "call", "label": "占位 B6 · \"宝宝，来吃饭啦！\"\n妈妈朝屋里喊（不画婴儿）", "dialogueInImage": null, "x": 6, "y": 6, "w": 36, "aspect": 1.333, "from": "left" },
+    { "key": "search", "beat": "search", "label": "占位 B7 · 去女儿房门口探头寻找\n\"宝宝？\"——房间里没人", "dialogueInImage": null, "x": 52, "y": 8, "w": 42, "aspect": 1.333, "from": "right" },
+    { "key": "egg-call", "beat": "eggcall", "label": "占位 B8 · 听见蛋喊她\n\"妈妈～\"（声音从厨房传来）", "dialogueInImage": null, "x": 8, "y": 10, "w": 36, "aspect": 1.333, "from": "top" },
+    { "key": "return", "beat": "return", "label": "占位 B9 · 返回认亲\n妈妈回到饭碗前，认出了碗里的蛋", "dialogueInImage": null, "x": 54, "y": 8, "w": 40, "aspect": 1.333, "from": "right" },
+    { "key": "final", "beat": "final", "label": "占位 B10 · 最后对白（文案待定）", "dialogueInImage": null, "x": 20, "y": 8, "w": 60, "aspect": 1.778, "from": "bottom" }
+  ],
+  "scene": {
+    "catch": {
+      "label": "占位 A1 · 接蛋格（无蛋底图）\n妈妈惊讶地伸出空锅铲\n（框线 A2 单独一层，蛋从框外飞进来）",
+      "box": [250, 470, 650, 530],
+      "land": { "fx": 0.44, "fy": 0.57 },
+      "src": null, "frameSrc": null, "occluderSrc": null,
+      "appearFlight": [0.3, 0.55]
+    },
+    "bowl": {
+      "label": "占位 A4 · 饭碗格（饭中央留空）\n放到饭上、淋汁、流黄",
+      "box": [470, 600, 600, 410],
+      "land": { "fx": 0.485, "fy": 0.61 },
+      "src": null, "frameSrc": null, "occluderSrc": null
+    }
+  },
+  "egg": { "onSpatulaScale": 0.578, "inBowlScale": 0.441 }
+}

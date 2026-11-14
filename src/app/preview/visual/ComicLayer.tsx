@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useScene } from "@/lib/scene-context";
-import { PANELS, type PanelSpec } from "./panels";
+import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -103,11 +103,11 @@ export default function ComicLayer() {
         const seamProgress = t.phase === "enter" ? t.phaseP : 1;
         return (
           <div key={p.key} className="absolute" style={style}>
-            {p.kind === "img" && !p.frame && (
+            {p.src && p.kind !== "head" && !p.frame && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
             )}
-            {p.kind === "img" && p.frame && (
+            {p.src && p.kind !== "head" && p.frame && (
               <div className="h-full w-full" style={{ background: "#fef4e5", padding: "6px" }}>
                 <div className="h-full w-full" style={{ outline: "2.5px solid #2b2118", outlineOffset: "-2.5px" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -121,7 +121,7 @@ export default function ComicLayer() {
                 <img src={p.src} alt="" draggable={false} className="absolute bottom-0 left-1/2 h-[96%] w-auto max-w-none -translate-x-1/2 select-none" />
               </div>
             )}
-            {p.kind === "ph" && (p.from === "seam" ? <SeamPanel spec={p} progress={seamProgress} /> : <Placeholder label={p.label ?? ""} />)}
+            {!p.src && (p.from === "seam" ? <SeamPanel spec={p} progress={seamProgress} /> : <Placeholder label={p.label ?? ""} />)}
           </div>
         );
       })}

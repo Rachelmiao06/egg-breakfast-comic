@@ -18,7 +18,23 @@ import { useScene } from "@/lib/scene-context";
 import EggShadow from "./EggShadow";
 import FollowMid from "./FollowMid";
 
-const { eggRest: REST, eggSize: SIZE, panLaunch: START, spatulaLand: LAND, bowlLand: BOWL, eggOnSpatula: S_SPAT, eggInBowl: S_BOWL } = ANCHORS;
+const { eggRest: REST, eggSize: SIZE } = ANCHORS;
+
+/** 可调的交接定位点（场景像素）。不传时用 src/lib/scene.ts 的默认值；路由可按素材替换后的位置传入。 */
+export type EggAnchors = {
+  panLaunch: { x: number; y: number };
+  spatulaLand: { x: number; y: number };
+  bowlLand: { x: number; y: number };
+  eggOnSpatula: number;
+  eggInBowl: number;
+};
+export const DEFAULT_EGG_ANCHORS: EggAnchors = {
+  panLaunch: ANCHORS.panLaunch,
+  spatulaLand: ANCHORS.spatulaLand,
+  bowlLand: ANCHORS.bowlLand,
+  eggOnSpatula: ANCHORS.eggOnSpatula,
+  eggInBowl: ANCHORS.eggInBowl,
+};
 const JUMP_HEIGHT = 135;
 /** 接蛋弧线的控制点（二次贝塞尔）：先高高跳起，再落向前景铲面 */
 const CTRL = { x: 610, y: 260 };
@@ -31,29 +47,33 @@ const SERVE_HOP = 110;
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
 const bezier = (a: number, b: number, c: number, t: number) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
 
-function flightPose(f: number) {
+function flightPose(f: number, a: EggAnchors) {
   const t = clamp01(f);
   return {
-    x: bezier(START.x, CTRL.x, LAND.x, t) - REST.x,
-    y: bezier(START.y, CTRL.y, LAND.y, t) - REST.y,
+    x: bezier(a.panLaunch.x, CTRL.x, a.spatulaLand.x, t) - REST.x,
+    y: bezier(a.panLaunch.y, CTRL.y, a.spatulaLand.y, t) - REST.y,
     rotation: -18 * Math.sin(Math.PI * t), // 空中转一下身，落地回正
     // 先略微变大（腾空靠近镜头），再缩到铲面尺寸
-    scale: 1 + 0.15 * Math.sin(Math.PI * t) + (S_SPAT - 1) * t * t,
+    scale: 1 + 0.15 * Math.sin(Math.PI * t) + (a.eggOnSpatula - 1) * t * t,
   };
 }
 
-function servePose(v: number) {
+function servePose(v: number, a: EggAnchors) {
   const t = clamp01(v);
-  const midY = Math.min(LAND.y, BOWL.y) - SERVE_HOP;
+  const midY = Math.min(a.spatulaLand.y, a.bowlLand.y) - SERVE_HOP;
   return {
-    x: LAND.x + (BOWL.x - LAND.x) * t - REST.x,
-    y: bezier(LAND.y, midY, BOWL.y, t) - REST.y,
+    x: a.spatulaLand.x + (a.bowlLand.x - a.spatulaLand.x) * t - REST.x,
+    y: bezier(a.spatulaLand.y, midY, a.bowlLand.y, t) - REST.y,
     rotation: 8 * Math.sin(Math.PI * t),
-    scale: S_SPAT + (S_BOWL - S_SPAT) * t,
+    scale: a.eggOnSpatula + (a.eggInBowl - a.eggOnSpatula) * t,
   };
 }
 
-export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }) {
+export default function Egg({ src = "/assets/scene/egg.webp", anchors }: { src?: string; anchors?: Partial<EggAnchors> }) {
+  const a: EggAnchors = { ...DEFAULT_EGG_ANCHORS, ...anchors };
+  const S_SPAT = a.eggOnSpatula;
+  const S_BOWL = a.eggInBowl;
+  const aKey = JSON.stringify(a);
   const eggRef = useRef<HTMLImageElement>(null);
   const shadowRef = useRef<HTMLDivElement>(null);
   const landedRef = useRef(false);
@@ -124,7 +144,7 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
       return;
     }
     if (serve !== null) return;
-    const p = flightPose(flight);
+    const p = flightPose(flight, a);
     gsap.to(egg, { ...p, scaleX: p.scale, scaleY: p.scale, duration: reducedMotion ? 0 : 0.3, ease: "power2.out", overwrite: true, transformOrigin: "50% 100%" });
     gsap.to(shadow, { opacity: 0.45 * Math.max(0, 1 - flight * 4), scale: 1 - flight, duration: 0.25, overwrite: "auto" });
     if (flight >= 1 && !landedRef.current && !reducedMotion) {
@@ -135,7 +155,8 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
     } else if (flight < 0.98) {
       landedRef.current = false;
     }
-  }, [flight, serve, reducedMotion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flight, serve, reducedMotion, aKey]);
 
   // 放进饭碗
   useEffect(() => {
@@ -144,7 +165,7 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
       servedRef.current = false;
       return;
     }
-    const sp = servePose(serve);
+    const sp = servePose(serve, a);
     gsap.to(egg, { ...sp, scaleX: sp.scale, scaleY: sp.scale, duration: reducedMotion ? 0 : 0.3, ease: "power2.out", overwrite: true, transformOrigin: "50% 100%" });
     if (serve >= 1 && !servedRef.current && !reducedMotion) {
       servedRef.current = true;
@@ -154,7 +175,8 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
     } else if (serve < 0.98) {
       servedRef.current = false;
     }
-  }, [serve, reducedMotion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serve, reducedMotion, aKey]);
 
   return (
     <>
