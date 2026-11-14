@@ -24,6 +24,8 @@ export type PanelSlot = {
   from: "left" | "right" | "top" | "bottom" | "seam";
   /** 同一段里的进场先后（0 起），错开进入 */
   order?: number;
+  /** 主次：hero 主镜头 / support 次要 / insert 过渡小格 / closeup 结尾独立特写 */
+  role?: "hero" | "support" | "insert" | "closeup";
 };
 export type SceneSlot = {
   label: string;

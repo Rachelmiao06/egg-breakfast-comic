@@ -138,7 +138,10 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       return base("bowl", null, Z.eggFlying);
     case "gone": {
       const P = base("spatula", null, Z.eggFlying);
-      P.opacity = t.phase === "enter" ? 1 - clamp01((t.phaseP - 0.25) / 0.75) : 0;
+      // 只有交接那一段（上一段蛋还在）才淡出；之后的 gone 段始终隐藏，避免蛋在后续各段的进入阶段重新闪现
+      const prev = beats[t.index - 1];
+      const handingOff = !!prev && prev.egg !== "gone";
+      P.opacity = handingOff && t.phase === "enter" ? 1 - clamp01((t.phaseP - 0.25) / 0.75) : 0;
       return P;
     }
   }

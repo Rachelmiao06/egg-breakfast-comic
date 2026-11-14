@@ -30,13 +30,14 @@
  },
  "hallway": {
   "type": "placeholder",
-  "label": "占位 · 走廊：妈妈去女儿房门口探头寻找",
+  "label": "占位 · 寻找段外围：暖米白平涂（正式图：浅色墙面 + 局部门框 + 纸白）",
   "src": null,
   "size": [
    1600,
    1000
   ],
-  "status": "缺图"
+  "status": "缺图（门口和空房间由漫画格 p5b / p5c 承担，外围不铺完整房间）",
+  "color": "#f6eee2"
  },
  "room": {
   "type": "placeholder",
@@ -196,6 +197,23 @@
     0.2,
     0
    ]
+  ],
+  "ending": [
+   [
+    "punchline",
+    0.72,
+    0
+   ],
+   [
+    "closeup",
+    0.4,
+    1
+   ]
   ]
+ },
+ "ending": {
+  "type": "color",
+  "color": "#f6eee2",
+  "status": "收尾背景：干净暖米白平涂，盖住桌腿和木纹横带（无纹理）"
  }
 }
