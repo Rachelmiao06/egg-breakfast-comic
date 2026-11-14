@@ -8,11 +8,11 @@ import data from "./beats.json";
 
 export const PHASES = ["enter", "action", "hold", "exit"] as const;
 export type Phase = (typeof PHASES)[number];
-export type LoopSound = "room" | "sizzle" | "chop" | "stirfry" | "sauce";
-export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour";
+export type LoopSound = "room" | "sizzle" | "chop" | "stirfry" | "sauce" | "steps";
+export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour" | "momCall" | "eggCall";
 export type EggMode = "loop" | "flight" | "serve" | "bowl";
 /** 停留组：同组连续段落期间画面停住（sticky / pin），组结束后释放；null = 正常流动段 */
-export type PinGroup = "prep" | "catch" | "bowl";
+export type PinGroup = "prep" | "catch" | "bowl" | "search" | "reunion";
 
 export type Beat = {
   id: string;
@@ -45,7 +45,7 @@ function validate(beats: Beat[]) {
 }
 
 export const BEATS = validate(data.beats as unknown as Beat[]);
-export const LOOP_SOUNDS: LoopSound[] = ["room", "sizzle", "chop", "stirfry", "sauce"];
+export const LOOP_SOUNDS: LoopSound[] = ["room", "sizzle", "chop", "stirfry", "sauce", "steps"];
 
 export const beatById = (id: string, beats: Beat[] = BEATS) => beats.find((b) => b.id === id)!;
 export const totalVh = (beats: Beat[] = BEATS) => beats.reduce((s, b) => s + b.lengthVh, 0);
