@@ -169,13 +169,36 @@ for (const [vw, vh] of sizes) {
   const panOk = A.panLaunch.x > vOpen.x0 && A.panLaunch.x < vOpen.x1 && A.panLaunch.y > vOpen.y0 && A.panLaunch.y < vOpen.y1;
   // 等待段（drop 落桌 → catch 起跳）
   let wm = Infinity, wmAt = "";
+  const LI = idx("listen");
+  // 等待段：drop 落桌 → hear 中段（之后镜头拉近到 listen 的角落，蛋故意出画）；catch 18% → 起跳：蛋回到画面里、在原位可见
   for (let g = gOf("drop", 0.75); g <= gOf("catch", flightStart); g += 0.01) {
+    if (LI >= 0 && g > gOf("hear", 0.5) && g < gOf("catch", 0.18)) continue;
     const v = view(vw, vh, cam(g, L.wait));
     const allowW = L.below && g >= gOf("catch", 0) ? Math.max(0, bg.eggPath.maxOverhang) * ew : 0;
     const m = Math.min((L.wait.x - ew / 2 - v.x0) * v.s, (v.x1 + allowW - (L.wait.x + ew / 2)) * v.s, (L.wait.y - ew - v.y0) * v.s, (v.y1 - L.wait.y) * v.s - 8);
     if (m < wm) { wm = m; wmAt = `${beats[Math.floor(g)].id} ${(g % 1).toFixed(2)}`; }
   }
   const onTop = L.wait.y >= T.topY && L.wait.y <= T.edgeY;
+  // listen 停留阶段：蛋（含轻跳）完全在画外
+  let listenHidden = true;
+  if (LI >= 0) {
+    const ph = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15, ...beats[LI].phases };
+    for (let p = ph.enter; p <= ph.enter + ph.hold; p += 0.02) {
+      const v = view(vw, vh, cam(LI + p, L.wait));
+      const r = { x0: L.wait.x - ew * 0.6, x1: L.wait.x + ew * 0.6, y0: L.wait.y - ew * 1.15, y1: L.wait.y };
+      if (r.x1 > v.x0 && r.x0 < v.x1 && r.y1 > v.y0 && r.y0 < v.y1) listenHidden = false;
+    }
+  }
+  // 阅读厨房完全显示的各段：镜头可见范围必须在阅读厨房图（横版 / 竖版 box）之内，不露出旧厨房或接缝
+  const RB = vw / vh < bg.reading.portraitBelow ? bg.reading.boxPortrait : bg.reading.box;
+  let readingCover = Infinity, readingCoverAt = "";
+  for (let g = gOf("bag", 0.3); g <= gOf("punchline", 0.7); g += 0.01) {
+    const op = (c) => (bg.curves[c] ? curve(bg.curves[c], g) : 0);
+    if (op("reading") < 0.99 || op("doorway") > 0.01 || op("ending") > 0.01) continue;
+    const v = view(vw, vh, cam(g, L.wait));
+    const m = Math.min((v.x0 - RB[0]) * v.s, (RB[0] + RB[2] - v.x1) * v.s, (v.y0 - RB[1]) * v.s, (RB[1] + RB[3] - v.y1) * v.s);
+    if (m < readingCover) { readingCover = m; readingCoverAt = `${beats[Math.floor(g)].id} ${(g % 1).toFixed(2)}`; }
+  }
   // 接蛋飞行
   const box = L.box, fx = (x) => (x - box[0]) / box[2];
   const bubble = { x0: box[0] + PM.bubble[0] * box[2], x1: box[0] + PM.bubble[1] * box[2], y0: box[1] + PM.bubble[2] * box[3], y1: box[1] + PM.bubble[3] * box[3] };
@@ -232,8 +255,8 @@ for (const [vw, vh] of sizes) {
     const p = path[i], t = i / 100, w = EGG * (L.eggAtTable + (L.spat - L.eggAtTable) * t + 0.24 * Math.min(L.eggAtTable, L.spat) * Math.sin(Math.PI * t));
     if (p.x + w * 0.4 > bl.x0 && p.x - w * 0.4 < bl.x1 && p.y > bl.y0 && p.y - w * 0.85 < bl.y1) ascentHitsBlade = true;
   }
-  const ok = panOk && onTop && wm >= 0 && rightOfBlade && clearOfPanel && !ascentHitsBlade && monotonic && fromUpperRight && !bubbleHit && minFx >= PM.keepRightOf && vis >= 0 && bowlWorst >= 0;
-  rows.push({ vp: `${vw}×${vh}`, narrow: L.narrow, box: box.join(","), land: `${L.land.x},${L.land.y}`, wait: `${L.wait.x},${L.wait.y}`, eggAtTable: +L.eggAtTable.toFixed(3), apexY: L.apexY, panOk, onTop, wm: Math.round(wm), wmAt, rightOfBlade, clearOfPanel, overhang, below: L.below, ascentHitsBlade, monotonic, fromUpperRight, bubbleHit, minFx: +minFx.toFixed(3), vis: Math.round(vis), bowl: Math.round(bowlWorst), slope: +slope.toFixed(2), stages, ok });
+  const ok = panOk && onTop && wm >= 0 && listenHidden && readingCover >= 0 && rightOfBlade && clearOfPanel && !ascentHitsBlade && monotonic && fromUpperRight && !bubbleHit && minFx >= PM.keepRightOf && vis >= 0 && bowlWorst >= 0;
+  rows.push({ vp: `${vw}×${vh}`, narrow: L.narrow, box: box.join(","), land: `${L.land.x},${L.land.y}`, wait: `${L.wait.x},${L.wait.y}`, eggAtTable: +L.eggAtTable.toFixed(3), apexY: L.apexY, panOk, onTop, wm: Math.round(wm), wmAt, listenHidden, readingCover: Math.round(readingCover), readingCoverAt, rightOfBlade, clearOfPanel, overhang, below: L.below, ascentHitsBlade, monotonic, fromUpperRight, bubbleHit, minFx: +minFx.toFixed(3), vis: Math.round(vis), bowl: Math.round(bowlWorst), slope: +slope.toFixed(2), stages, ok });
 }
 if (process.argv.includes("--json")) { console.log(JSON.stringify(rows, null, 1)); process.exit(rows.every((r) => r.ok) ? 0 : 1); }
 const y = (b) => (b ? "是" : "否");
