@@ -3,7 +3,10 @@
  * 全站共享状态（集成会话维护；各分支只读或只调用对应 setter）。
  * - soundOn:     用户是否打开了声音（kitchen-scene 读写）
  * - progress:    0 = 厨房开场完整可见，1 = 已完全进入漫画阅读（comic-scroll 写，kitchen 读）
- * - activePanel: 当前处于阅读位的漫画格 1–6，0 = 还没进入漫画（comic-scroll 写）
+ * - activePanel: 当前故事节拍（见 docs/DESIGN.md §1）：0 开场，1 介绍食材，2 开始煎蛋，3 发现蛋在跳，
+ *                4 妈妈伸出锅铲，5 飞行，6 放到吐司上端出早餐（comic-scroll 写）
+ * - flight:      null = 蛋在锅里循环跳；0–1 = 从锅里飞到妈妈锅铲上的滚动进度，1 = 已落在锅铲上
+ *                （comic-scroll 写，kitchen-scene 读）
  * - reducedMotion / isTouch: 环境能力
  */
 import { createContext, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -28,6 +31,8 @@ type SceneState = {
   setProgress: (v: number) => void;
   activePanel: number;
   setActivePanel: (n: number) => void;
+  flight: number | null;
+  setFlight: (v: number | null) => void;
   reducedMotion: boolean;
   isTouch: boolean;
 };
@@ -38,12 +43,13 @@ export function SceneProvider({ children }: { children: ReactNode }) {
   const [soundOn, setSoundOn] = useState(false);
   const [progress, setProgress] = useState(0);
   const [activePanel, setActivePanel] = useState(0);
+  const [flight, setFlight] = useState<number | null>(null);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const isTouch = useMediaQuery("(hover: none)");
 
   const value = useMemo(
-    () => ({ soundOn, setSoundOn, progress, setProgress, activePanel, setActivePanel, reducedMotion, isTouch }),
-    [soundOn, progress, activePanel, reducedMotion, isTouch],
+    () => ({ soundOn, setSoundOn, progress, setProgress, activePanel, setActivePanel, flight, setFlight, reducedMotion, isTouch }),
+    [soundOn, progress, activePanel, flight, reducedMotion, isTouch],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

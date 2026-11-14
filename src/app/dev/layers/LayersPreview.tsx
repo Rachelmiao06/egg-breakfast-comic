@@ -6,6 +6,9 @@ import { ANCHORS, SCENE_H, SCENE_W, boxStyle } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
 const LAYERS: KitchenLayerName[] = ["back", "mid", "main", "pan-rim", "front"];
+/** measured by tools/split_scene.py (cooking-surface ellipse; its lower arc is the rim line) */
+const PAN_INNER = { cx: 743, cy: 579, rx: 398, ry: 78 };
+const PAN_RIM_BOX = [358, 601, 1119, 747] as const;
 
 /** Dev-only stand-in for the egg: a dashed outline that hops out of the pan, so the
  *  pan-rim occlusion can be checked without baking an egg into the environment. */
@@ -23,7 +26,7 @@ function EggProxy({ hop }: { hop: boolean }) {
     loop();
     return () => cancelAnimationFrame(raf);
   }, [hop]);
-  const { x, y } = ANCHORS.eggRest;
+  const { x, y } = ANCHORS.panLaunch;
   return (
     <div
       ref={ref}
@@ -34,7 +37,7 @@ function EggProxy({ hop }: { hop: boolean }) {
 }
 
 function Anchors() {
-  const { cx, cy, rx, ry } = ANCHORS.panInner;
+  const { cx, cy, rx, ry } = PAN_INNER;
   const pts = Array.from({ length: 41 }, (_, i) => {
     const x = cx - rx + (2 * rx * i) / 40;
     const y = cy + ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2));
@@ -50,14 +53,14 @@ function Anchors() {
   return (
     <div className="pointer-events-none absolute inset-0">
       {box(ANCHORS.panBox, "#2563eb", "panBox")}
-      {box(ANCHORS.panRimBox, "#dc2626", "panRimBox")}
+      {box(PAN_RIM_BOX, "#dc2626", "panRimBox")}
       {box(ANCHORS.flameBox, "#ea580c", "flameBox")}
       {box(ANCHORS.toastBox, "#7c3aed", "toastBox")}
       <svg className="absolute inset-0" width={SCENE_W} height={SCENE_H}>
         <polyline points={pts} fill="none" stroke="#dc2626" strokeWidth={3} />
-        <circle cx={ANCHORS.eggRest.x} cy={ANCHORS.eggRest.y} r={8} fill="#16a34a" />
-        <text x={ANCHORS.eggRest.x + 12} y={ANCHORS.eggRest.y + 26} fill="#16a34a" fontSize={16} fontWeight={700}>
-          eggRest / launch ({ANCHORS.eggRest.x}, {ANCHORS.eggRest.y})
+        <circle cx={ANCHORS.panLaunch.x} cy={ANCHORS.panLaunch.y} r={8} fill="#16a34a" />
+        <text x={ANCHORS.panLaunch.x + 12} y={ANCHORS.panLaunch.y + 26} fill="#16a34a" fontSize={16} fontWeight={700}>
+          eggRest / launch ({ANCHORS.panLaunch.x}, {ANCHORS.panLaunch.y})
         </text>
         <circle cx={ANCHORS.kettleSpout.x} cy={ANCHORS.kettleSpout.y} r={7} fill="#0891b2" />
       </svg>
