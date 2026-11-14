@@ -39,9 +39,24 @@ export function backgroundState(g: number) {
   const ending = bgCurve("ending", g);
   const bowl = bgCurve("bowl", g);
   const lift = bgCurve("dinner", g);
+  const reading = BG.reading.src ? bgCurve("reading", g) : 0;
   const name =
-    ending > 0.5 ? "ending" : hallway > 0.5 ? "search" : bowl > 0.5 ? "table-call" : table > 0.5 ? (lift > 1 ? "dinner-table" : paper < 0.9 ? "table-edge+kitchen" : "table-edge") : "kitchen";
-  return { paper, table, hallway, ending, bowl, lift, drift: bgCurve("hallwayDrift", g) * BG.hallway.driftPct, name };
+    ending > 0.5
+      ? "ending"
+      : hallway > 0.5
+        ? "search"
+        : bowl > 0.5
+          ? "table-call"
+          : reading > 0.5
+            ? "kitchen-friends"
+            : table > 0.5
+              ? lift > 1
+                ? "dinner-table"
+                : paper < 0.9
+                  ? "table-edge+kitchen"
+                  : "table-edge"
+              : "kitchen";
+  return { paper, table, hallway, ending, bowl, lift, reading, drift: bgCurve("hallwayDrift", g) * BG.hallway.driftPct, name };
 }
 
 const SHOW = 0.001;
@@ -53,7 +68,20 @@ export function Paper() {
   const s = backgroundState(gNow(t));
   return (
     <>
-      {(s.paper > SHOW || s.table > SHOW) && (
+      {BG.reading.src ? (
+        (s.reading > SHOW || s.paper > SHOW) && (
+          <div
+            aria-hidden
+            data-bg="table-group"
+            className="pointer-events-none absolute left-0 top-0 h-full w-full"
+            style={{ zIndex: Z.paper, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
+          >
+            {/* 先由纸面盖住旧厨房，再在纸面上淡入新厨房：任何时刻只看得到一张厨房 */}
+            {s.paper > SHOW && s.reading < 0.999 && <PaperSheet opacity={s.paper} />}
+            {s.reading > SHOW && <ReadingKitchen opacity={s.reading} />}
+          </div>
+        )
+      ) : (s.paper > SHOW || s.table > SHOW) && (
         <div
           aria-hidden
           data-bg="table-group"
@@ -66,6 +94,28 @@ export function Paper() {
       )}
       {s.bowl > SHOW && <TableBowl opacity={s.bowl} debug={debug} />}
     </>
+  );
+}
+
+/**
+ * 阅读段主后景：家里厨房里偷偷活过来的食材和调料（new pics 素材，backgrounds.json reading）。
+ * 按原比例铺在 reading.box（场景像素），台面前缘对齐桌沿线，台面就是蛋站立和放碗的桌面；竖屏用竖版。
+ * 两条零高度标记线（data-bg-line="top" / "edge"）= 台面后缘 / 前缘，给无头检查量“蛋脚底在桌面上”。
+ */
+function ReadingKitchen({ opacity }: { opacity: number }) {
+  const R = BG.reading;
+  const vp = useViewport();
+  const portrait = !!R.srcPortrait && vp.w / vp.h < R.portraitBelow;
+  const [x, y, w, h] = portrait ? R.boxPortrait : R.box;
+  const c = portrait ? R.counterPortrait : R.counter;
+  const src = portrait ? R.srcPortrait : R.src;
+  return (
+    <div data-bg="reading" data-variant={portrait ? "portrait" : "landscape"} className="absolute" style={{ left: x, top: y, width: w, height: h, opacity }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
+      <div data-bg-line="top" className="absolute left-0 h-0 w-full" style={{ top: c.backY - y }} />
+      <div data-bg-line="edge" className="absolute left-0 h-0 w-full" style={{ top: c.frontY - y }} />
+    </div>
   );
 }
 
@@ -200,14 +250,18 @@ function SearchSurround({ opacity, driftPct, debug }: { opacity: number; driftPc
   // 视口宽高比低于 portraitBelow（竖屏、窄窗口 860×1000）用竖版，否则横版
   const portrait = vp.w / vp.h < H.portraitBelow;
   const src = portrait ? (H.srcPortrait ?? H.src) : H.src;
+  // 没有竖版图时竖屏用横版裁切：focusPortrait 指向门口那一侧（保持比例，不拉伸）
+  const f = portrait && !H.srcPortrait ? H.focusPortrait : H.focus;
   const pad = H.driftPct;
   return (
-    <div aria-hidden data-bg="search" className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity, background: H.color }}>
+    // 两段式：前一半铺满纸色（盖住阅读段的厨房），后一半在纸色上淡入图片，不叠两张厨房
+    <div aria-hidden data-bg="search" className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity: src ? 1 : opacity }}>
+      <div className="absolute inset-0" style={{ background: H.color, opacity: src ? Math.min(1, opacity * 2) : 1 }} />
       {/* 比视口左右各宽 driftPct%，漂移时不露边 */}
-      <div className="absolute inset-y-0" style={{ left: `-${pad}%`, right: `-${pad}%`, transform: `translateX(${driftPct.toFixed(3)}vw)` }}>
+      <div className="absolute inset-y-0" style={{ left: `-${pad}%`, right: `-${pad}%`, transform: `translateX(${driftPct.toFixed(3)}vw)`, opacity: src ? Math.max(0, opacity * 2 - 1) : 1 }}>
         {src && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none object-cover" style={{ objectPosition: `${H.focus[0] * 100}% ${H.focus[1] * 100}%` }} />
+          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none object-cover" style={{ objectPosition: `${f[0] * 100}% ${f[1] * 100}%` }} />
         )}
       </div>
       {debug && !src && (
@@ -219,9 +273,19 @@ function SearchSurround({ opacity, driftPct, debug }: { opacity: number; driftPc
   );
 }
 
-/** 收尾：干净暖米白平涂，盖住桌腿和木纹横带 */
+/** 收尾：安静的厨房（new pics BG-quiet-ending），cover 铺满；src 为 null 时退回暖米白平涂 */
 function EndingSheet({ opacity }: { opacity: number }) {
-  return <div aria-hidden data-bg="ending" className="pointer-events-none fixed inset-0 z-[5]" style={{ opacity, background: BG.ending.color }} />;
+  const E = BG.ending;
+  return (
+    // 两段式：先铺满纸色，再淡入安静的厨房，不叠两张厨房
+    <div aria-hidden data-bg="ending" className="pointer-events-none fixed inset-0 z-[5] overflow-hidden" style={{ opacity: E.src ? 1 : opacity }}>
+      <div className="absolute inset-0" style={{ background: E.color, opacity: E.src ? Math.min(1, opacity * 2) : 1 }} />
+      {E.src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={E.src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none object-cover" style={{ objectPosition: `${E.focus[0] * 100}% ${E.focus[1] * 100}%`, opacity: Math.max(0, opacity * 2 - 1) }} />
+      )}
+    </div>
+  );
 }
 
 function transparent(hex: string) {

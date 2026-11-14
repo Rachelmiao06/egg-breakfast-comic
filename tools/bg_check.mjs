@@ -27,6 +27,8 @@ for (const b of beats) { starts[b.id] = acc; acc += b.lengthVh; }
 const total = acc;
 const at = (id, p) => starts[id] + p * beats.find((b) => b.id === id).lengthVh;
 const SHOTS = { opening: at("opening", 0.4), dropMid: at("drop", 0.45), tableLanded: at("drop", 0.95), bag: at("bag", 0.5), prejump: at("prejump", 0.6), hear: at("hear", 0.5), catchFlight: at("catch", 0.45), catchHold: at("catch", 0.92), handoff: at("handoff", 0.6), bowl: at("bowl", 0.8), call: at("call", 0.95), tablecall: at("tablecall", 0.6), tablecallOut: at("tablecall", 0.93), search: at("search", 0.6), eggcall: at("eggcall", 0.5), return: at("return", 0.6), punchline: at("punchline", 0.5), closeup: at("closeup", 0.8) };
+// SHOTS_ONLY="名字:节拍:p,..."：只截这些点（不做全程采样），用来逐帧看换场
+const SHOTS_ONLY = process.env.SHOTS_ONLY ? Object.fromEntries(process.env.SHOTS_ONLY.split(",").map((t) => { const [n, b, p] = t.split(":"); return [n, at(b, +p)]; })) : null;
 
 const port = 9481;
 // Chrome 配置目录放系统临时目录，不放进仓库（否则 eslint 会扫到里面的 JS）
@@ -211,6 +213,15 @@ for (const [w, h] of sizes) {
   await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
   await send("Page.navigate", { url: `${base}/preview/background` });
   await sleep(5000);
+  if (SHOTS_ONLY) {
+    for (const [name, vh] of Object.entries(SHOTS_ONLY)) {
+      await go(vh - 3, 300); await go(vh, 1400);
+      const shot = await send("Page.captureScreenshot", { format: "jpeg", quality: 70 });
+      writeFileSync(`${out}/shots/${key}-${name}.jpg`, Buffer.from(shot.result.data, "base64"));
+    }
+    console.log(key, "shots", Object.keys(SHOTS_ONLY).length);
+    continue;
+  }
   const samples = [];
   const stat = { samples: 0, eggCountBad: 0, eggAfterHandoff: 0, bowlChecks: 0, bowlBad: 0, tableChecks: 0, tableBad: 0, footMin: Infinity, footMax: -Infinity, bgSeq: [] };
   for (let vh = 0; vh <= total; vh += step) {

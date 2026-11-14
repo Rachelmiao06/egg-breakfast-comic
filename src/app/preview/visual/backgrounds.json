@@ -70,6 +70,46 @@
   },
   "status": "已接入复用素材。全部尺寸相对 anchors.tableBowl（碗里蛋的脚底点），场景像素：box = [dx, dy, w, h]（1 图片像素 = 0.625 场景像素）；碗口外椭圆中心 dy −82、半宽 130、半高 66；碗口内沿前弧（米饭前边缘）dy −25，蛋脚下 25 场景像素被前沿挡住；碗底 dy +31。碗身 z 62（蛋之下），前沿遮挡层 Z.bowlFront 64（蛋之上）；接触阴影由代码画。数值由 tools/prepare_bowl.py 输出。只在环境段 tablecall 出现（curves.bowl）"
  },
+ "reading": {
+  "note": "阅读段主后景（2026-11-14 新素材，方向：家里厨房的食材和调料偷偷活过来）。场景层，放在纸面组里替代纸面和 B1 桌沿带（有 src 时纸面、桌沿带不画），跟随主体层视差、与蛋锁在一起。图按原比例铺在 box（场景 x, y, 宽, 高），台面前缘对齐桌沿线 y 995，台面就是蛋站立和放碗的桌面。视口宽高比 < portraitBelow 用竖版。",
+  "src": "/assets/bg/kitchen-friends.webp",
+  "size": [
+   1672,
+   941
+  ],
+  "box": [
+   -110,
+   66,
+   1756,
+   988
+  ],
+  "counter": {
+   "imgBackY": 668,
+   "imgFrontY": 885,
+   "backY": 767,
+   "frontY": 995
+  },
+  "srcPortrait": "/assets/bg/kitchen-friends-portrait.webp",
+  "sizePortrait": [
+   852,
+   1846
+  ],
+  "boxPortrait": [
+   401,
+   -616,
+   767,
+   1661
+  ],
+  "counterPortrait": {
+   "imgBackY": 1675,
+   "imgFrontY": 1790,
+   "backY": 892,
+   "frontY": 995
+  },
+  "portraitBelow": 0.6,
+  "source": "source/bg-v3/BG-kitchen-secret-friends.png（横版，桌面 new pics 原件的副本）、source/bg-v3/hallway-portrait.png（竖版：内容是同一套厨房，不是走廊）",
+  "status": "已替换。横版缩放 1.05（场景像素 / 图片像素），竖版 0.9；box 由 counter 对齐和可见范围算出"
+ },
  "paper": {
   "type": "color",
   "color": "#f7eedd",
@@ -79,11 +119,11 @@
  },
  "hallway": {
   "type": "placeholder",
-  "label": "占位 · 寻找段外围：暖米白平涂（正式图：浅色墙面 + 局部门框 + 纸白）",
-  "src": null,
+  "label": "寻找段外围：厨房 + 通往另一个房间的门口（new pics/hallway-landscape.png）",
+  "src": "/assets/bg/kitchen-doorway.webp",
   "size": [
-   2400,
-   1500
+   1585,
+   992
   ],
   "srcPortrait": null,
   "sizePortrait": [
@@ -96,8 +136,12 @@
   ],
   "driftPct": 2.5,
   "portraitBelow": 1.0,
-  "status": "缺图（B2 横版 + 竖版；门口和空房间由漫画格 p5b / p5c 承担，外围不铺完整房间）",
-  "color": "#f6eee2"
+  "status": "已替换（横版）。没有竖版的门口图：竖屏用同一张横版按 focusPortrait 裁到门口和菜篮一侧（保持比例，不拉伸）",
+  "color": "#f6eee2",
+  "focusPortrait": [
+   0.86,
+   0.5
+  ]
  },
  "room": {
   "type": "placeholder",
@@ -316,12 +360,12 @@
   "paper": [
    [
     "drop",
-    0.7,
+    0.55,
     0
    ],
    [
-    "bag",
-    0.3,
+    "drop",
+    0.78,
     1
    ],
    [
@@ -446,12 +490,29 @@
     0.2,
     -1
    ]
+  ],
+  "reading": [
+   [
+    "drop",
+    0.78,
+    0
+   ],
+   [
+    "bag",
+    0.2,
+    1
+   ]
   ]
  },
- "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后纸面 + 桌沿带整体的垂直位移（场景像素，当前 0；B1 正式图到位后如需为饭桌微调桌面高度只改这里，正值向下）；bowl：环境段 tablecall 饭桌上的碗（B3）；hallway：寻找段外围不透明度；hallwayDrift：外围的横向漂移（乘 hallway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。",
+ "curvesNote": "paper / table：纸面与桌沿带的不透明度（paper 在环境段 prejump 降到 0.5，让厨房从桌沿后面透出来）；dinner：蛋交给漫画之后纸面 + 桌沿带整体的垂直位移（场景像素，当前 0；B1 正式图到位后如需为饭桌微调桌面高度只改这里，正值向下）；bowl：环境段 tablecall 饭桌上的碗（B3）；hallway：寻找段外围不透明度；hallwayDrift：外围的横向漂移（乘 hallway.driftPct，单位视口宽 %，从右往左持续移动）；ending：收尾平涂。全部是不透明度或位移，由同一条时间轴 g = 段号 + 段内进度驱动。 reading：阅读段主后景（厨房小角色）不透明度，有 reading.src 时替代 paper / table。 换场不叠两张厨房：drop 段先由纸面盖住旧厨房（0.55→0.78），再在纸面上淡入厨房小角色（0.78→bag 0.2）；寻找段和收尾的图层内部也是先铺满纸色、再淡入图片（前一半纸色、后一半图片）。",
  "ending": {
   "type": "color",
   "color": "#f6eee2",
-  "status": "收尾背景：干净暖米白平涂，盖住桌腿和木纹横带（无纹理）"
+  "status": "已替换：new pics/BG-quiet-ending.png（淡出的厨房，角落里的小角色），cover 铺满；src 为 null 时退回平涂",
+  "src": "/assets/bg/quiet-ending.webp",
+  "focus": [
+   0.5,
+   0.7
+  ]
  }
 }
