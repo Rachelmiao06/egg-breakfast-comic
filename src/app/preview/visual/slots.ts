@@ -52,6 +52,8 @@ export type HandoffSlot = {
   eggOutlineWidthFrac?: number;
   /** 画里那颗蛋的蛋黄中心（本格内比例）；配合 egg.yolkCenter 和交接缩放，让两颗蛋的蛋黄在交接点重合 */
   eggYolk?: { fx: number; fy: number };
+  /** 交接点之前挖掉画里那颗蛋的剪影遮罩（与本格同尺寸，透明 = 挖掉），tools/make_egg_hole.py 生成 */
+  eggHoleMask?: string;
 };
 export type SlotConfig = {
   scene: { catch: SceneSlot; handoff?: HandoffSlot; bowl?: SceneSlot };

@@ -44,6 +44,12 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
     const k2 = t.phase === "hold" ? Math.min(1, t.phaseP / 0.35) : 1;
     hb[0] = Math.round(hb[0] + (target - hb[0]) * (k2 * k2 * (3 - 2 * k2)));
   }
+  // swap 之前交接格里画的蛋（连手脚）用剪影遮罩挖掉（tools/make_egg_hole.py 生成，不改原图），透出下面接蛋格自己的铲面，
+  // 交接格淡入的那约 1vh 里也只看得到活动蛋；swap 起去掉遮罩，画里的蛋接手
+  const holeSrc = hand?.eggHoleMask;
+  const eggHole = holeSrc && handIn < HANDOFF.swap
+    ? { maskImage: `url(${holeSrc})`, WebkitMaskImage: `url(${holeSrc})`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }
+    : {};
   const handNode =
     hand && hb && handIn > 0 && t.beat.id === "handoff" ? (
       // eslint-disable-next-line @next/next/no-img-element
@@ -52,7 +58,7 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
         alt=""
         draggable={false}
         className="pointer-events-none absolute select-none"
-        style={{ left: hb[0], top: hb[1], width: hb[2], height: hb[3], zIndex: Z.mom + 2, opacity: handOp }}
+        style={{ left: hb[0], top: hb[1], width: hb[2], height: hb[3], zIndex: Z.mom + 2, opacity: handOp, ...eggHole }}
       />
     ) : null;
   if (k <= 0) return handNode;
