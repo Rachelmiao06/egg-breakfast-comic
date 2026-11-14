@@ -30,16 +30,17 @@
 
 - 每个文件的状态表、来源许可、客观测量；`npm run lint`、`npm run build` 通过；commit 并 push `feat/kitchen-audio`。
 
-## 进度（2026-11-14，分支 claude/kitchen-audio-e1e194）
+## 进度（2026-11-14，分支 claude/kitchen-audio-e1e194，已合入 feat/visual-direction）
 
 - 七条已选音效已处理并接入：原档在 `tools/audio_raw/`，`tools/audio_build.sh` 重建、`tools/audio_measure.sh` 测量，处理与测量记在 `public/assets/audio/LICENSES.md`。状态均为 **已下载并处理（未经人耳试听）**。
-- 场景 → 声音对应表：`src/components/kitchen/audio-map.json`（按场景编号覆盖，不改 beats.json）；文件 ↔ 场景 ↔ 状态表见 `public/assets/audio/README.md`。空位：stirfry、steps、pour、pop、momCall、eggCall、eggSmall。
-- 混音器：固定 6 循环 + 8 单次 `<audio>`（`div[data-kitchen-audio]`，每个元素有 data-level/target/fired/ok），GainNode 控制电平（iOS 忽略 volume），淡到 0 后 pause，单次重触发同元素重放不叠加，pointerup/touchend/keydown 解锁并逐元素预热，切后台暂停且不补播。
-- 浏览器验证（/dev/beats，背景标签页用计时器代替 rAF 驱动滚动）：开场只有 room+sizzle；chop 段 chop 0.5 / sizzle 0.15；stirfryIn、catch、bowlDown 各只触发一次；serve 段 sizzle 到 0 且 paused；结尾只剩 room。停滚 3 s 电平与元素数不变；一步快滚到底每个单次 +1；回滚到顶再前进再 +1；元素数始终 14。
-- 未验证：人耳试听；iOS 真机；循环点在真实播放器里是否有可闻缝隙（测量只能看电平差）。
+- 场景 → 声音对应表：`src/components/kitchen/audio-map.json`，覆盖 18 段新故事全部场景（含 search / eggcall / return / recognize / punchline），不改 beats 数据；文件 ↔ 场景 ↔ 状态表见 `public/assets/audio/README.md`。空位：stirfry、steps、pour、pop、momCall、eggCall、eggSmall。
+- 炒菜段：不另加翻炒循环，由 sizzle 0.45 承担持续底声 + stirfryIn 一声；是否需要真正的翻炒循环等人耳试听后再定。
+- 混音器：固定 6 循环 + 8 单次 `<audio>`（`div[data-kitchen-audio]`，每个元素有 data-level/target/fired/ok），GainNode 控制电平（iOS 忽略 volume），淡到 0 后 pause，单次重触发同元素重放不叠加，pointerup/touchend/keydown 解锁并逐元素预热，切后台暂停且不补播，开关状态记在 localStorage。
+- 离线试听稿：`node tools/audio_render_demo.mjs` 按同一套规则匀速（30 vh/s，94 s）把整个故事混成 wav/mp3 + 带场景字幕的 mp4。整条混音约 -29 LUFS（各段电平 0.2–0.6 × 约 -18 LUFS 的素材），峰值 -4.8 dBFS。
+- 浏览器验证（/preview/visual，背景标签页用计时器代替 rAF 驱动滚动）：见本文件下方"验证记录"。
+- **未能做到：人耳监听。** 我没有音频输出通路，所有"听感"项（接缝是否可闻、sauce/chop 是否太轻、炒菜段 sizzle 是否自然）只能交给用户用上面的 mp3/mp4 或预览页判断。iOS 真机未测。
 
 ## 需要集成会话改：
 
-- sauce-stir-loop 成品只有 -30.3 LUFS（受峰值限制，勺声瞬态很尖），对应表里已把 sauce 调到 0.45；若试听仍太轻，建议 0.6–0.7（在 audio-map.json 改即可，不动 beats.json）。
-- chop-loop 成品 -26.3 LUFS，同理可考虑从 0.5 升到 0.6。
-- 新故事的 beats.json 落地后，audio-map.json 里的触发点（stirfry 0.2、hear 0.6、catch 0.85、bowl 0.5 / 0.8、call 0.3 / 0.75、eggcall 0.3）需要对着画格位置再校一次。
+- 无需改 beats 数据：音量和触发点都在 audio-map.json。若试听后要调 sauce（0.4）/ chop（0.5）/ 炒菜段 sizzle（0.45），改 audio-map.json 即可。
+- 空位素材（脚步、妈妈喊、蛋喊、啵、淋汁）到位后：放入 `public/assets/audio/` 对应文件名，`tools/audio_build.sh` 加一条处理规则，LICENSES.md 记一行，README 表状态改为"已接入"。

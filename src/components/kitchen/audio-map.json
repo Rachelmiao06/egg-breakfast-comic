@@ -1,28 +1,30 @@
 {
   "_doc": [
-    "按场景编号（beats.json 的 id）覆盖每段的 audio 字段，由 useKitchenAudio 读取；表里没有的场景沿用节拍数据里原来的值。",
-    "混音原则：任何时刻 = 很轻的环境底声 room + 一个当前主要动作声（sizzle / chop / stirfry / sauce / steps 之一）+ 必要的单次音效。",
-    "进入阶段的渐变由 loopLevels 自动从上一段的稳定音量过渡，所以这里只写每段的稳定音量；fades 用于段内渐变。",
-    "没有音源的声音（stirfry、steps、pour、pop、momCall、eggCall、eggSmall）是空位，保持静音，不用不相关的声音填补。见 public/assets/audio/README.md 的对应表。"
+    "按场景编号（节拍表的 id，与 src/app/preview/visual/beats.visual.json 的 18 段一致，编号已稳定）覆盖每段的 audio 字段，由 useKitchenAudio 读取；表里没有的场景沿用节拍数据里原来的值。",
+    "混音原则：任何时刻 = 很轻的环境底声 room + 一个当前主要动作声（sizzle / chop / sauce / steps 之一）+ 必要的单次音效。进入阶段的渐变由 loopLevels 自动从上一段的稳定音量过渡，这里只写每段的稳定音量；fades 用于段内渐变。",
+    "空位（没有音源，接口已登记、保持静音，不用不相关的声音填补）：stirfry、steps、pour、pop、momCall、eggCall、eggSmall。",
+    "炒菜段（stirfry）不另加翻炒循环：锅本来就在滋滋响，由 sizzle 承担持续底声（0.45），下锅一声用 stirfryIn；是否需要真正的翻炒循环等试听后再定。",
+    "sauce 0.4、chop 0.5 为初值；成品响度分别约 -30 / -26 LUFS（受峰值限制），是否加大以听感为准，不按数值整体提高。",
+    "触发点 at 对应各段的阶段：hear 的 pop 在动作阶段中段，catch 在动作阶段结束（0.78）落铲，bowl 的 bowlDown 在进入阶段结束（0.25）、pour 在停留中段，call / eggcall 的台词在进入阶段结束。"
   ],
   "scenes": {
-    "opening":   { "loops": { "room": 0.25, "sizzle": 0.55 }, "fades": [], "oneshots": [] },
-    "bag":       { "loops": { "room": 0.25, "sizzle": 0.35 }, "fades": [], "oneshots": [] },
-    "idea":      { "loops": { "room": 0.25, "sizzle": 0.35 }, "fades": [], "oneshots": [] },
-    "chop":      { "loops": { "room": 0.25, "sizzle": 0.15, "chop": 0.5 }, "fades": [], "oneshots": [] },
-    "stirfry":   { "loops": { "room": 0.25, "sizzle": 0.15, "stirfry": 0.5 }, "fades": [], "oneshots": [{ "sound": "stirfryIn", "at": 0.2 }] },
-    "sauce":     { "loops": { "room": 0.25, "sizzle": 0.15, "sauce": 0.45 }, "fades": [], "oneshots": [] },
-    "missing":   { "loops": { "room": 0.25, "sizzle": 0.3 }, "fades": [], "oneshots": [] },
-    "hear":      { "loops": { "room": 0.25, "sizzle": 0.55 }, "fades": [], "oneshots": [{ "sound": "pop", "at": 0.6 }] },
-    "catch":     { "loops": { "room": 0.25, "sizzle": 0.5 }, "fades": [{ "sound": "sizzle", "from": 0.5, "to": 0.2, "phase": "action" }], "oneshots": [{ "sound": "catch", "at": 0.85 }] },
-    "handoff":   { "loops": { "room": 0.25, "sizzle": 0.1 }, "fades": [], "oneshots": [] },
-    "bowl":      { "loops": { "room": 0.25 }, "fades": [{ "sound": "sizzle", "from": 0.1, "to": 0, "phase": "enter" }], "oneshots": [{ "sound": "bowlDown", "at": 0.5 }, { "sound": "pour", "at": 0.8 }] },
+    "opening":   { "loops": { "room": 0.2, "sizzle": 0.45 }, "fades": [], "oneshots": [] },
+    "bag":       { "loops": { "room": 0.25, "sizzle": 0.12 }, "fades": [], "oneshots": [] },
+    "idea":      { "loops": { "room": 0.25, "sizzle": 0.1 }, "fades": [], "oneshots": [] },
+    "chop":      { "loops": { "room": 0.2, "sizzle": 0.06, "chop": 0.5 }, "fades": [], "oneshots": [] },
+    "stirfry":   { "loops": { "room": 0.2, "sizzle": 0.45 }, "fades": [], "oneshots": [{ "sound": "stirfryIn", "at": 0.22 }] },
+    "sauce":     { "loops": { "room": 0.2, "sizzle": 0.08, "sauce": 0.4 }, "fades": [], "oneshots": [] },
+    "missing":   { "loops": { "room": 0.25, "sizzle": 0.2 }, "fades": [], "oneshots": [] },
+    "hear":      { "loops": { "room": 0.18, "sizzle": 0.6 }, "fades": [{ "sound": "sizzle", "from": 0.2, "to": 0.6, "phase": "action" }], "oneshots": [{ "sound": "pop", "at": 0.35 }] },
+    "catch":     { "loops": { "room": 0.18, "sizzle": 0.35 }, "fades": [{ "sound": "sizzle", "from": 0.35, "to": 0.06, "phase": "action" }], "oneshots": [{ "sound": "catch", "at": 0.78 }] },
+    "handoff":   { "loops": { "room": 0.2 }, "fades": [{ "sound": "sizzle", "from": 0.06, "to": 0, "phase": "enter" }], "oneshots": [] },
+    "bowl":      { "loops": { "room": 0.2 }, "fades": [], "oneshots": [{ "sound": "bowlDown", "at": 0.25 }, { "sound": "pour", "at": 0.55 }] },
     "yolk":      { "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
-    "call":      { "loops": { "room": 0.2 }, "fades": [], "oneshots": [{ "sound": "momCall", "at": 0.3 }, { "sound": "eggSmall", "at": 0.75 }] },
-    "search":    { "loops": { "room": 0.1, "steps": 0.4 }, "fades": [], "oneshots": [] },
-    "eggcall":   { "loops": { "room": 0.15 }, "fades": [], "oneshots": [{ "sound": "eggCall", "at": 0.3 }] },
-    "return":    { "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
-    "recognize": { "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
-    "punchline": { "loops": { "room": 0.25 }, "fades": [], "oneshots": [] }
+    "call":      { "loops": { "room": 0.2 }, "fades": [], "oneshots": [{ "sound": "momCall", "at": 0.25 }, { "sound": "eggSmall", "at": 0.55 }] },
+    "search":    { "loops": { "room": 0.06, "steps": 0.5 }, "fades": [], "oneshots": [] },
+    "eggcall":   { "loops": { "room": 0.08 }, "fades": [], "oneshots": [{ "sound": "eggCall", "at": 0.25 }] },
+    "return":    { "loops": { "room": 0.2 }, "fades": [{ "sound": "steps", "from": 0.4, "to": 0, "phase": "enter" }], "oneshots": [] },
+    "recognize": { "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
+    "punchline": { "loops": { "room": 0.2 }, "fades": [], "oneshots": [] }
   }
 }
