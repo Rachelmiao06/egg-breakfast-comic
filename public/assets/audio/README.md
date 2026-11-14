@@ -38,7 +38,7 @@
 | pour | pour.mp3 | 单次 | bowl @ p=0.55（淋汁） | **空位**（用户决定保持） |
 | momCall | mom-call.mp3 | 单次 | call @ p=0.25（"宝宝，来吃饭啦！"） | **空位**（用户决定：保留漫画文字，不配音） |
 | eggSmall | egg-small.mp3 | 单次 | call @ p=0.55、tablecall @ p=0.5（"我在这儿……"） | **空位**（同上） |
-| steps | footsteps-loop.mp3（7.56 s 循环） | 循环，主要动作声 | search：p 0→0.10 接上（0→0.3），停留开始前后（enterEnd±0.04）停下；eggcall：妈妈转身后由远到近 0→0.15、低通 700→3000 Hz；return：0.15→0.3、低通开到 16 kHz，回到碗前停下（audio-map 的 ramps / lowpass） | 已接入（未试听） |
+| steps | footsteps-loop.mp3（7.56 s 循环） | 循环，主要动作声 | search：离开这一拍接上（@leave−0.08 → @leave，0→0.3），探头格 p5b 落定时（@peek±0.04）停下；eggcall：妈妈转身后由远到近 0→0.15、低通 700→3000 Hz；return：0.15→0.3、低通开到 16 kHz，回到碗前停下（audio-map 的 ramps / lowpass） | 已接入（未试听） |
 | hopTap1 / hopTap2 / hopTap3 | hop-tap-1/2/3.mp3（各 0.092 s） | 单次，声像 +0.6（偏右） | listen（接蛋前的声音铺垫，只有 v2）：@tap1 / @tap2 / @tap3，电平 0.2；每进入一次只播一次（oncePerVisit）。从 chop 原档刀碰木案板的三下撞击切出 + 1.5 kHz 低通 | 已接入（未试听） |
 | eggCall | egg-call.mp3 | 单次 | eggcall @ p=0.25（"妈！这里！"，画面 p5d） | **空位**（同上） |
 
