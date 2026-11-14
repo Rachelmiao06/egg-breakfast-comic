@@ -41,7 +41,7 @@ export default function Flame() {
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={a} src="/assets/scene/flame.png" alt="" draggable={false} className="pointer-events-none absolute inset-0 select-none" style={{ ...style, zIndex: Z.fx }} />
+      <img ref={a} src="/assets/scene/flame.png" alt="" draggable={false} className="pointer-events-none absolute inset-0 select-none" style={{ ...style, zIndex: Z.fx, translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" }} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={b}
@@ -49,7 +49,7 @@ export default function Flame() {
         alt=""
         draggable={false}
         className="pointer-events-none absolute inset-0 select-none"
-        style={{ ...style, filter: "brightness(1.12) saturate(1.05)", zIndex: Z.fx }}
+        style={{ ...style, filter: "brightness(1.12) saturate(1.05)", zIndex: Z.fx, translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" }}
       />
     </>
   );

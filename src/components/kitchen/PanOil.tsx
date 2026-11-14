@@ -28,7 +28,7 @@ export default function PanOil() {
       alt=""
       draggable={false}
       className="pointer-events-none absolute inset-0 select-none"
-      style={{ width: SCENE_W, height: SCENE_H, zIndex: Z.fx }}
+      style={{ width: SCENE_W, height: SCENE_H, zIndex: Z.fx, translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" }}
     />
   );
 }

@@ -113,7 +113,7 @@ export default function Bubbles() {
       ref={ref}
       aria-hidden
       className="pointer-events-none absolute"
-      style={{ left: BOX.x, top: BOX.y, width: BOX.w, height: BOX.h, zIndex: Z.fx }}
+      style={{ left: BOX.x, top: BOX.y, width: BOX.w, height: BOX.h, zIndex: Z.fx, translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" }}
     />
   );
 }

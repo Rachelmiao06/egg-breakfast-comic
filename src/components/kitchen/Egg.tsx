@@ -138,7 +138,7 @@ export default function Egg({ src = "/assets/scene/egg.webp" }: { src?: string }
         alt=""
         draggable={false}
         className="pointer-events-none absolute select-none will-change-transform"
-        style={{ left: REST.x - SIZE.w / 2, top: REST.y - SIZE.h, width: SIZE.w, height: SIZE.h, zIndex }}
+        style={{ left: REST.x - SIZE.w / 2, top: REST.y - SIZE.h, width: SIZE.w, height: SIZE.h, zIndex, translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" }}
       />
     </>
   );

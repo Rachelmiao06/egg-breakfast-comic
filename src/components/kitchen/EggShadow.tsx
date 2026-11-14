@@ -23,6 +23,7 @@ const EggShadow = forwardRef<HTMLDivElement, { zIndex?: number }>(function EggSh
         transformOrigin: "50% 50%",
         opacity: 0.45,
         zIndex,
+        translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)",
       }}
     />
   );
