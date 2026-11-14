@@ -28,7 +28,7 @@ import { useEffect, useRef, useState } from "react";
 import { FOCUS_Y, SCENE_H, SCENE_W, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
-export type KitchenLayerName = "back" | "mid" | "pan-rim" | "front-toast" | "front-right";
+export type KitchenLayerName = "far" | "counter" | "mid" | "pan-rim" | "front-toast" | "front-right";
 
 /** activePanel from which mom's spatula occupies momZone (docs/DESIGN.md §1, beat 5) */
 const MOM_PANEL = 5;
@@ -37,11 +37,17 @@ const SRC = "/assets/scene";
 const ORIGIN_X = SCENE_W / 2;
 const ORIGIN_Y = FOCUS_Y;
 /** [mouse amplitude, reading drift] in scene px */
-const MOTION = { back: [2, 2], mid: [5, 6], front: [10, 14] } as const;
+const MOTION = { far: [1.5, 1], counter: [3, 3], mid: [5, 6], front: [10, 14] } as const;
 type Group = keyof typeof MOTION;
+/**
+ * 景深系数：镜头位移 D（场景像素）时，各层相对主体层的额外位移 = (1 - f) * D。
+ * 远景跟得少、近景跟得多，形成纵深；主体层 f = 1（蛋、火苗、油跟它走）。试验值。
+ */
+const DEPTH: Record<Group, number> = { far: 0.35, counter: 0.65, mid: 1, front: 1.6 };
 
 const LAYERS: { name: KitchenLayerName; z: number; group: Group }[] = [
-  { name: "back", z: Z.back, group: "back" },
+  { name: "far", z: Z.back, group: "far" },
+  { name: "counter", z: Z.back + 1, group: "counter" },
   { name: "mid", z: Z.mid, group: "mid" },
   { name: "pan-rim", z: Z.panRim, group: "mid" },
   { name: "front-toast", z: Z.frontLeft, group: "front" },
@@ -51,21 +57,25 @@ const LAYERS: { name: KitchenLayerName; z: number; group: Group }[] = [
 type Props = {
   /** Mouse parallax (ignored on touch devices). */
   mouse?: boolean;
+  /** 镜头位移（场景像素），由页面按统一时间轴算出；各层按 DEPTH 系数错速。 */
+  depth?: { x: number; y: number };
+  /** 直接映射滚动（progress、depth 不再缓动；只有鼠标视差保留轻微滞后，属于次级运动） */
+  direct?: boolean;
   /** Render the retired toast plate (only for overlay checks; off in the story). */
   showToast?: boolean;
   /** Dev only: layers to hide. */
   hide?: KitchenLayerName[];
 };
 
-export default function KitchenLayers({ mouse = false, showToast = false, hide = [] }: Props) {
+export default function KitchenLayers({ mouse = false, showToast = false, hide = [], depth, direct = false }: Props) {
   const { progress, activePanel, isTouch, reducedMotion } = useScene();
   const useMouse = mouse && !isTouch && !reducedMotion;
   const momOnStage = activePanel >= MOM_PANEL;
 
   const els = useRef<(HTMLDivElement | null)[]>([]);
-  const live = useRef({ progress, useMouse, reducedMotion });
+  const live = useRef({ progress, useMouse, reducedMotion, depth: depth ?? { x: 0, y: 0 }, direct });
   useEffect(() => {
-    live.current = { progress, useMouse, reducedMotion };
+    live.current = { progress, useMouse, reducedMotion, depth: depth ?? { x: 0, y: 0 }, direct };
   });
 
   // reveal only when every layer is decoded, so layers never pop in one by one
@@ -87,6 +97,7 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
     document.addEventListener("pointerleave", onLeave);
 
     let shown = live.current.progress;
+    const dz = { x: live.current.depth.x, y: live.current.depth.y };
     let prev = performance.now();
     const ease = (perSecond: number, dt: number) => 1 - Math.exp(-perSecond * dt);
 
@@ -95,17 +106,21 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
       const dt = Math.min(1, (now - prev) / 1000);
       prev = now;
       const L = live.current;
-      shown += (L.progress - shown) * (L.reducedMotion ? 1 : ease(4, dt));
+      shown += (L.progress - shown) * (L.reducedMotion || L.direct ? 1 : ease(4, dt));
       const k = ease(4.5, dt);
       m.x += ((L.useMouse ? m.tx : 0) - m.x) * k;
       m.y += ((L.useMouse ? m.ty : 0) - m.y) * k;
 
-      const t: Record<Group, string> = { back: "", mid: "", front: "" };
+      // 镜头景深位移也做平滑，避免滚动时一顿一顿
+      dz.x += (L.depth.x - dz.x) * (L.reducedMotion || L.direct ? 1 : ease(6, dt));
+      dz.y += (L.depth.y - dz.y) * (L.reducedMotion || L.direct ? 1 : ease(6, dt));
+      const t: Record<Group, string> = { far: "", counter: "", mid: "", front: "" };
       let midVars: [number, number, number] = [0, 0, 1];
-      for (const g of ["back", "mid", "front"] as const) {
+      let counterVars: [number, number] = [0, 0];
+      for (const g of ["far", "counter", "mid", "front"] as const) {
         const [amp, drift] = MOTION[g];
-        const tx = -m.x * amp;
-        const ty = -m.y * amp * 0.6 - drift * shown;
+        const tx = -m.x * amp + (1 - DEPTH[g]) * dz.x;
+        const ty = -m.y * amp * 0.6 - drift * shown + (1 - DEPTH[g]) * dz.y;
         // smallest scale around (ORIGIN_X, ORIGIN_Y) that keeps every canvas edge covered
         const s =
           1 +
@@ -113,6 +128,7 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
           0.0005;
         t[g] = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0) scale(${s.toFixed(4)})`;
         if (g === "mid") midVars = [tx, ty, s];
+        if (g === "counter") counterVars = [tx, ty];
       }
       els.current.forEach((el, i) => {
         if (el) el.style.transform = t[LAYERS[i].group];
@@ -122,6 +138,8 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
         stage.style.setProperty("--kl-mid-x", `${midVars[0].toFixed(2)}px`);
         stage.style.setProperty("--kl-mid-y", `${midVars[1].toFixed(2)}px`);
         stage.style.setProperty("--kl-mid-s", midVars[2].toFixed(4));
+        stage.style.setProperty("--kl-counter-x", `${counterVars[0].toFixed(2)}px`);
+        stage.style.setProperty("--kl-counter-y", `${counterVars[1].toFixed(2)}px`);
       }
     };
 

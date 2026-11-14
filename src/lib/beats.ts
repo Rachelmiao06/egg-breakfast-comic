@@ -8,11 +8,17 @@ import data from "./beats.json";
 
 export const PHASES = ["enter", "action", "hold", "exit"] as const;
 export type Phase = (typeof PHASES)[number];
-export type LoopSound = "room" | "sizzle" | "chop" | "stirfry" | "sauce";
-export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour";
-export type EggMode = "loop" | "flight" | "serve" | "bowl";
+export type LoopSound = "room" | "sizzle" | "chop" | "stirfry" | "sauce" | "steps";
+export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour" | "momCall" | "eggCall" | "pop" | "eggSmall";
+/** gone = 后景这颗蛋已交给漫画（漫画里画着蛋），后景隐藏，避免出现两颗蛋 */
+/**
+ * 蛋在每段的状态（同一颗活动蛋）：
+ * loop 锅里自主跳（真实时间）· toTable 进入阶段收住跳跃、动作阶段由滚动从锅落到桌沿 · table 桌沿等待（真实时间轻跳）
+ * flight 进入阶段收住、动作阶段由滚动飞到锅铲 · serve 锅铲→碗（滚动）· bowl 在碗里 · gone 已交给漫画（隐藏）
+ */
+export type EggMode = "loop" | "toTable" | "table" | "flight" | "serve" | "bowl" | "gone";
 /** 停留组：同组连续段落期间画面停住（sticky / pin），组结束后释放；null = 正常流动段 */
-export type PinGroup = "prep" | "catch" | "bowl";
+export type PinGroup = "prep" | "catch" | "bowl" | "search" | "reunion";
 
 export type Beat = {
   id: string;
@@ -45,7 +51,7 @@ function validate(beats: Beat[]) {
 }
 
 export const BEATS = validate(data.beats as unknown as Beat[]);
-export const LOOP_SOUNDS: LoopSound[] = ["room", "sizzle", "chop", "stirfry", "sauce"];
+export const LOOP_SOUNDS: LoopSound[] = ["room", "sizzle", "chop", "stirfry", "sauce", "steps"];
 
 export const beatById = (id: string, beats: Beat[] = BEATS) => beats.find((b) => b.id === id)!;
 export const totalVh = (beats: Beat[] = BEATS) => beats.reduce((s, b) => s + b.lengthVh, 0);
@@ -71,6 +77,25 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export function phaseEdges(b: Beat) {
   const e = b.phases.enter, a = b.phases.action, h = b.phases.hold;
   return [0, e, e + a, e + a + h, 1] as const;
+}
+
+/**
+ * 共享事件：蛋落到某一站的段内位置。视觉（Egg 的飞行/落点）和声音（audio-map.json 里写 "@eggOnSpatula"）
+ * 都从这里读同一个值，不在两边各写一个数字。落点 = 该段动作阶段的结束处，所以只需在节拍表里调 phases。
+ */
+export type EggEvent = "eggOnTable" | "eggOnSpatula" | "eggInBowl";
+export const EGG_EVENTS: Record<EggEvent, EggMode> = { eggOnTable: "toTable", eggOnSpatula: "flight", eggInBowl: "serve" };
+export function eventAt(b: Beat, ev: string): number | null {
+  const mode = (EGG_EVENTS as Record<string, EggMode | undefined>)[ev];
+  if (!mode || b.egg !== mode) return null;
+  return phaseEdges(b)[2];
+}
+/** 本段的蛋事件（没有则 null）：段内起飞点、落点 */
+export function eggTravel(b: Beat): { ev: EggEvent; start: number; land: number } | null {
+  const ev = (Object.keys(EGG_EVENTS) as EggEvent[]).find((k) => EGG_EVENTS[k] === b.egg);
+  if (!ev) return null;
+  const [, start, land] = phaseEdges(b);
+  return { ev, start, land };
 }
 
 export function phaseAt(b: Beat, p: number): { phase: Phase; phaseP: number } {
@@ -136,7 +161,8 @@ export function derive(t: Timeline): Derived {
   const progress = t.phase === "enter" ? lerp(s, h, t.phaseP) : t.phase === "exit" ? lerp(h, e, t.phaseP) : h;
   const action = phaseProgress(t, "action");
   // 接蛋段的进入阶段蛋仍在锅里跳（null），动作阶段才起飞
-  const flight = b.egg === "loop" ? null : b.egg === "flight" ? (t.phase === "enter" ? null : action) : 1;
+  const flight = b.egg === "loop" || b.egg === "toTable" || b.egg === "table" ? null : b.egg === "flight" ? (t.phase === "enter" ? null : action) : 1;
+  // gone：flight 仍为 1（蛋停在铲面位置），由 Egg 组件负责淡出隐藏
   const serve = b.egg === "serve" ? action : b.egg === "bowl" ? 1 : null;
   return { activePanel: b.n, progress, flight, serve };
 }

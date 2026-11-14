@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { SCENE_H, SCENE_W, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
+import FollowMid from "./FollowMid";
 
 export default function PanOil() {
   const ref = useRef<HTMLImageElement>(null);
@@ -21,14 +22,16 @@ export default function PanOil() {
     };
   }, [reducedMotion]);
   return (
-    // eslint-disable-next-line @next/next/no-img-element
+    <FollowMid zIndex={Z.fx}>
+    {/* eslint-disable-next-line @next/next/no-img-element */}
     <img
       ref={ref}
       src="/assets/scene/oil.png"
       alt=""
       draggable={false}
       className="pointer-events-none absolute inset-0 select-none"
-      style={{ width: SCENE_W, height: SCENE_H, zIndex: Z.fx, translate: "var(--kl-mid-x, 0px) var(--kl-mid-y, 0px)" }}
+      style={{ width: SCENE_W, height: SCENE_H }}
     />
+    </FollowMid>
   );
 }

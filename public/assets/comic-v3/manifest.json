@@ -1,0 +1,418 @@
+{
+ "p1a": {
+  "page": "01-groceries-and-an-idea.png",
+  "box": [
+   10,
+   9,
+   1017,
+   521
+  ],
+  "size": [
+   1007,
+   512
+  ]
+ },
+ "p1b": {
+  "page": "01-groceries-and-an-idea.png",
+  "box": [
+   6,
+   523,
+   487,
+   991
+  ],
+  "size": [
+   481,
+   468
+  ]
+ },
+ "p1c": {
+  "page": "01-groceries-and-an-idea.png",
+  "box": [
+   491,
+   523,
+   1020,
+   991
+  ],
+  "size": [
+   529,
+   468
+  ]
+ },
+ "p1d": {
+  "page": "01-groceries-and-an-idea.png",
+  "box": [
+   7,
+   994,
+   1018,
+   1528
+  ],
+  "size": [
+   1011,
+   534
+  ]
+ },
+ "p2a": {
+  "page": "02-preparing-the-meal.png",
+  "box": [
+   10,
+   9,
+   1018,
+   477
+  ],
+  "size": [
+   1008,
+   468
+  ]
+ },
+ "p2b": {
+  "page": "02-preparing-the-meal.png",
+  "box": [
+   7,
+   475,
+   510,
+   810
+  ],
+  "size": [
+   503,
+   335
+  ]
+ },
+ "p2c": {
+  "page": "02-preparing-the-meal.png",
+  "box": [
+   512,
+   475,
+   1019,
+   810
+  ],
+  "size": [
+   507,
+   335
+  ]
+ },
+ "p2d": {
+  "page": "02-preparing-the-meal.png",
+  "box": [
+   8,
+   809,
+   1018,
+   1121
+  ],
+  "size": [
+   1010,
+   312
+  ]
+ },
+ "p2e": {
+  "page": "02-preparing-the-meal.png",
+  "box": [
+   9,
+   1122,
+   1018,
+   1530
+  ],
+  "size": [
+   1009,
+   408
+  ]
+ },
+ "p3a": {
+  "page": "03-something-is-missing.png",
+  "box": [
+   8,
+   8,
+   519,
+   456
+  ],
+  "size": [
+   511,
+   448
+  ]
+ },
+ "p3b": {
+  "page": "03-something-is-missing.png",
+  "box": [
+   520,
+   8,
+   1018,
+   456
+  ],
+  "size": [
+   498,
+   448
+  ]
+ },
+ "p3c": {
+  "page": "03-something-is-missing.png",
+  "box": [
+   9,
+   456,
+   594,
+   955
+  ],
+  "size": [
+   585,
+   499
+  ]
+ },
+ "p3d": {
+  "page": "03-something-is-missing.png",
+  "box": [
+   595,
+   456,
+   1018,
+   955
+  ],
+  "size": [
+   423,
+   499
+  ]
+ },
+ "p3e": {
+  "page": "03-something-is-missing.png",
+  "box": [
+   9,
+   955,
+   1018,
+   1529
+  ],
+  "size": [
+   1009,
+   574
+  ]
+ },
+ "p4a": {
+  "page": "04-catch-and-call.png",
+  "box": [
+   9,
+   7,
+   1016,
+   361
+  ],
+  "size": [
+   1007,
+   354
+  ]
+ },
+ "p4b": {
+  "page": "04-catch-and-call.png",
+  "box": [
+   9,
+   361,
+   511,
+   733
+  ],
+  "size": [
+   502,
+   372
+  ]
+ },
+ "p4c": {
+  "page": "04-catch-and-call.png",
+  "box": [
+   512,
+   361,
+   1016,
+   733
+  ],
+  "size": [
+   504,
+   372
+  ]
+ },
+ "p4d": {
+  "page": "04-catch-and-call.png",
+  "box": [
+   9,
+   733,
+   1016,
+   1039
+  ],
+  "size": [
+   1007,
+   306
+  ]
+ },
+ "p4e": {
+  "page": "04-catch-and-call.png",
+  "box": [
+   9,
+   1040,
+   537,
+   1527
+  ],
+  "size": [
+   528,
+   487
+  ]
+ },
+ "p4f": {
+  "page": "04-catch-and-call.png",
+  "box": [
+   538,
+   1040,
+   1016,
+   1527
+  ],
+  "size": [
+   478,
+   487
+  ]
+ },
+ "p5a": {
+  "page": "05-looking-for-baby.png",
+  "box": [
+   7,
+   7,
+   512,
+   513
+  ],
+  "size": [
+   505,
+   506
+  ]
+ },
+ "p5b": {
+  "page": "05-looking-for-baby.png",
+  "box": [
+   513,
+   7,
+   1019,
+   513
+  ],
+  "size": [
+   506,
+   506
+  ]
+ },
+ "p5c": {
+  "page": "05-looking-for-baby.png",
+  "box": [
+   7,
+   512,
+   513,
+   999
+  ],
+  "size": [
+   506,
+   487
+  ]
+ },
+ "p5d": {
+  "page": "05-looking-for-baby.png",
+  "box": [
+   513,
+   512,
+   1020,
+   999
+  ],
+  "size": [
+   507,
+   487
+  ]
+ },
+ "p5e": {
+  "page": "05-looking-for-baby.png",
+  "box": [
+   6,
+   998,
+   510,
+   1530
+  ],
+  "size": [
+   504,
+   532
+  ]
+ },
+ "p5f": {
+  "page": "05-looking-for-baby.png",
+  "box": [
+   510,
+   998,
+   1019,
+   1530
+  ],
+  "size": [
+   509,
+   532
+  ]
+ },
+ "p6a": {
+  "page": "06-recognition-and-punchline.png",
+  "box": [
+   3,
+   1,
+   1023,
+   401
+  ],
+  "size": [
+   1020,
+   400
+  ]
+ },
+ "p6b": {
+  "page": "06-recognition-and-punchline.png",
+  "box": [
+   3,
+   399,
+   514,
+   778
+  ],
+  "size": [
+   511,
+   379
+  ]
+ },
+ "p6c": {
+  "page": "06-recognition-and-punchline.png",
+  "box": [
+   512,
+   399,
+   1023,
+   778
+  ],
+  "size": [
+   511,
+   379
+  ]
+ },
+ "p6d": {
+  "page": "06-recognition-and-punchline.png",
+  "box": [
+   3,
+   775,
+   1023,
+   1165
+  ],
+  "size": [
+   1020,
+   390
+  ]
+ },
+ "p6e": {
+  "page": "06-recognition-and-punchline.png",
+  "box": [
+   3,
+   1163,
+   509,
+   1535
+  ],
+  "size": [
+   506,
+   372
+  ]
+ },
+ "p6f": {
+  "page": "06-recognition-and-punchline.png",
+  "box": [
+   508,
+   1163,
+   1023,
+   1535
+  ],
+  "size": [
+   515,
+   372
+  ]
+ }
+}

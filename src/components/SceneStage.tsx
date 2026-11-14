@@ -15,7 +15,7 @@ export type StageFocus = { x: number; y: number; weight: number; at?: { x: numbe
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-export default function SceneStage({ children, className = "", focus }: { children: ReactNode; className?: string; focus?: StageFocus }) {
+export default function SceneStage({ children, className = "", focus, instant = false }: { children: ReactNode; className?: string; focus?: StageFocus; instant?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
@@ -61,7 +61,8 @@ export default function SceneStage({ children, className = "", focus }: { childr
           height: SCENE_H,
           transform: `translate(${x}px, ${y}px) scale(${s})`,
           transformOrigin: "0 0",
-          transition: moving ? "transform 0.35s ease-out" : undefined,
+          // instant：镜头直接映射滚动进度（平滑只在滚动源头做一次），不再叠加 CSS 过渡
+          transition: moving && !instant ? "transform 0.35s ease-out" : undefined,
           visibility: measured ? "visible" : "hidden",
         }}
       >

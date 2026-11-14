@@ -6,11 +6,17 @@
  * 同时计算平滑后的滚动速度（vh/s）写进 src/lib/scroll-velocity.ts，停止滚动后衰减到 0。
  */
 import { useEffect, useRef } from "react";
+import Lenis from "lenis";
 import { locate, totalVh } from "@/lib/beats";
 import { setScrollVelocity } from "@/lib/scroll-velocity";
 import { useScene } from "@/lib/scene-context";
 
-export default function ScrollDriver() {
+/**
+ * smooth = true：用 Lenis 作为全站唯一的平滑层（触控板、鼠标滚轮都经过它），
+ * 时间轴在 Lenis 的每帧 scroll 回调里更新；此时不再注册 window scroll 监听，保证只有一套。
+ * smooth = false：原生滚动（旧版对比用）。
+ */
+export default function ScrollDriver({ smooth = false }: { smooth?: boolean }) {
   const { beats, setTimeline } = useScene();
   const last = useRef({ index: -1, p: -1 });
 
@@ -53,16 +59,37 @@ export default function ScrollDriver() {
       if (!raf) raf = requestAnimationFrame(update);
     };
     update();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    let lenis: Lenis | null = null;
+    let lenisRaf = 0;
+    if (smooth) {
+      lenis = new Lenis({ lerp: 0.12, wheelMultiplier: 0.9, smoothWheel: true, syncTouch: false });
+      lenis.on("scroll", () => {
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+        update();
+      });
+      const loop = (time: number) => {
+        lenis?.raf(time);
+        lenisRaf = requestAnimationFrame(loop);
+      };
+      lenisRaf = requestAnimationFrame(loop);
+    } else {
+      window.addEventListener("scroll", onScroll, { passive: true });
+    }
     window.addEventListener("resize", onScroll);
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      if (lenis) {
+        cancelAnimationFrame(lenisRaf);
+        lenis.destroy();
+      } else {
+        window.removeEventListener("scroll", onScroll);
+      }
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
       if (decayRaf) cancelAnimationFrame(decayRaf);
       setScrollVelocity(0);
     };
-  }, [beats, setTimeline]);
+  }, [beats, setTimeline, smooth]);
 
   // flexShrink: 0：body 是纵向 flex 容器，某些环境下占位会被压缩成一屏导致页面滚不动（kitchen-layers 报告）
   return <div aria-hidden style={{ height: `${totalVh(beats) + 100}vh`, flexShrink: 0 }} />;

@@ -1,16 +1,30 @@
 "use client";
-/** 右下角的小声音开关。没有文字，只有图标；音效文件未提供时依旧可点（静音预览）。 */
+/**
+ * 右下角的小声音开关。没有文字，只有图标；音效文件未提供时依旧可点（静音预览）。
+ * 选择记在 localStorage（kitchen.soundOn）；恢复为"开"时要等第一次点击 / 按键才真的出声（浏览器自动播放限制）。
+ */
+import { useEffect } from "react";
 import { useScene } from "@/lib/scene-context";
 import { useKitchenAudio } from "./useKitchenAudio";
+
+const KEY = "kitchen.soundOn";
 
 export default function SoundToggle() {
   const { soundOn, setSoundOn } = useScene();
   const { available } = useKitchenAudio();
+  useEffect(() => {
+    try { if (localStorage.getItem(KEY) === "1") setSoundOn(true); } catch { /* 隐私模式等 */ }
+  }, [setSoundOn]);
+  const toggle = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    try { localStorage.setItem(KEY, next ? "1" : "0"); } catch { /* 忽略 */ }
+  };
   const label = soundOn ? "关闭声音" : "打开声音";
   return (
     <button
       type="button"
-      onClick={() => setSoundOn(!soundOn)}
+      onClick={toggle}
       aria-label={label}
       aria-pressed={soundOn}
       title={available === false ? `${label}（音效待添加）` : label}
