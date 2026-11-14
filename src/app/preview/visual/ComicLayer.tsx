@@ -195,7 +195,43 @@ function columnPlaces(list: PanelSpec[], vw: number, vh: number, top: number, bo
 }
 
 /** 背景里的蛋还在桌沿（接蛋之前）时，竖屏底部留给桌沿和蛋 */
-const EGG_VISIBLE = new Set(["loop", "toTable", "table"]);
+const EGG_VISIBLE = new Set(["loop", "toTable", "table", "ready"]);
+
+type Rect = { x: number; y: number; w: number; h: number }; // vw / vh
+const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+/** 背景里活动蛋当前在屏幕上的范围（vw/vh）。只在蛋停在桌沿的段落读取；读不到就返回 null */
+function eggRectNow(vw: number, vh: number): Rect | null {
+  if (typeof document === "undefined") return null;
+  const el = document.querySelector("img[data-active-egg]");
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  if (r.width < 4 || r.bottom < 0 || r.top > vh) return null;
+  // 蛋图四周有透明边：取中间 70% 作为蛋身，再留 1.5 的间距
+  const m = 0.15;
+  return { x: ((r.left + r.width * m) / vw) * 100 - 1.5, y: ((r.top + r.height * m) / vh) * 100 - 1.5, w: ((r.width * (1 - 2 * m)) / vw) * 100 + 3, h: ((r.height * (1 - 2 * m)) / vh) * 100 + 3 };
+}
+/**
+ * 横屏：漫画格不能压在桌沿等待的蛋上（蛋不该从格子下面露出半个）。
+ * 依次尝试：移到蛋的右边 → 移到蛋的上方 → 等比缩小到蛋上方；都不和同组其他格重叠才采用。
+ */
+function avoidEgg(list: PanelSpec[], places: Record<string, Place>, egg: Rect, vw: number, vh: number) {
+  const rectOf = (p: PanelSpec, pl: Place): Rect => ({ x: pl.x, y: pl.y, w: pl.w, h: hOf(p, pl.w, vw, vh) });
+  for (const p of list) {
+    const pl = places[p.key];
+    if (!pl || !hit(rectOf(p, pl), egg)) continue;
+    const others = list.filter((o) => o.key !== p.key && places[o.key]).map((o) => rectOf(o, places[o.key]));
+    const ok = (c: Place) => c.x >= 2 && c.x + c.w <= 98 && c.y >= 2 && c.y + hOf(p, c.w, vw, vh) <= 97 && !hit(rectOf(p, c), egg) && others.every((r) => !hit(rectOf(p, c), r));
+    const h = hOf(p, pl.w, vw, vh);
+    const cands: Place[] = [
+      { ...pl, x: egg.x + egg.w + 1.5 },
+      { ...pl, y: egg.y - h - 1.5 },
+      { ...pl, x: egg.x + egg.w + 1.5, y: Math.min(pl.y, egg.y - 2) },
+    ];
+    for (let k = 0.9; k >= 0.6; k -= 0.1) { const w = pl.w * k; cands.push({ x: pl.x, w, y: egg.y - hOf(p, w, vw, vh) - 1.5 }, { x: egg.x + egg.w + 1.5, w, y: pl.y }); }
+    const c = cands.find(ok);
+    if (c) places[p.key] = c;
+  }
+}
 
 function FlowLayer() {
   const { timeline: t, beats, reducedMotion } = useScene();
@@ -208,13 +244,19 @@ function FlowLayer() {
   for (const p of visible) if (p.role !== "closeup") (groups[p.beat] ??= []).push(p);
   const places: Record<string, Place> = {};
   const pans: Record<string, number> = {};
+  const egg = EGG_VISIBLE.has(t.beat.egg) || EGG_VISIBLE.has(beats[t.index + 1]?.egg ?? "") ? eggRectNow(vp.w, vp.h) : null;
   for (const [id, list] of Object.entries(groups)) {
-    const eggOnTable = EGG_VISIBLE.has(beats[index[id]].egg);
+    const eggHere = egg && EGG_VISIBLE.has(beats[index[id]].egg) ? egg : null;
     if (vp.portrait) {
-      const r = columnPlaces(list, vp.w, vp.h, 4, eggOnTable ? 76 : 95);
+      // 竖屏：整列的下沿停在蛋的上方（蛋在下半屏时），放不下就在停留阶段缓慢上移阅读
+      const bottom = eggHere && eggHere.y > 30 ? eggHere.y - 1 : 95;
+      const r = columnPlaces(list, vp.w, vp.h, 4, bottom);
       Object.assign(places, r.places);
       pans[id] = r.pan;
-    } else Object.assign(places, fitPlaces(list, vp.w, vp.h, 96));
+    } else {
+      Object.assign(places, fitPlaces(list, vp.w, vp.h, 96));
+      if (eggHere) avoidEgg(list, places, eggHere, vp.w, vp.h);
+    }
   }
   return (
     <div className="pointer-events-none fixed inset-0 z-10">
@@ -241,13 +283,14 @@ function FlowLayer() {
 }
 
 /**
- * 结尾独立特写：笑点格离开后，妈妈的表情格单独停在画面中央（原图不放大超过 1.2 倍）。
+ * 结尾独立特写：笑点格离开后，妈妈的表情格单独停在画面中央（原图不放大超过 1.4 倍）。
  * 进入阶段由滚动带动轻轻上浮落定；落定后（停留阶段）脸旁依次出现三个手绘感圆点，真实时间、只播一次、停在“…”；回滚到落定前就收起。
  */
 function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelSpec; q: number; portrait: boolean; vw: number; reducedMotion: boolean; seconds: Record<string, number> }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   const nativeW = 515; // p6f.webp 原始宽度
-  const wPx = portrait ? Math.min(vw * 0.88, nativeW * 1.2) : Math.min(vw * 0.44, nativeW * 1.2);
+  // 结尾的妈妈反应是三个大画面之一：最多放大到原图 1.4 倍，避免发虚
+  const wPx = portrait ? Math.min(vw * 0.9, nativeW * 1.4) : Math.min(vw * 0.52, nativeW * 1.4);
   const k = outCubic((q + 0.02) / 0.42); // 进入阶段 0.5：0.4 处已落定
   const stable = q >= 0.42;
   if (q < -0.05) return null;

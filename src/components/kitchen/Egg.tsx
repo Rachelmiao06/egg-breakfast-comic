@@ -56,7 +56,7 @@ type Pose = { x: number; y: number; scale: number; rotation: number };
 type Plan = {
   pose: Pose;
   station: Station | null; // null = 在路上（滚动控制）
-  idle: "pan" | "table" | null;
+  idle: "pan" | "table" | "ready" | "call" | null;
   settle: boolean;
   z: number;
   opacity: number;
@@ -105,7 +105,7 @@ export function flightPoint(A: Pt, B: Pt, apexY: number, t: number, apexAt = 0.6
 function lastStationBefore(beats: Beat[], index: number): Station {
   for (let i = index - 1; i >= 0; i--) {
     const e = beats[i].egg;
-    if (e === "toTable" || e === "table") return "table";
+    if (e === "toTable" || e === "table" || e === "ready") return "table";
     if (e === "flight") return "spatula";
     if (e === "loop") return "pan";
   }
@@ -141,6 +141,18 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       P.settle = !!next && next.egg === "flight" && exiting;
       return P;
     }
+    case "ready": {
+      // 环境段：桌沿蓄力（真实时间：压低、左右扭、准备跳），离开前收住
+      const P = base("table", "ready", Z.eggOnTable);
+      P.settle = exiting;
+      return P;
+    }
+    case "inBowl": {
+      // 环境段：空饭桌上碗里的蛋（后景）。进入阶段等漫画格离开后才淡入，退出阶段在下一段漫画（画着碗里的蛋）进来前淡出
+      const P = base("bowl", "call", Z.eggOnTable);
+      P.opacity = t.phase === "enter" ? clamp01((t.phaseP - 0.4) / 0.5) : t.phase === "exit" ? 1 - clamp01(t.phaseP / 0.6) : 1;
+      return P;
+    }
     case "flight": {
       const from = lastStationBefore(beats, t.index);
       if (before) return { ...base(from, from === "pan" ? "pan" : "table", from === "pan" ? Z.eggInPan : Z.eggOnTable), settle: true };
@@ -165,7 +177,7 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       const P = base("spatula", null, Z.eggFlying);
       // 只有交接那一段（上一段蛋还在）才淡出；之后的 gone 段始终隐藏，避免蛋在后续各段的进入阶段重新闪现
       const prev = beats[t.index - 1];
-      const handingOff = !!prev && prev.egg !== "gone";
+      const handingOff = !!prev && prev.egg === "flight"; // 只有接蛋之后的交接段淡出
       P.opacity = handingOff && t.phase === "enter" ? 1 - clamp01((t.phaseP - 0.25) / 0.75) : 0;
       return P;
     }
@@ -221,9 +233,37 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
       gsap.to(egg, { y: 0, duration: 0.15, ease: "power1.out", overwrite: "auto" });
       return;
     }
-    const H = idle === "pan" ? PAN_JUMP : TABLE_HOP;
+    const H = idle === "pan" ? PAN_JUMP : idle === "call" ? 24 : TABLE_HOP;
     let busy = false;
     const ctx = gsap.context(() => {
+      if (idle === "ready" || idle === "call") {
+        // ready：压低蓄力 → 停一下 → 小幅弹起又落回（像在找起跳时机），间隔不规则；call：碗里探身、左右晃着喊，幅度小
+        const ready = idle === "ready";
+        const act = () => {
+          if (settleRef.current) return;
+          busy = true;
+          const tl = gsap.timeline({ onComplete: () => { busy = false; gsap.delayedCall(ready ? 0.7 + Math.random() * 0.9 : 0.9 + Math.random() * 1.1, act); } });
+          if (ready) {
+            tl.to(egg, { scaleX: 1.16, scaleY: 0.8, duration: 0.32, ease: "power2.out", transformOrigin: "50% 100%" })
+              .to(shadow, { scale: 1.12, opacity: 0.55, duration: 0.32 }, "<")
+              .to(egg, { rotation: -5, duration: 0.14, ease: "sine.inOut" })
+              .to(egg, { rotation: 5, duration: 0.18, ease: "sine.inOut" })
+              .to(egg, { rotation: 0, duration: 0.12, ease: "sine.inOut" })
+              .to(egg, { scaleX: 0.94, scaleY: 1.1, y: -H * 0.45, duration: 0.16, ease: "power2.out" })
+              .to(egg, { y: 0, scaleX: 1.1, scaleY: 0.88, duration: 0.16, ease: "power2.in" })
+              .to(egg, { scaleX: 1, scaleY: 1, duration: 0.45, ease: "elastic.out(1, 0.5)" })
+              .to(shadow, { scale: 1, opacity: 0.45, duration: 0.3 }, "<");
+          } else {
+            tl.to(egg, { scaleY: 1.08, scaleX: 0.95, y: -H, rotation: -6, duration: 0.18, ease: "power2.out", transformOrigin: "50% 100%" })
+              .to(egg, { y: 0, scaleY: 1, scaleX: 1, rotation: 0, duration: 0.2, ease: "power2.in" })
+              .to(egg, { y: -H * 0.7, rotation: 6, duration: 0.16, ease: "power2.out" })
+              .to(egg, { y: 0, rotation: 0, duration: 0.22, ease: "bounce.out" });
+          }
+        };
+        kickRef.current = () => { if (!busy) { gsap.killTweensOf(act); act(); } };
+        gsap.delayedCall(0.25, act);
+        return;
+      }
       const jump = () => {
         if (settleRef.current) return;
         busy = true;
@@ -248,7 +288,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     return () => {
       kickRef.current = null;
       ctx.kill(); // 不 revert：离开站点时保持当前姿态，由外层平滑接上
-      gsap.to(egg, { y: 0, scaleX: 1, scaleY: 1, duration: 0.15, ease: "power1.out" });
+      gsap.to(egg, { y: 0, scaleX: 1, scaleY: 1, rotation: 0, duration: 0.15, ease: "power1.out" });
     };
   }, [idle, reducedMotion]);
 
@@ -277,7 +317,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           }}
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img ref={eggRef} src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none will-change-transform" />
+        <img ref={eggRef} data-active-egg src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none will-change-transform" />
       </div>
     </FollowMid>
   );

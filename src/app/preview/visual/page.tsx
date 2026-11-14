@@ -92,6 +92,9 @@ function StageV2() {
     // 横版布局放不下时（竖屏、窄窗口）桌沿等待点也换成竖版的，免得蛋在镜头外等待
     tableWait: cfg.narrow ? BG.anchors.portraitTableWait : BG.anchors.tableWait,
     eggAtTable: BG.anchors.eggAtTable,
+    // 环境段 tablecall：饭桌上的碗（后景会话提供碗；这里只给蛋的脚底点和大小）
+    bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
+    eggInBowl: BG.anchors.eggInTableBowl,
     // 飞行最高点在接蛋格上框之上（格高的 12%）：蛋越过格框和对白泡，再落到铲面；再高在横屏会顶出画面上沿
     flightApexY: Math.round(box[1] - box[3] * 0.12),
   };
