@@ -17,22 +17,22 @@
 
 统一 mp3。响度大致统一到 -18 LUFS，代码里只做淡入淡出。
 
-## 文件 ↔ 场景编号 ↔ 方式 ↔ 状态（2026-11-14，对应 18 段新故事）
+## 文件 ↔ 场景编号 ↔ 方式 ↔ 状态（2026-11-14，对应新故事：v2 节拍 19 段含 drop；`?motion=v1` 18 段无 drop）
 
-场景 → 声音的对应表在 `src/components/kitchen/audio-map.json`（按场景编号覆盖节拍数据的 audio 字段，表里没有的场景沿用节拍数据原值；场景编号与 `src/app/preview/visual/beats.visual.json` 一致）。
+场景 → 声音的对应表在 `src/components/kitchen/audio-map.json`（按场景编号覆盖节拍数据的 audio 字段，表里没有的场景沿用节拍数据原值；场景编号与 `src/app/preview/visual/beats.visual-v2.json` / `beats.visual.json` 一致）。单次音效的触发点可写成阶段符号（`enterEnd` / `actionEnd` / `holdEnd`，可带偏移），由混音器按当前节拍表的 phases 换算，新旧两版节拍共用一张表。
 音量是相对电平（0–1），素材本身已按 `tools/audio_build.sh` 处理（原档在 `tools/audio_raw/`，测量用 `tools/audio_measure.sh`；`tools/audio_render_demo.mjs` 可把整个故事离线混成一条音频 + mp4 供试听）。
 **空位 = 还没有音源，接口里已登记、保持静音；不要用不相关的声音填补。** 混音器只为 `audio-map.json` 的 `available` 列表里的 7 个声音创建 `<audio>` 并请求文件，空位不发请求（没有 404）。补上文件后：放进本目录、加到 `available`、LICENSES.md 记一行、本表状态改为"已接入"。
 
 | 声音 id | 文件 | 方式 | 场景编号（音量 / 触发点） | 状态 |
 |---|---|---|---|---|
-| room | room-loop.mp3（40 s 循环） | 循环，全程 | opening/chop/stirfry/sauce/handoff/bowl/yolk/return 0.2；bag/idea/missing 0.25；hear/catch 0.18；eggcall 0.08；search 0.06；对白留空间：call / recognize 停留阶段 0.2→0.14，punchline 0.2→0.12 | 已接入 |
-| sizzle | sizzle-loop.mp3（20 s 循环） | 循环，主要动作声 | opening 0.45；bag 0.12；idea 0.1→停留阶段 0.05；chop 0.06；**stirfry 0.45（承担翻炒底声，待试听）**；sauce 0.08；missing 0.2→停留阶段 0.04（意外前的安静）；hear 进入阶段自动 0.04→0.6、停留阶段 0.6→0.3；catch 动作阶段 0.3→0.38 + 低通随 flight 从 1.5 kHz 开到 16 kHz（由远到近）；handoff 进入阶段 0.38→0 | 已接入 |
+| room | room-loop.mp3（40 s 循环） | 循环，全程 | opening/drop/chop/stirfry/sauce/handoff/bowl/yolk/return 0.2；bag/idea/missing 0.25；hear/catch 0.18；eggcall 0.08；search 0.06；对白留空间：call / recognize 停留阶段 0.2→0.14，punchline 0.2→0.12 | 已接入 |
+| sizzle | sizzle-loop.mp3（20 s 循环） | 循环，主要动作声 | opening 0.45；drop（仅 v2）动作阶段 0.45→0.2、停留 0.2（蛋跳到桌沿、厨房转为纸面）；bag 0.12；idea 0.1→停留阶段 0.05；chop 0.06；**stirfry 0.45（承担翻炒底声，待试听）**；sauce 0.08；missing 0.2→停留阶段 0.04（意外前的安静）；hear 进入阶段自动 0.04→0.6、停留阶段 0.6→0.3；catch 动作阶段 0.3→0.38 + 低通随 flight 从 1.5 kHz 开到 16 kHz（由远到近）；handoff 进入阶段 0.38→0 | 已接入 |
 | chop | chop-loop.mp3（6.5 s 循环） | 循环，主要动作声 | chop 0.5 | 已接入 |
 | stirfryIn | stirfry-in.mp3（1.8 s） | 单次 | stirfry @ p=0.22（下锅"滋啦"） | 已接入 |
 | stirfry | stirfry-loop.mp3 | 循环 | 暂不使用：炒菜段由 sizzle 承担底声 | **空位**（不强加） |
 | sauce | sauce-stir-loop.mp3（17.7 s 循环） | 循环，主要动作声 | sauce 0.4（调汁、盛饭） | 已接入 |
 | pop | pop.mp3 | 单次 | hear @ p=0.35（"啵！"） | **空位** |
-| catch | catch.mp3（0.6 s） | 单次 | catch @ p=0.78（蛋落到空锅铲） | 已接入 |
+| catch | catch.mp3（0.6 s） | 单次 | catch @ actionEnd（动作阶段结束 = 蛋落到空锅铲；v1 节拍 p=0.78，v2 p=0.80） | 已接入 |
 | bowlDown | bowl-down.mp3（1.1 s） | 单次 | bowl @ p=0.25（碗落桌） | 已接入 |
 | pour | pour.mp3 | 单次 | bowl @ p=0.55（淋汁） | **空位** |
 | momCall | mom-call.mp3 | 单次 | call @ p=0.25（"宝宝，来吃饭啦！"） | **空位** |
@@ -76,6 +76,7 @@
 - 整条混音 -29.0 LUFS，LRA 13.7 LU，峰值 -4.7 dBFS（各段电平 0.06–0.6 × 约 -18 LUFS 的素材，整体偏安静是设计值，是否够响以听感为准）。
 - 相邻 100 ms 瞬时响度的跳变：17 处段落交界全部在 ±3.3 dB 以内（最大是 chop→stirfry 的 -3.3 dB，其余 ≤ 1.1 dB）；整条里最大的跳变是单次音效本身（bowlDown +11.1 dB、catch +4.3 dB、stirfryIn +3.9 dB），属于剧情事件。
 - 渲染稿不含 catch 段的低通（只有音量），低通只在网页里生效。
+- v2 节拍（含 drop，2530 vh，30 vh/s = 84 s）重渲：整条 -28.9 LUFS，LRA 12.2 LU，峰值 -4.6 dBFS；18 处段落交界 100 ms 瞬时响度跳变全部 ≤ 3.9 dB（进入 drop 0.7 dB），catch 在 43.6 s = catch 段 p=0.80（actionEnd）落下；浏览器（v2 默认）：drop p=0.05 / 0.45 / 0.90 sizzle 0.45 / 0.325 / 0.20，bag 进入中段 0.16；catch p=0.79 未触发、p=0.81 触发 1 次；`?motion=v1` 下 catch 在 p=0.78 与 0.80 之间触发（= v1 的 actionEnd 0.78）。
 
 ### 浏览器行为（Chromium，/preview/visual，DOM 读数）
 

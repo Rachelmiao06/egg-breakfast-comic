@@ -34,7 +34,20 @@ const DEFAULT_PHASES = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 };
 
 const raw = JSON.parse(readFileSync(BEATS_PATH, "utf8"));
 const map = JSON.parse(readFileSync(join(ROOT, "src/components/kitchen/audio-map.json"), "utf8")).scenes;
-const beats = (raw.beats ?? raw).map((b) => ({ ...b, phases: b.phases ?? DEFAULT_PHASES, audio: map[b.id] ?? b.audio ?? { loops: {}, fades: [], oneshots: [] } }));
+// 触发点符号（与 useKitchenAudio.resolveAt 相同）：enterEnd / actionEnd / holdEnd（± 偏移），按该段 phases 换算
+function resolveAt(phases, at) {
+  if (typeof at === "number") return at;
+  const m = /^(enterEnd|actionEnd|holdEnd)([+-]\d*\.?\d+)?$/.exec(String(at).trim());
+  if (!m) throw new Error(`不认识的触发点 ${at}`);
+  const e = phases.enter, a = e + phases.action, h = a + phases.hold;
+  const base = m[1] === "enterEnd" ? e : m[1] === "actionEnd" ? a : h;
+  return Math.min(1, Math.max(0, base + (m[2] ? parseFloat(m[2]) : 0)));
+}
+const beats = (raw.beats ?? raw).map((b) => {
+  const phases = b.phases ?? DEFAULT_PHASES;
+  const audio = map[b.id] ?? b.audio ?? { loops: {}, fades: [], oneshots: [] };
+  return { ...b, phases, audio: { ...audio, oneshots: audio.oneshots.map((o) => ({ sound: o.sound, atSpec: o.at, at: resolveAt(phases, o.at) })) } };
+});
 const totalVh = beats.reduce((s, b) => s + b.lengthVh, 0);
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -100,7 +113,7 @@ const esc = (s) => s.replace(/\\/g, "\\\\").replace(/'/g, "\u2019").replace(/:/g
 const fontArg = `fontfile='${font.replace(/'/g, "\\'")}'`;
 const draws = sceneTimes.map((s) => {
   const loops = Object.entries(beats[s.n].audio.loops).map(([k, v]) => `${k} ${v}`).join("  ");
-  const shots = beats[s.n].audio.oneshots.map((o) => `${o.sound}@${o.at}${shotPcm[o.sound] ? "" : "(空位)"}`).join("  ");
+  const shots = beats[s.n].audio.oneshots.map((o) => `${o.sound}@${typeof o.atSpec === "string" ? `${o.atSpec}=${o.at.toFixed(2)}` : o.at}${shotPcm[o.sound] ? "" : "(空位)"}`).join("  ");
   const head = esc(`${s.n}  ${s.id}`), title = esc(s.title), info = esc(`循环  ${loops}` + (shots ? `    单次  ${shots}` : ""));
   const en = `enable='between(t,${s.t0.toFixed(3)},${s.t1.toFixed(3)})'`;
   return `drawtext=${fontArg}:text='${head}':fontsize=44:fontcolor=white:x=60:y=110:${en},drawtext=${fontArg}:text='${title}':fontsize=34:fontcolor=white:x=60:y=180:${en},drawtext=${fontArg}:text='${info}':fontsize=22:fontcolor=0xDDDDDD:x=60:y=250:${en}`;
