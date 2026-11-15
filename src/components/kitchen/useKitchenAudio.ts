@@ -269,7 +269,7 @@ const MAX_CROSS_VH = 40;
 /** 平滑速度：音量每秒最多变化这么多（满量程），只用于去掉跳变，节奏由节拍表决定 */
 const SLEW_PER_SEC = 2.5;
 /** 点火（claude/blink-callback）：开场点开声音时 sizzle 的升起速度（满量程 / 秒）和持续时间 */
-const IGNITE_RISE_PER_SEC = 0.17, IGNITE_MS = 3200;
+const IGNITE_RISE_PER_SEC = 0.3, IGNITE_MS = 2200; // 开场 sizzle 0.6 约 2 秒升满
 const TICK_MS = 50;
 /** sizzle 低通：远（flight 0）→ 近（flight 1）；全开 = 不起作用 */
 const LOWPASS_FAR = 1500, LOWPASS_NEAR = 16000, LOWPASS_OPEN = 20000;
@@ -553,7 +553,7 @@ class KitchenMixer {
     this.lastTick = now;
     for (const ch of this.all(this.loops)) {
       const target = this.soundOn && !this.hidden && ch.ok ? ch.target : 0;
-      // 点火：sizzle 在 igniteUntil 之前每秒最多升 0.17（0.45 的目标约 3 秒升满）
+      // 点火：sizzle 在 igniteUntil 之前每秒最多升 0.3（开场 0.6 约 2 秒升满）
       const st = ch.name === "sizzle" && now < this.igniteUntil ? dt * IGNITE_RISE_PER_SEC : step;
       const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), st);
       const level = Math.min(1, Math.max(0, v));
