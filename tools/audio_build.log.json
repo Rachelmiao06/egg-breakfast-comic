@@ -1,0 +1,162 @@
+[
+ {
+  "file": "alt/bowl-down-2.mp3",
+  "src": "mk-2934",
+  "gain_db": 17.5,
+  "a": 0.0,
+  "len": 0.9,
+  "I": -20.7,
+  "LRA": 0.0,
+  "TP": -2.7
+ },
+ {
+  "file": "alt/catch-egg-plop.mp3",
+  "src": "fs-119083",
+  "gain_db": 35.3,
+  "a": 0.85,
+  "len": 0.8,
+  "I": -18.5,
+  "LRA": 0.0,
+  "TP": -1.4
+ },
+ {
+  "file": "alt/chop-loop-table.mp3",
+  "src": "mk-134",
+  "gain_db": 16.3,
+  "a": 0.03510204081632653,
+  "b": 4.614761904761905,
+  "xfade": 0.03,
+  "I": -18.8,
+  "LRA": 0.4,
+  "TP": -2.1
+ },
+ {
+  "file": "alt/room-loop-roomtone.mp3",
+  "src": "fs-205165",
+  "gain_db": 40.0,
+  "a": 5.0,
+  "b": 25.0,
+  "xfade": 2.5,
+  "I": -18.0,
+  "LRA": 0.3,
+  "TP": -3.9
+ },
+ {
+  "file": "alt/sauce-stir-loop-plate.mp3",
+  "src": "mk-2835",
+  "gain_db": 9.1,
+  "a": 0.0,
+  "b": 2.954875283446712,
+  "xfade": 0.03,
+  "I": -18.3,
+  "LRA": 0.0,
+  "TP": -1.9
+ },
+ {
+  "file": "alt/sizzle-loop-fish.mp3",
+  "src": "mk-123",
+  "gain_db": 1.1,
+  "a": 2.0,
+  "b": 16.0,
+  "xfade": 1.5,
+  "I": -18.0,
+  "LRA": 0.5,
+  "TP": -1.5
+ },
+ {
+  "file": "alt/stirfry-loop-onions.mp3",
+  "src": "fs-741620",
+  "gain_db": 9.4,
+  "a": 1.0,
+  "b": 17.0,
+  "xfade": 1.5,
+  "I": -18.0,
+  "LRA": 1.4,
+  "TP": -1.6
+ },
+ {
+  "file": "bowl-down.mp3",
+  "src": "mk-1799",
+  "gain_db": 1.1,
+  "a": 0.03,
+  "len": 0.85,
+  "I": -18.5,
+  "LRA": 0.0,
+  "TP": -2.9
+ },
+ {
+  "file": "catch.mp3",
+  "src": "fs-546452",
+  "gain_db": 13.0,
+  "a": 2.62,
+  "len": 0.6,
+  "I": -18.2,
+  "LRA": 0.0,
+  "TP": -5.9
+ },
+ {
+  "file": "chop-loop.mp3",
+  "src": "fs-459398",
+  "gain_db": 21.7,
+  "a": 5.2594557823129255,
+  "b": 14.415328798185941,
+  "xfade": 0.04,
+  "I": -18.8,
+  "LRA": 4.4,
+  "TP": -1.3
+ },
+ {
+  "file": "room-loop.mp3",
+  "src": "fs-455826",
+  "gain_db": 22.6,
+  "a": 8.0,
+  "b": 28.0,
+  "xfade": 2.5,
+  "I": -18.0,
+  "LRA": 0.4,
+  "TP": -3.3
+ },
+ {
+  "file": "sauce-stir-loop.mp3",
+  "src": "fs-554557",
+  "gain_db": 36.2,
+  "a": 2.363514739229025,
+  "b": 29.122585034013607,
+  "xfade": 0.04,
+  "I": -18.8,
+  "LRA": 5.8,
+  "TP": -2.7
+ },
+ {
+  "file": "sizzle-loop.mp3",
+  "src": "fs-543801",
+  "gain_db": 10.4,
+  "a": 1.5,
+  "b": 15.5,
+  "xfade": 1.5,
+  "I": -18.3,
+  "LRA": 1.8,
+  "TP": -1.4
+ },
+ {
+  "file": "stirfry-in.mp3",
+  "src": "fs-417995",
+  "gain_db": 5.2,
+  "a": 1.45,
+  "len": 1.9,
+  "I": -18.2,
+  "LRA": 0.0,
+  "TP": -3.3
+ },
+ {
+  "file": "stirfry-loop.mp3",
+  "src": "fs-679946",
+  "gain_db": 2.2,
+  "a": 2.9519501133786847,
+  "b": 21.421655328798185,
+  "xfade": 0.8,
+  "I": -18.2,
+  "LRA": 3.1,
+  "TP": -1.9
+ }
+]
