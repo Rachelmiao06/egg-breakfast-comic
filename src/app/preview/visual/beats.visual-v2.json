@@ -1,5 +1,5 @@
 {
- "note": "新版（v2）节拍表：同一套故事与画格，增加 drop（锅→桌沿），蛋在桌沿等待到接蛋；阅读段以流动为主（进入 34% / 停留 36% / 离开 30%），只有关键动作停留。场景编号与 v1 相同，另加 drop。 结尾：punchline 读完后格子离开，closeup 为独立收尾镜头（妈妈表情特写 + 三个点，真实时间依次出现，不循环）；尾部空滚缩短。 环境段：missing 与 hear 之间的 prejump（蛋在桌沿蓄力准备跳），call 与 search 之间的 tablecall（空桌上碗里的蛋呼喊）；没有漫画格，后景是主体。总长基本不变（缩短普通阅读段换来）。 接蛋前的声音铺垫：hear（“嗯？”）→ listen（无漫画格；蛋仍在桌沿等待，只是被取景藏在镜头外；events tap1/tap2/tap3 给画面拟声字和跳动声共用）→ catch（伸铲格升起稳定后，同一颗蛋从桌沿起跳落铲）。寻找段恢复原剧情：search → eggcall（p5d “妈！这里！” + p5e 回头）→ return。",
+ "note": "新版（v2）节拍表：同一套故事与画格，增加 drop（锅→桌沿），蛋在桌沿等待到接蛋；阅读段以流动为主（进入 34% / 停留 36% / 离开 30%），只有关键动作停留。场景编号与 v1 相同，另加 drop。 结尾：punchline 读完后格子离开，closeup 为独立收尾镜头（妈妈表情特写 + 三个点，真实时间依次出现，不循环）；尾部空滚缩短。 环境段：missing 与 hear 之间的 prejump（蛋在桌沿蓄力准备跳），call 与 search 之间的 tablecall（空桌上碗里的蛋呼喊）；没有漫画格，后景是主体。总长基本不变（缩短普通阅读段换来）。 接蛋前的声音铺垫：hear（“嗯？”）→ listen（无漫画格；蛋仍在桌沿等待，只是被取景藏在镜头外；events tap1/tap2/tap3 给画面拟声字和跳动声共用）→ catch（伸铲格升起稳定后，同一颗蛋从桌沿起跳落铲）。寻找段恢复原剧情：search → eggcall（p5d “妈！这里！” + p5e 回头）→ return。 结尾反转（2026-11-14 用户要求）：punchline 拆成 worry（只有 p6d 妈妈担心）→ punchline（只有 p6e 饭碗近景“没事，是我拉肚子了。”）→ closeup（妈妈僵住，停一拍 0.9 s 后三个点依次出现），三段依次单独阅读，不同屏。",
  "beats": [
   {
    "id": "opening",
@@ -675,16 +675,43 @@
    }
   },
   {
-   "id": "punchline",
+   "id": "worry",
    "n": 21,
-   "title": "\"那刚才把你戳破了怎么办？\" \"没事，是我拉稀了。\"",
-   "lengthVh": 125,
+   "title": "\"那刚才把你戳破了怎么办？\" \"蛋黄都流出来了！\"（只有妈妈担心的一格，完整停留；回答格此时完全隐藏）",
+   "lengthVh": 115,
    "pin": null,
    "phases": {
     "enter": 0.3,
     "action": 0,
-    "hold": 0.45,
-    "exit": 0.25
+    "hold": 0.5,
+    "exit": 0.2
+   },
+   "kitchenDim": [
+    0,
+    0,
+    0
+   ],
+   "egg": "gone",
+   "audio": {
+    "loops": {
+     "room": 0.2
+    },
+    "fades": [],
+    "oneshots": []
+   },
+   "camera": "full"
+  },
+  {
+   "id": "punchline",
+   "n": 22,
+   "title": "\"没事，是我拉肚子了。\"（担心格离开后，饭碗近景单独进入阅读位置）",
+   "lengthVh": 115,
+   "pin": null,
+   "phases": {
+    "enter": 0.3,
+    "action": 0,
+    "hold": 0.5,
+    "exit": 0.2
    },
    "kitchenDim": [
     0,
@@ -703,7 +730,7 @@
   },
   {
    "id": "closeup",
-   "n": 22,
+   "n": 23,
    "title": "妈妈表情特写（眼神僵住、嘴一小横），脸旁依次出现三个点，安静结束",
    "lengthVh": 90,
    "pin": null,
@@ -734,7 +761,7 @@
     "oneshots": []
    },
    "seconds": {
-    "dotDelay": 0.5,
+    "dotDelay": 0.9,
     "dotGap": 0.6
    },
    "camera": "full"
