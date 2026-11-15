@@ -25,7 +25,8 @@
     "第二轮声画修正（2026-11-14 晚，用户要求）：接触声按各文件峰值位置跳过开头（skip），刀碰案板落在接触帧后约 12 ms；静态翻炒格不放连续刮锅声（cues.muted）；蛋落到饭上（p4b，egg-rice）与碗放到桌上（p4e，bowl-down）分开；淋汁只跟前景液流的开始 / 停止事件，p4c 还没有动画所以暂时静音；CC BY 署名显示在声音按钮旁的「音效致谢」。",
     "隔着画框（claude/blink-callback 合入，2026-11-14，未试听）：roomHz = 该段停留时 room 的低通截止频率（Hz）。漫画格在场的段 2500（像隔着一层纸听厨房）；寻找段 / 蛋喊 4000（另一间屋）；没写 = 全开，开场、drop、prejump、listen、tablecall 这些没有漫画格的段房间声透气。换段时在进入阶段内按对数频率渐变。tablecall 空桌 sizzle 0.05（锅还在小火上）。",
     "结尾三个点（claude/blink-callback 合入，未试听）：closeup 的三个点每出现一个，前景派发 kitchen:oneshot hopTap1 / 2 / 3，音高逐个降低（rate 1 / 0.89 / 0.79）、电平略降，比点早约 80 ms；closeup 的 room 停留阶段从 0.12 退到 0.04。点火：开场段点开声音时两下升调咔哒（hopTap），sizzle 约 3 s 升起。声像：切菜 chopHit 和调汁 sauceStir 的事件带 pan（按格子在屏幕上的横向位置，-0.7…0.7）。",
-    "接蛋前高跳（2026-11-14 晚，用户重新设计；集成会话）：listen 段蛋已经跳出画面上缘，在空中，所以去掉画外三下落地「嗒」（hopTap1/2/3 @tap1–3），listen 只留 room 0.14、sizzle 0.05。离画前的声音由蛋起跳那一帧（真实时间）派发：蹬桌接触 hopTap 和「啵」pop；接入后删掉 hear 段按滚动在 0.35 触发的 pop，避免双响。结尾三个点仍用 hopTap1/2/3。未试听。"
+    "接蛋前高跳（2026-11-14 晚，用户重新设计；集成会话）：listen 段蛋已经跳出画面上缘，在空中，所以去掉画外三下落地「嗒」（hopTap1/2/3 @tap1–3），listen 只留 room 0.14、sizzle 0.05。离画前的声音由蛋起跳那一帧（真实时间）派发：蹬桌接触 hopTap 和「啵」pop；接入后删掉 hear 段按滚动在 0.35 触发的 pop，避免双响。结尾三个点仍用 hopTap1/2/3。未试听。",
+    "高跳接入后（2026-11-15，集成会话）：hear 段按滚动在 0.35 触发的 pop 已删除。起跳声只由 Egg 在蹬离 L 的那一帧派发：hopTap1（gain 0.6）+ 60 ms 后 pop；蛋已被滚动带离 L 时不补放。一次起跳只响一次。未试听。"
   ],
   "available": [
     "room",
@@ -60,7 +61,7 @@
     "stirfry": { "roomHz": 2500, "loops": { "room": 0.2, "sizzle": 0.1 }, "fades": [], "oneshots": [] },
     "sauce": { "roomHz": 2500, "loops": { "room": 0.2, "sizzle": 0.08 }, "fades": [], "oneshots": [] },
     "missing": { "roomHz": 2500, "loops": { "room": 0.25, "sizzle": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.2, "to": 0.04, "phase": "hold" } ], "oneshots": [] },
-    "hear": { "roomHz": 2500, "loops": { "room": 0.18, "sizzle": 0.6 }, "fades": [ { "sound": "sizzle", "from": 0.6, "to": 0.3, "phase": "hold" } ], "oneshots": [ { "sound": "pop", "at": 0.35 } ] },
+    "hear": { "roomHz": 2500, "loops": { "room": 0.18, "sizzle": 0.6 }, "fades": [ { "sound": "sizzle", "from": 0.6, "to": 0.3, "phase": "hold" } ], "oneshots": [] },
     "listen": { "oncePerVisit": true, "loops": { "room": 0.14, "sizzle": 0.05 }, "fades": [], "oneshots": [] },
     "catch": { "roomHz": 2500, "loops": { "room": 0.18, "sizzle": 0.38 }, "fades": [ { "sound": "sizzle", "from": 0.3, "to": 0.38, "phase": "action" } ], "oneshots": [ { "sound": "catch", "at": "@eggOnSpatula" } ] },
     "handoff": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.38, "to": 0, "phase": "enter" } ], "oneshots": [] },
