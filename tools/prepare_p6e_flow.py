@@ -1,11 +1,10 @@
-"""p6e（结尾饭碗格）蛋黄流动：三张完整的新帧 → public/assets/comic-v5/p6e/。
-用法：python3 -I tools/prepare_p6e_flow.py <p6e-full-frames 目录>（p6e-frame-01/02/03.png，泡里没有字）
-三张都是重新生成的整格：碗、米饭、配菜的边线有细小差异，第 3 帧还缩放 / 微旋转了，整张交叉淡入会出现碗沿、米粒的重影。
-所以：SIFT + RANSAC 把第 2、3 帧仿射配准到第 1 帧；只取"蛋黄流出处"的一块椭圆（羽化边缘）叠在第 1 帧上，其余永远是第 1 帧。
-2026-11-15 用户指出：上一格 p6d 里蛋黄已经流出来不少，这一格不能先缩回一点再淌。所以第 1 帧（刚破口）不再出现：
-起点 = 第 1 帧 + 第 2 帧补丁（中等流量，接得上 p6d），只往"更多"走（第 3 帧补丁淡入）。
-输出（1400 宽）：base = 第 1 帧叠上第 2 帧补丁（起点）；patch3 = 第 3 帧的椭圆补丁（RGBA，终点）；bubble = 泡形遮罩（alpha，奶油色连通域膨胀到包住描边）；
-text = 旧对白字层（comic-v3/p6e-text-c.webp）按新旧泡的外框对应缩放平移；static = 第 3 帧补丁 + 对白（终态，减少动态效果用）。
+"""p6e（结尾饭碗格）蛋黄流动：p6e-smooth-frames 的三张新帧 → public/assets/comic-v5/p6e/。
+用法：python3 -I tools/prepare_p6e_flow.py <p6e-smooth-frames 目录>（p6e-frame-04/05/06.png，泡里没有字）
+2026-11-15 用户指出：上一格 p6d 里蛋黄已经流出来不少，这一格不能先缩回去再淌。所以起点 = 第 04 帧（已经流出来不少），05（更多）、06（流成一滩）只往"更多"走。
+三张是各自重新生成的整格，碗沿、米粒的线条有细小差异，整张交叉淡入会重影；
+所以：SIFT + RANSAC 把 05、06 仿射配准到 04；只取"蛋黄流出处"的一块椭圆（羽化边缘）叠在 04 上，其余画面永远是 04。
+输出（1400 宽）：base = 04；patch2 / patch3 = 05 / 06 的椭圆补丁（RGBA）；bubble = 泡形遮罩（alpha，奶油色连通域膨胀到包住描边）；
+text = 旧对白字层（comic-v3/p6e-text-c.webp）按新旧泡的外框对应缩放平移；static = 06 补丁 + 对白（终态，减少动态效果用）。
 """
 import sys
 import cv2
@@ -15,7 +14,7 @@ from scipy import ndimage as ndi
 
 src = sys.argv[1]
 OUT = "public/assets/comic-v5/p6e"
-fr = [cv2.imread(f"{src}/p6e-frame-0{i}.png") for i in (1, 2, 3)]
+fr = [cv2.imread(f"{src}/p6e-frame-0{i}.png") for i in (4, 5, 6)]
 ref = fr[0]
 H, W = ref.shape[:2]
 sift = cv2.SIFT_create(4000)
@@ -36,7 +35,7 @@ def pil(a):
 base, p2, p3 = (pil(a) for a in reg)
 
 # 蛋黄流出处的椭圆（归一化坐标，按第 3 帧里蛋黄流到的最远位置留余量）
-cxn, cyn, rx, ry = 0.665, 0.66, 0.215, 0.185
+cxn, cyn, rx, ry = 0.66, 0.67, 0.27, 0.21
 yy, xx = np.mgrid[0:OH, 0:OW]
 d = np.sqrt(((xx / OW - cxn) / rx) ** 2 + ((yy / OH - cyn) / ry) ** 2)
 alpha = np.clip((1.0 - d) / 0.28, 0, 1)  # 外 28% 羽化
@@ -74,11 +73,11 @@ resized = old_text.resize((round(old_text.size[0] * sx), round(old_text.size[1] 
 tw.alpha_composite(resized, (round(nx0 - ox0 * sx), round(ny0 - oy0 * sy)))
 print("text scale", round(sx, 3), round(sy, 3))
 
-start = base.copy(); start.alpha_composite(P2)  # 起点：中等流量
-st = start.copy(); st.alpha_composite(P3); st.alpha_composite(tw)
+st = base.copy(); st.alpha_composite(P3); st.alpha_composite(tw)
 import os
 os.makedirs(OUT, exist_ok=True)
-start.convert("RGB").save(f"{OUT}/base.webp", quality=92, method=6)
+base.convert("RGB").save(f"{OUT}/base.webp", quality=92, method=6)
+P2.save(f"{OUT}/patch2.webp", quality=92, method=6)
 P3.save(f"{OUT}/patch3.webp", quality=92, method=6)
 mask.save(f"{OUT}/bubble.webp", quality=95, method=6)
 tw.save(f"{OUT}/text.webp", quality=95, method=6)
