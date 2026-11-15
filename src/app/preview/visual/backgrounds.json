@@ -2,7 +2,7 @@
  "note": "统一背景素材配置（后景换场）。正式背景图到位后只改这里：src、size（原始尺寸）、showBox（在场景坐标里的显示范围）、anchors。所有锚点都是厨房场景坐标（1536×1024，脚底中心）。",
  "kitchen": {
   "type": "layers",
-  "src": "/assets/scene/{far,counter,mid,pan-rim,front-right}.png",
+  "src": "/assets/scene/{far,counter,mid,pan-rim,front-right}.webp（裁到包围盒，摆放框在 src/lib/kitchen-layers.json）",
   "size": [
    1536,
    1024

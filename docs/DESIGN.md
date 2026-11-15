@@ -71,8 +71,8 @@ source/storyboard-v2.png、comic-page-{1,2}.png  旧素材，停用
 
 public/assets/scene/kitchen-clean.webp, egg.webp           集成会话（tools/prepare_assets.py）
 public/assets/mom/{chop,stirfry,sauce,serve,spatula}.webp  集成会话（tools/prepare_mom.py：柔边收紧、去色污染、按组裁切）
-public/assets/scene/{back,mid,pan-rim,front-toast,front-right}.png   layers 分支（由 kitchen-clean 拆出，1536×1024 透明）
-public/assets/scene/{flame,oil}.png                        kitchen-scene 分支（从原图抽出）
+public/assets/scene/{far,counter,mid,pan-rim,front-toast,front-right}.webp   layers 分支（由 kitchen-clean 拆出；tools/pack_layers.py 裁到包围盒，摆放框在 src/lib/kitchen-layers.json）
+public/assets/scene/{flame,oil}.webp                       kitchen-scene 分支（从原图抽出，裁到包围盒，摆放框在 ANCHORS）
 public/assets/comic/                                       comic 分支（结尾占位等）
 public/assets/audio/                                       用户提供的录音 + LICENSES.md
 ```
@@ -87,7 +87,7 @@ public/assets/audio/                                       用户提供的录音
 | comic-scroll（已有，分支 `claude/comic-scroll-d12d36`） | **布局**：妈妈漫画画格的裁切、版式、位置、进入/退出包络（读 timeline） | `src/components/comic/**`（含 `MomForeground.tsx`）、`src/app/dev/comic/`、`public/assets/comic/`、`tools/split_comic.py`、`docs/tasks/comic-scroll.md` | `/dev/comic` |
 | feat/scroll-motion-demo（新） | **运动**：悬挂倾斜、分层推进、跨景接蛋三段动效小样 | `src/app/demo/scroll-motion/**`（小样的全部组件、路由级节拍子集、调试面板都放这里）、`public/assets/demo/**`（占位图）、`docs/tasks/scroll-motion-demo.md` | `/demo/scroll-motion` |
 | feat/kitchen-audio（新） | **声音**：真实音效搜集、许可记录、循环接缝处理、接入现有声音接口 | `public/assets/audio/**`（音频文件、`README.md`、`LICENSES.md`）、`src/components/kitchen/useKitchenAudio.ts`、`src/components/kitchen/SoundToggle.tsx`、`tools/audio_*`、`docs/tasks/kitchen-audio.md` | `/dev/beats`（打开右下角声音） |
-| kitchen-layers（已完成并合并） | 厨房分层 | 冻结：`kitchen/KitchenLayers.tsx`、`tools/split_scene.py`、`public/assets/scene/{back,mid,pan-rim,front-toast,front-right}.png` 暂不改 | — |
+| kitchen-layers（已完成并合并） | 厨房分层 | 冻结：`kitchen/KitchenLayers.tsx`、`tools/split_scene.py`、`public/assets/scene/{far,counter,mid,pan-rim,front-toast,front-right}.webp` 暂不改 | — |
 
 共享接口（主会话维护，其他分支只读）：
 - `useScene()`：`timeline`、`activePanel`、`progress`、`flight`、`serve`、`soundOn`、`beats`。

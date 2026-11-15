@@ -3,12 +3,16 @@
 
 Input : source/kitchen-clean.png (falls back to ~/Desktop/Clean watercolor kitchen with red skillet.png)
 
-Outputs (all 1536x1024 RGBA, same canvas, same coordinates, see docs/DESIGN.md Z order):
-  public/assets/scene/back.png         Z.back   wall, tiles, back counter, yellow pot, jars, kettle (opaque)
-  public/assets/scene/mid.png          Z.mid    wooden table, green stove, red skillet body + handle + floor
-  public/assets/scene/pan-rim.png      Z.panRim front half of the skillet: front lip + red outer wall
-  public/assets/scene/front-toast.png  Z.frontLeft  toast plate (not rendered by default: toast left the story)
-  public/assets/scene/front-right.png  Z.frontRight eggshells + gingham cloth (inside momZone, fades out for mom)
+Outputs (all 1536x1024 RGBA, same canvas, same coordinates, see docs/DESIGN.md Z order), written to
+source/layers/ (git-ignored intermediates); tools/pack_layers.py then trims each to its opaque box and
+writes the webp the page loads (public/assets/scene/<layer>.webp + src/lib/kitchen-layers.json):
+  far.png          Z.back   wall, tiles (opaque)
+  counter.png      Z.back+1 back counter, yellow pot, jars, kettle
+  back.png         legacy: far + counter merged (not packed)
+  mid.png          Z.mid    wooden table, green stove, red skillet body + handle + floor
+  pan-rim.png      Z.panRim front half of the skillet: front lip + red outer wall
+  front-toast.png  Z.frontLeft  toast plate (not rendered by default: toast left the story)
+  front-right.png  Z.frontRight eggshells + gingham cloth (inside momZone, fades out for mom)
   tools/check_overlay.png              five layers recomposited vs the clean source + |diff|
   tools/layers_preview.png             contact sheet of the five layers
 
@@ -29,7 +33,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "public/assets/scene"
+OUT = ROOT / "source/layers"
 W, H = 1536, 1024
 DESK = Path.home() / "Desktop"
 RNG = np.random.default_rng(7)
@@ -779,3 +783,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    import subprocess, sys
+    subprocess.run([sys.executable, str(ROOT / "tools/pack_layers.py")], check=True)

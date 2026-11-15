@@ -2,8 +2,10 @@
 /**
  * Kitchen environment layers (kitchen-layers, design v4).
  *
- * Five 1536×1024 layers cut from source/kitchen-clean.png, rendered as siblings inside
- * <SceneStage> so they interleave with the character layers through the shared Z order:
+ * Five layers cut from source/kitchen-clean.png (1536×1024 scene canvas), rendered as siblings inside
+ * <SceneStage> so they interleave with the character layers through the shared Z order.
+ * Each file is trimmed to its opaque box (tools/pack_layers.py); src/lib/kitchen-layers.json carries the
+ * box, and the <img> sits at that box inside a full-canvas wrapper, so scene coordinates are unchanged:
  *   back (Z.back)        wall, tiles, back counter, yellow pot, jars, kettle
  *   mid (Z.mid)          wooden table, green stove, red skillet body + floor
  *   pan-rim (Z.panRim)   front lip + red outer wall of the skillet → hides the egg's feet
@@ -25,7 +27,8 @@
  */
 import gsap from "gsap";
 import { useEffect, useRef, useState } from "react";
-import { FOCUS_Y, SCENE_H, SCENE_W, Z } from "@/lib/scene";
+import sprites from "@/lib/kitchen-layers.json";
+import { FOCUS_Y, SCENE_H, SCENE_W, Z, boxStyle, type Box } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
 export type KitchenLayerName = "far" | "counter" | "mid" | "pan-rim" | "front-toast" | "front-right";
@@ -33,7 +36,13 @@ export type KitchenLayerName = "far" | "counter" | "mid" | "pan-rim" | "front-to
 /** activePanel from which mom's spatula occupies momZone (docs/DESIGN.md §1, beat 5) */
 const MOM_PANEL = 5;
 
-const SRC = "/assets/scene";
+/** 每层裁切图的路径和摆放框（场景像素），由 tools/pack_layers.py 写入 kitchen-layers.json */
+const SPRITES = Object.fromEntries(
+  Object.entries(sprites).map(([k, v]) => {
+    if (v.box.length !== 4) throw new Error(`kitchen-layers.json: ${k} 的 box 必须是 4 个数`);
+    return [k, { src: v.src, box: v.box as unknown as Box }];
+  }),
+) as Record<KitchenLayerName, { src: string; box: Box }>;
 const ORIGIN_X = SCENE_W / 2;
 const ORIGIN_Y = FOCUS_Y;
 /** [mouse amplitude, reading drift] in scene px */
@@ -175,9 +184,10 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`${SRC}/${name}.png`}
-              width={SCENE_W}
-              height={SCENE_H}
+              src={SPRITES[name].src}
+              width={SPRITES[name].box[2] - SPRITES[name].box[0]}
+              height={SPRITES[name].box[3] - SPRITES[name].box[1]}
+              style={boxStyle(SPRITES[name].box)}
               alt=""
               draggable={false}
               decoding="async"
@@ -186,7 +196,7 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
                 // already decoded before hydration: onLoad will not fire
                 if (img?.complete && img.naturalWidth) markLoaded(name);
               }}
-              className="absolute inset-0 select-none"
+              className="select-none"
             />
           </div>
         );

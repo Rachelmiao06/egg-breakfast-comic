@@ -1,0 +1,56 @@
+{
+  "far": {
+    "src": "/assets/scene/far.webp",
+    "box": [
+      0,
+      0,
+      1536,
+      1024
+    ]
+  },
+  "counter": {
+    "src": "/assets/scene/counter.webp",
+    "box": [
+      0,
+      158,
+      1536,
+      809
+    ]
+  },
+  "mid": {
+    "src": "/assets/scene/mid.webp",
+    "box": [
+      0,
+      494,
+      1536,
+      1024
+    ]
+  },
+  "pan-rim": {
+    "src": "/assets/scene/pan-rim.webp",
+    "box": [
+      352,
+      595,
+      1126,
+      754
+    ]
+  },
+  "front-toast": {
+    "src": "/assets/scene/front-toast.webp",
+    "box": [
+      0,
+      798,
+      461,
+      1024
+    ]
+  },
+  "front-right": {
+    "src": "/assets/scene/front-right.webp",
+    "box": [
+      1106,
+      672,
+      1536,
+      1024
+    ]
+  }
+}
