@@ -62,7 +62,7 @@ export const scene = {
   layers: [ // 按 z 顺序
     { id: 'back',  src: 'assets/scene/back.png',  scroll: 0.4, mouse: 2  },
     { id: 'mid',   src: 'assets/scene/mid.png',   scroll: 1.0, mouse: 5  },
-    { id: 'flame', src: 'assets/scene/flame.png', scroll: 1.0, mouse: 5, box: [600,735,830,790] },
+    { id: 'flame', src: 'assets/scene/flame.webp', scroll: 1.0, mouse: 5, box: [600,735,830,790] },
     { id: 'shadow',                                scroll: 1.0, mouse: 5, box: [600,585,860,625] }, // CSS 渐变
     { id: 'egg',   src: 'assets/scene/egg.png',   scroll: 1.0, mouse: 6, box: [525,150,915,525], rest: [720,560] },
     { id: 'front', src: 'assets/scene/front.png', scroll: 1.6, mouse: 10 },

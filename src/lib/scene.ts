@@ -25,8 +25,12 @@ export const ANCHORS = {
   panInner: { cx: 743, cy: 579, rx: 398, ry: 77 },
   /** pan-rim 遮挡层包围盒 */
   panRimBox: [358, 601, 1119, 747] as const,
-  /** 锅底火苗 */
+  /** 锅底火苗（动画锚点区域） */
   flameBox: [580, 729, 879, 800] as const,
+  /** flame.webp 在场景里的摆放框：tools/extract_fx.py 把透明画布裁到不透明包围盒外扩 4px 后打印的坐标 */
+  flameSprite: [573, 708, 887, 812] as const,
+  /** oil.webp 的摆放框，同上 */
+  oilSprite: [446, 569, 1057, 668] as const,
   /** 水壶嘴，蒸汽起点 */
   kettleSpout: { x: 1192, y: 312 },
   /** 吐司盘（前层）：故事已改为拌饭，吐司**待替换**（docs/ASSET-REQUESTS.md 第四版 K1），不作为任何终点 */
