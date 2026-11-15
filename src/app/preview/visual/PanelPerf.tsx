@@ -64,7 +64,6 @@ const flag = (on: boolean) => {
  */
 function useStage(q: number, stage: Stage, enabled: boolean, play: () => void, stop: () => void, reset: () => void) {
   const played = useRef(false);
-  const resetTimer = useRef(0);
   const wasEnabled = useRef(enabled);
   useEffect(() => {
     if (!enabled) {
@@ -72,18 +71,13 @@ function useStage(q: number, stage: Stage, enabled: boolean, play: () => void, s
       return;
     }
     wasEnabled.current = true;
-    if (stage.vis < GONE_VIS || (q < BEFORE_Q && !stage.entered)) {
-      // 格子淡出的 0.45 s 里先别复位（否则格内动画在淡出时倒带回第一帧）
-      if (played.current && !resetTimer.current) resetTimer.current = window.setTimeout(() => { resetTimer.current = 0; played.current = false; reset(); }, 450);
-      return;
-    }
-    if (resetTimer.current) { window.clearTimeout(resetTimer.current); resetTimer.current = 0; }
+    if (stage.vis < GONE_VIS || (q < BEFORE_Q && !stage.entered)) { if (played.current) { played.current = false; reset(); } return; }
     if (stage.leaving || stage.vis < LEAVE_VIS) { stop(); return; }
     if (stage.entered && stage.vis >= READY_VIS && !played.current) { played.current = true; play(); }
   });
   // 卸载时复位，并清掉"播过"标记：格子离开视口被卸载、再次进入重新挂载时能再播；
   // 开发模式 StrictMode 的"挂载 → 模拟卸载 → 再挂载"也一样（否则刚开始就被复位，而 played 还是 true，整段不播）
-  useEffect(() => () => { window.clearTimeout(resetTimer.current); resetTimer.current = 0; played.current = false; reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { played.current = false; reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {

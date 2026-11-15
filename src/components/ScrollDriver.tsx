@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef } from "react";
 import Lenis from "lenis";
+import Snap from "lenis/snap";
 import gsap from "gsap";
 import { locate, phaseEdges, totalVh } from "@/lib/beats";
 import { setScrollVelocity } from "@/lib/scroll-velocity";
@@ -18,11 +19,7 @@ import { REPLAY_EVENT } from "@/lib/replay";
  * 时间轴在 Lenis 的每帧 scroll 回调里更新；此时不再注册 window scroll 监听，保证只有一套。
  * smooth = false：原生滚动（旧版对比用）。
  */
-/** 旧首页的阅读段（节拍表 id）。预览页传入自己的（有画格的）段 */
-const DEFAULT_READING = ["chop", "stirfry", "sauce", "notice"];
-const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-export default function ScrollDriver({ smooth = true, readingBeats = DEFAULT_READING }: { smooth?: boolean; readingBeats?: string[] }) {
+export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
   const { beats, setTimeline } = useScene();
   const last = useRef({ index: -1, p: -1 });
 
@@ -86,88 +83,27 @@ export default function ScrollDriver({ smooth = true, readingBeats = DEFAULT_REA
         update();
       });
       // 与 GSAP 共用同一个 ticker：Lenis、速度、画格动效在同一帧里更新，不会各走各的 rAF
-      // 阅读点磁吸（滚动、动画、声音连在一起）：格内动画和声音在"格子到位"时按真实时间播，所以读者必须能稳稳停在格子上。
-      // 1) 滑停后：落在有画格的段里，就用 Lenis 缓动滑到该段的阅读点（停留阶段中点）；离阅读点 8vh 以内就不动，停留阶段里偏了则吸回阅读点；
-      //    顺着滑动方向走：往下滑出停留阶段 → 下一格，往上 → 回到这一格；两段之间不相邻（中间是蛋飞行等自由段）就不抢。
-      // 2) 快滑 / 猛滑：这次手势的目标越过了下一格的停留区，就先停在它的阅读点（lock 住惯性约 1 秒），让这一格播完整；之后的手势再往前。
-      type Stop = { start: number; holdA: number; read: number; holdB: number; end: number };
-      let stops: Stop[] = [];
-      const buildStops = () => {
-        const vh = window.innerHeight / 100;
-        stops = [];
-        let acc = 0;
+      // 阅读停留处轻微吸附：只有带画格的段，在"停留"阶段中点附近 proximity 吸附（离得近才吸，不抢走用户的滚动）
+      const snap = new Snap(lenis, { type: "proximity", distanceThreshold: "9%", debounce: 220, duration: 0.9 });
+      const addSnaps = () => {
+        removers.forEach((r) => r());
+        removers = [];
+        let startVh = 0;
         for (const b of beats) {
-          if (readingBeats.includes(b.id)) {
+          if (["chop", "stirfry", "sauce", "notice"].includes(b.id)) {
             const e = phaseEdges(b);
-            const at = (f: number) => (acc + b.lengthVh * f) * vh;
-            stops.push({ start: at(0), holdA: at(e[2]), read: at((e[2] + e[3]) / 2), holdB: at(e[3]), end: at(1) });
+            const mid = (e[2] + e[3]) / 2;
+            removers.push(snap.add(((startVh + b.lengthVh * mid) / 100) * window.innerHeight));
           }
-          acc += b.lengthVh;
+          startVh += b.lengthVh;
         }
       };
-      buildStops();
-      window.addEventListener("resize", buildStops);
-      let dir = 1;
-      let lastY = window.scrollY;
-      let touching = false;
-      let settling = false;
-      let settleCall: gsap.core.Tween | null = null;
-      const goTo = (y: number) => {
-        if (!lenis) return;
-        const dist = Math.abs(y - lenis.scroll) / window.innerHeight;
-        settling = true;
-        lenis.scrollTo(y, { duration: Math.min(1.4, 0.7 + dist * 0.5), easing: easeInOutCubic, lock: true, onComplete: () => { settling = false; } });
-      };
-      const adjacent = (a: Stop, b: Stop) => Math.abs(a.end - b.start) < 2;
-      const pick = (y: number): number | null => {
-        const i = stops.findIndex((st) => y >= st.start - 1 && y <= st.end + 1);
-        if (i < 0) return null;
-        const st = stops[i];
-        if (Math.abs(y - st.read) <= window.innerHeight * 0.08) return null; // 离阅读点 8vh 以内：算到位，不动
-        if (y >= st.holdA - 1 && y <= st.holdB + 1) return st.read; // 停留阶段里偏了：轻轻吸回阅读点（更粘）
-        if (y < st.holdA) {
-          if (dir >= 0) return st.read;
-          const prev = stops[i - 1];
-          return prev && adjacent(prev, st) ? prev.read : null;
-        }
-        if (dir <= 0) return st.read;
-        const next = stops[i + 1];
-        return next && adjacent(st, next) ? next.read : null;
-      };
-      const settle = () => {
-        if (!lenis || settling || touching) return;
-        if (lenis.isScrolling) { settleCall = gsap.delayedCall(0.12, settle); return; }
-        const to = pick(lenis.scroll);
-        if (to !== null && Math.abs(to - lenis.scroll) > 2) goTo(to);
-      };
-      const limit = () => {
-        if (!lenis || settling) return;
-        const y = lenis.scroll, t = lenis.targetScroll, d = Math.sign(t - y);
-        if (!d) return;
-        // 下一个还没到的阅读点（已经在它的停留区里就不拦）；这次手势的目标越过它的停留区，就先停在它的阅读点
-        const next = stops
-          .filter((st) => (st.read - y) * d > window.innerHeight * 0.05 && !(y >= st.holdA && y <= st.holdB))
-          .sort((p, q) => Math.abs(p.read - y) - Math.abs(q.read - y))[0];
-        if (next && (t - (d > 0 ? next.holdB : next.holdA)) * d > 0) goTo(next.read);
-      };
-      lenis.on("scroll", () => {
-        const y = window.scrollY;
-        if (Math.abs(y - lastY) > 0.5) { dir = Math.sign(y - lastY); lastY = y; }
-        limit();
-        settleCall?.kill();
-        settleCall = gsap.delayedCall(0.1, settle);
-      });
-      const onTouch = (on: boolean) => () => { touching = on; if (!on) { settleCall?.kill(); settleCall = gsap.delayedCall(0.2, settle); } };
-      const ts = onTouch(true), te = onTouch(false);
-      window.addEventListener("touchstart", ts, { passive: true });
-      window.addEventListener("touchend", te, { passive: true });
-      window.addEventListener("touchcancel", te, { passive: true });
+      let removers: (() => boolean)[] = [];
+      addSnaps();
+      window.addEventListener("resize", addSnaps);
       snapCleanup = () => {
-        settleCall?.kill();
-        window.removeEventListener("resize", buildStops);
-        window.removeEventListener("touchstart", ts);
-        window.removeEventListener("touchend", te);
-        window.removeEventListener("touchcancel", te);
+        window.removeEventListener("resize", addSnaps);
+        snap.destroy();
       };
       tick = (time) => lenis?.raf(time * 1000);
       gsap.ticker.add(tick);
@@ -201,7 +137,7 @@ export default function ScrollDriver({ smooth = true, readingBeats = DEFAULT_REA
       if (decayRaf) cancelAnimationFrame(decayRaf);
       setScrollVelocity(0);
     };
-  }, [beats, setTimeline, smooth, readingBeats]);
+  }, [beats, setTimeline, smooth]);
 
   // flexShrink: 0：body 是纵向 flex 容器，某些环境下占位会被压缩成一屏导致页面滚不动（kitchen-layers 报告）
   return <div aria-hidden style={{ height: `${totalVh(beats) + 100}vh`, flexShrink: 0 }} />;
