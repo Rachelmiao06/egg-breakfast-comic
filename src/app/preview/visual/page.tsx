@@ -22,6 +22,7 @@ import { HEAR_EVENT } from "./PanelPerf";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, trajectoryFor, wanderTableFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
 import EggPoke from "./EggPoke";
+import PanelHover from "./PanelHover";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
 import { useViewport } from "./viewport";
 
@@ -151,6 +152,7 @@ function StageV2() {
       <ComicLayer flow />
       <ScrollDriver smooth />
       <EggPoke />
+      <PanelHover />
       <SoundToggle />
       <ScrollHint />
       {!clean && <MotionToggle v2 />}

@@ -39,8 +39,27 @@ body {
 .panel-frame {
   --pf-w: max(6px, 0.6vw);
   --pf-r: max(10px, 1.1vw);
+  --sheen: calc(50% + var(--kl-mouse-x, 0) * 38%);
   border-radius: var(--pf-r);
   overflow: hidden;
+  /* 回弹落下：慢一点、带一点过冲；跟随鼠标的倾斜和高光走快的曲线（见 [data-hover]） */
+  transition:
+    translate 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.35),
+    scale 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.35),
+    rotate 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.35),
+    box-shadow 0.4s ease-out;
+}
+/* 鼠标碰到：浮起、朝鼠标倾斜（rotate 用轴角，一条属性就能合成 X/Y 两个方向）、投影加深（PanelHover.tsx） */
+.panel-frame[data-hover] {
+  translate: 0 -7px;
+  scale: 1.028;
+  rotate: var(--ph-rx, 0) var(--ph-ry, 0) 0 calc(var(--ph-rm, 0) * 1deg);
+  box-shadow: 0 38px 54px -16px rgba(60, 35, 15, 0.5), 0 12px 20px -4px rgba(60, 35, 15, 0.28), 0 1px 2px rgba(60, 35, 15, 0.24) !important;
+  transition:
+    translate 0.22s cubic-bezier(0.2, 0.8, 0.3, 1),
+    scale 0.22s cubic-bezier(0.2, 0.8, 0.3, 1),
+    rotate 0.12s ease-out,
+    box-shadow 0.22s ease-out;
 }
 .panel-frame::after {
   content: "";
@@ -52,7 +71,7 @@ body {
   /* 前景感：一道随鼠标左右扫过的柔和高光（--kl-mouse-x 来自 KitchenLayers，-1…1，触屏 / 减少动态效果时为 0），
      加左上角的一点打光。画在画面上、被下面的纸边 inset 阴影盖住，所以纸边始终是平整的奶油色。 */
   background:
-    linear-gradient(112deg, transparent calc(50% + var(--kl-mouse-x, 0) * 38% - 16%), rgba(255, 250, 236, 0.2) calc(50% + var(--kl-mouse-x, 0) * 38%), transparent calc(50% + var(--kl-mouse-x, 0) * 38% + 16%)),
+    linear-gradient(112deg, transparent calc(var(--sheen) - 16%), rgba(255, 250, 236, 0.22) var(--sheen), transparent calc(var(--sheen) + 16%)),
     radial-gradient(130% 100% at 12% 0%, rgba(255, 248, 228, 0.16), transparent 62%);
   box-shadow:
     inset 0 0 0 var(--pf-w) #fbf3e2,
