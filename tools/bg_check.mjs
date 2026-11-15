@@ -83,6 +83,10 @@ if (process.env.RECORD) {
   await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: false });
   await send("Page.navigate", { url: `${base}/preview/background?clean=1` });
   await sleep(5000);
+  // FROM / TO（vh）：只录一段（TO < FROM 为倒滚）；先跳到起点再开始录
+  const FROM = process.env.FROM !== undefined ? +process.env.FROM : 0;
+  const TO = process.env.TO !== undefined ? +process.env.TO : total;
+  if (FROM > 0) { await evalJs(`window.scrollTo(0, ${FROM / 100} * innerHeight)`); await sleep(2500); }
   const dir = `${out}/frames`;
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -98,9 +102,10 @@ if (process.env.RECORD) {
   await sleep(1500);
   // 连续滚动：页面内每帧用合成 wheel 事件推 Lenis（与真实滚轮同一路径），恒定速度
   const seconds = +(process.env.DUR ?? 80);
-  await evalJs(`new Promise(res => { const totalPx = ${total} / 100 * innerHeight; const pxPerMs = totalPx / ${seconds * 1000}; let last = performance.now();
-    const tick = (now) => { const dt = now - last; last = now; window.dispatchEvent(new WheelEvent('wheel', { deltaY: pxPerMs * dt / 0.9, bubbles: true, cancelable: true }));
-      if (scrollY < totalPx - 2) requestAnimationFrame(tick); else setTimeout(res, 2500); };
+  await evalJs(`new Promise(res => { const toPx = ${TO} / 100 * innerHeight, fromPx = ${FROM} / 100 * innerHeight; const dir = toPx >= fromPx ? 1 : -1;
+    const pxPerMs = Math.abs(toPx - fromPx) / ${seconds * 1000}; let last = performance.now();
+    const tick = (now) => { const dt = now - last; last = now; window.dispatchEvent(new WheelEvent('wheel', { deltaY: dir * pxPerMs * dt / 0.9, bubbles: true, cancelable: true }));
+      if (dir > 0 ? scrollY < toPx - 2 : scrollY > toPx + 2) requestAnimationFrame(tick); else setTimeout(res, 2000); };
     requestAnimationFrame(tick); })`);
   await send("Page.stopScreencast");
   await sleep(500);
@@ -111,7 +116,7 @@ if (process.env.RECORD) {
     lines.push(`file '${String(i).padStart(5, "0")}.jpg'`, `duration ${Math.max(0.001, dur).toFixed(4)}`);
   }
   writeFileSync(`${dir}/list.txt`, lines.join("\n") + "\n");
-  const mp4 = `${out}/background-continuous-${w}x${h}.mp4`;
+  const mp4 = `${out}/${process.env.NAME ?? `background-continuous-${w}x${h}`}.mp4`;
   const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", `${dir}/list.txt`, "-vf", "fps=30,scale=trunc(iw/2)*2:trunc(ih/2)*2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "26", mp4], { cwd: process.cwd(), stdio: "inherit" });
   console.log(`frames ${frames.length}, span ${(frames.at(-1) - frames[0]).toFixed(1)} s → ${mp4} (ffmpeg ${r.status})`);
   rmSync(dir, { recursive: true, force: true });
@@ -247,7 +252,8 @@ for (const [w, h] of sizes) {
     if (inTablecall(vh) && m.eggOpacity > 0.05) {
       stat.bowlChecks++;
       const inView = m.egg.x >= 0 && m.egg.x + m.egg.w <= m.vw && m.egg.y >= 0 && m.foot <= m.vh;
-      const inBowl = m.bowlOpacity >= 0.9 && m.rimY !== null && m.foot > m.rimY;
+      // 碗和碗里的蛋一起淡入淡出（curves.bowl 与 Egg inBowl 同步）：碗至少和蛋一样实（差 ≤ 0.15），且蛋脚在碗前沿之下
+      const inBowl = m.bowlOpacity >= m.eggOpacity - 0.15 && m.rimY !== null && m.foot > m.rimY;
       if (!inView || !inBowl) { stat.bowlBad++; fails.push(`${key} ${vh}vh tablecall p${b.p.toFixed(2)}: egg foot ${m.foot}, bowl rim ${m.rimY}, bowl opacity ${m.bowlOpacity}, inView ${inView}`); }
     } else if (afterHandoff(vh) && !inTablecall(vh) && m.eggOpacity > 0.001) { stat.eggAfterHandoff++; fails.push(`${key} ${vh}vh ${b.id} p${b.p.toFixed(2)}: egg visible after handoff (opacity ${m.eggOpacity})`); }
     if (onTable(vh)) {
