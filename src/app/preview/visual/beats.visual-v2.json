@@ -315,13 +315,13 @@
    "id": "listen",
    "n": 10,
    "title": "接蛋前的声音铺垫：备菜 / 疑惑漫画退出，只留厨房局部（台面、墙面光影）；妈妈和蛋都在镜头外，画外传来两三下轻轻的跳动接触声，然后伸铲的漫画进来",
-   "lengthVh": 95,
+   "lengthVh": 125,
    "pin": null,
    "phases": {
-    "enter": 0.25,
+    "enter": 0.2,
     "action": 0,
-    "hold": 0.65,
-    "exit": 0.1
+    "hold": 0.72,
+    "exit": 0.08
    },
    "kitchenDim": [
     0,
