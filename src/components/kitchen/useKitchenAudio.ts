@@ -59,6 +59,15 @@ const EVENT_SOUNDS: readonly EventSound[] = ["chopHit"];
 /** 解码成 AudioBuffer 播放：每次触发新建节点，快速连续触发可以重叠，并可以带声像 */
 const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3"];
 export const KITCHEN_ONESHOT_EVENT = "kitchen:oneshot";
+/**
+ * 由前景动画按真实时间开关的动作声：页面派发
+ *   window.dispatchEvent(new CustomEvent("kitchen:action", { detail: { name: "stirfry", phase: "start" | "stop" } }))
+ * start 到 stop 之间按 audio-map.json 的 actions[name] 抬起循环声（取与滚动电平的较大值），duck 里的声音压到上限；
+ * 与滚动无关：停止滚动后照样响到动画自己发 stop。
+ */
+export const KITCHEN_ACTION_EVENT = "kitchen:action";
+type MapAction = { loops: Partial<Record<LoopSound, number>>; duck?: Partial<Record<LoopSound, number>> };
+const ACTIONS = ((audioMap as { actions?: Record<string, MapAction> }).actions ?? {}) as Record<string, MapAction>;
 /** 单次音效：文件与播放音量（素材已统一到约 -18 LUFS，这里是相对电平） */
 const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number }> = {
   stirfryIn: { file: "stirfry-in.mp3", volume: 0.6 },
@@ -249,6 +258,8 @@ class KitchenMixer {
   private lastTick = 0;
   private settled = 0;
   private disposed = false;
+  /** 正在进行的前景动作（kitchen:action start 之后、stop 之前） */
+  private active = new Set<string>();
 
   constructor(private onAvailable: (ok: boolean) => void) {
     this.root = document.createElement("div");
@@ -274,6 +285,7 @@ class KitchenMixer {
     window.addEventListener("touchend", this.onGesture, { passive: true });
     window.addEventListener("keydown", this.onGesture, { passive: true });
     window.addEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
+    window.addEventListener(KITCHEN_ACTION_EVENT, this.onActionEvent);
     this.lastTick = performance.now();
     this.timer = window.setInterval(this.tick, TICK_MS);
   }
@@ -391,6 +403,36 @@ class KitchenMixer {
     this.fire(name as ShotSound);
   };
 
+  /** 页面事件：前景动作开始 / 结束（翻炒、搅酱汁） */
+  private onActionEvent = (e: Event) => {
+    const d = (e as CustomEvent<{ name?: unknown; phase?: unknown }>).detail;
+    const name = d?.name;
+    if (typeof name !== "string" || !(name in ACTIONS)) {
+      warnOnce(`${KITCHEN_ACTION_EVENT}: 未登记的动作 ${String(name)}`);
+      return;
+    }
+    if (d.phase === "start") this.active.add(name);
+    else if (d.phase === "stop") this.active.delete(name);
+    else return;
+    this.root.dataset.actions = [...this.active].join(" ");
+    const count = Number(this.root.dataset[`action_${name}_${d.phase}`] ?? 0) + 1;
+    this.root.dataset[`action_${name}_${d.phase}`] = String(count);
+  };
+
+  /** 滚动目标 + 正在进行的动作 → 这一路循环声实际的目标电平 */
+  private effectiveTarget(name: LoopSound, scroll: number) {
+    let v = scroll;
+    for (const a of this.active) {
+      const lv = ACTIONS[a].loops[name];
+      if (lv !== undefined) v = Math.max(v, lv);
+    }
+    for (const a of this.active) {
+      const cap = ACTIONS[a].duck?.[name];
+      if (cap !== undefined) v = Math.min(v, cap);
+    }
+    return v;
+  }
+
   private stopVoices() {
     for (const v of this.voices) { try { v.stop(); } catch { /* 已结束 */ } }
     this.voices.clear();
@@ -412,8 +454,11 @@ class KitchenMixer {
     const now = performance.now();
     const step = ((now - this.lastTick) / 1000) * SLEW_PER_SEC;
     this.lastTick = now;
-    for (const ch of this.all(this.loops)) {
-      const target = this.soundOn && !this.hidden && ch.ok ? ch.target : 0;
+    for (const [name, ch] of Object.entries(this.loops) as [LoopSound, Channel | undefined][]) {
+      if (!ch) continue;
+      const want = this.effectiveTarget(name, ch.target);
+      ch.el.dataset.want = want.toFixed(3);
+      const target = this.soundOn && !this.hidden && ch.ok ? want : 0;
       const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), step);
       const level = Math.min(1, Math.max(0, v));
       if (level !== ch.level) this.apply(ch, level);
@@ -508,6 +553,7 @@ class KitchenMixer {
     window.removeEventListener("touchend", this.onGesture);
     window.removeEventListener("keydown", this.onGesture);
     window.removeEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
+    window.removeEventListener(KITCHEN_ACTION_EVENT, this.onActionEvent);
     this.stopVoices();
     for (const ch of [...this.all(this.loops), ...this.all(this.shots)]) {
       ch.el.pause();

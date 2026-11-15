@@ -110,7 +110,7 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
 /**
  * 配菜下锅格 p2d：空中两粒玉米（能和锅底干净分开的只有这两粒）单独成层，底图原位置补了同一锅底的纹理。
  * 格子稳定后两小批：第一批从原位置落进锅里没入菜堆；停一下，第二批从铲边稍高处出现再落下；之后停住（菜已入锅，不再倒）。
- * "滋啦"沿用节拍表里的 stirfryIn（按滚动在段内 0.22 触发），这里不派发声音，避免重复。
+ * （旧版说明）"滋啦"现在只由 StirfryPanel 第 2 帧派发 stirfryIn，节拍表里按滚动触发的那一条已删除。
  * 木铲推动、砧板倾斜、热气需要新图（见 docs/tasks/scroll-motion-demo-asset-requests.md）。
  */
 /**
@@ -244,7 +244,7 @@ export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: numb
 
 /**
  * 配菜入锅格 p2d（new pics/B-pouring 三帧：1 开始滑落、2 木铲推动、3 已入锅）：只向前播一次，停在第 3 帧，不倒放。
- * 锅身前沿和对白泡是前景遮挡层，菜落进锅里而不是浮在锅上。"滋啦"沿用节拍表里的 stirfryIn，不另发。
+ * 锅身前沿和对白泡是前景遮挡层，菜落进锅里而不是浮在锅上。"滋啦"只在这里派发（节拍表里按滚动触发的已删除）。
  */
 const POUR_STEPS: FrameStep[] = [{ f: 1, ms: 380 }, { f: 2, ms: 520 }, { f: 3, ms: 1 }];
 /** 声音：第 2 帧（菜被推下、落进锅里）"滋啦" stirfryIn；第 3 帧（已入锅）开始翻炒声，离场 / 复位时停。静态格同一时刻派发 */
