@@ -32,6 +32,15 @@ const PANELS: { id: keyof typeof MOM_PANELS; className: string }[] = [
 const easeOut3 = (x: number) => 1 - Math.pow(1 - x, 3);
 const easeIn2 = (x: number) => x * x;
 
+const easeOutBack = (x: number) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
+
+/** 占位文案（等正式对白；与 /demo/scroll-motion 的占位一致） */
+const CAPTIONS: Record<keyof typeof MOM_PANELS, string> = {
+  chop: "先把胡萝卜切成小丁～",
+  stirfry: "下锅啦，滋啦——",
+  sauce: "再调一碗酱汁。",
+} as Record<keyof typeof MOM_PANELS, string>;
+
 const FONT = '"PingFang SC","Hiragino Sans GB",system-ui,sans-serif';
 
 export default function ComicScroll() {
@@ -65,6 +74,8 @@ export default function ComicScroll() {
         const env = entering ? easeOut3(raw) : exiting ? 1 - easeIn2(1 - raw) : raw;
         const img = MOM_PANELS[id];
         // 进入阶段从下方 28px 上浮到位；退出阶段再上飘 16px
+        // 文字逐字显现：随"动作"阶段的滚动进度推进（可回滚），读到停留阶段时已全部出现；退出时随画格淡去
+        const reveal = t.beat.id !== id ? 0 : t.phase === "enter" ? 0 : t.phase === "action" ? t.phaseP : 1;
         const inP = entering ? 1 - easeOut3(t.phaseP) : 0; // 1 → 0
         const outP = exiting ? easeIn2(t.phaseP) : 0; // 0 → 1
         const rise = reducedMotion ? 0 : inP * 56 - outP * 40;
@@ -80,6 +91,7 @@ export default function ComicScroll() {
               height: "min(70svh, 620px)",
               opacity: env,
               transform: `translate3d(0, ${rise.toFixed(2)}px, 0) rotate(calc(${rot.toFixed(3)}deg + var(--tilt, 0deg))) scale(${scale.toFixed(4)})`,
+              clipPath: inP > 0.001 ? `inset(0 0 ${(inP * 40).toFixed(2)}% 0 round 18px)` : undefined,
               filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined,
               willChange: "opacity, transform, filter",
             }}
@@ -102,13 +114,15 @@ export default function ComicScroll() {
                 alt=""
                 draggable={false}
                 className="relative block h-full w-auto select-none object-contain"
+                style={{ transform: `translate3d(0, ${(-inP * 22 + outP * 14).toFixed(2)}px, 0)` }}
               />
+              <Caption text={CAPTIONS[id]} reveal={reveal} />
             </div>
           </div>
         );
       })}
 
-      <NoticeHint opacity={envelope(t, "notice")} scale={reducedMotion ? 1 : 0.8 + 0.2 * phaseProgress(t, "enter")} />
+      <NoticeHint opacity={envelope(t, "notice")} scale={reducedMotion ? 1 : 0.6 + 0.4 * easeOutBack(phaseProgress(t, "enter"))} />
 
       <Ending opacity={t.beat.id === "ending" ? phaseProgress(t, "enter") : 0} />
     </div>
@@ -147,6 +161,30 @@ function Ending({ opacity }: { opacity: number }) {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/** 逐字显现的旁白：每个字按 reveal（0–1）依次从下方淡入，位置在画格底部的奶油色小条上。 */
+function Caption({ text, reveal }: { text?: string; reveal: number }) {
+  if (!text) return null;
+  const chars = [...text];
+  const n = reveal * chars.length;
+  return (
+    <div
+      data-caption
+      aria-label={text}
+      className="absolute -bottom-[7%] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-cream px-4 py-1.5 text-[clamp(16px,2.2vw,22px)] font-semibold text-ink shadow-[0_6px_14px_-8px_rgba(107,74,43,0.5)] ring-2 ring-ink/60"
+      style={{ fontFamily: FONT, opacity: reveal > 0 ? 1 : 0 }}
+    >
+      {chars.map((c, i) => {
+        const k = Math.min(1, Math.max(0, n - i));
+        return (
+          <span key={i} aria-hidden className="inline-block" style={{ opacity: k, transform: `translateY(${((1 - k) * 8).toFixed(2)}px)`, whiteSpace: "pre" }}>
+            {c}
+          </span>
+        );
+      })}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+import ScrollProgress from "@/components/ScrollProgress";
 import ScrollDriver from "@/components/ScrollDriver";
 import ComicScroll from "@/components/comic/ComicScroll";
 import KitchenCharacters from "@/components/kitchen/KitchenCharacters";
@@ -22,6 +23,7 @@ export default function Home() {
       <ComicScroll />
       <ScrollDriver />
       <SoundToggle />
+      <ScrollProgress />
       <ScrollHint />
     </SceneProvider>
   );
