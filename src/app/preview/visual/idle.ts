@@ -44,7 +44,7 @@ export type Sway = {
 export type Puffs = {
   kind: "puffs";
   id: string;
-  /** 热气只出现的范围 [x0, y0, x1, y1]（原格像素，超出裁掉，免得飘到人物前面） */
+  /** 热气的出生范围 [x0, y0, x1, y1]（原格像素）；只决定起点，飘出去的部分不裁切 */
   box: [number, number, number, number];
   /** 每团：起点 x（原格像素，相对 box 左边）、周期（秒）、起始延迟、左右飘的方向 */
   puffs: { x: number; dur: number; delay: number; drift: number }[];
@@ -76,17 +76,17 @@ export const IDLE: Record<string, IdleSpec> = {
   p4f: {
     canvas: [445, 455],
     base: true,
-    layers: [{ kind: "wave", id: "arm", pivot: [257, 245], amp: 9, swings: 3, swing: 0.34, rest: [2.6, 3.8], first: 0.9 }],
+    layers: [{ kind: "wave", id: "arm", pivot: [257, 245], amp: 18, swings: 3, swing: 0.3, rest: [2.6, 3.8], first: 0.9 }],
   },
   p5d: {
     canvas: [483, 456],
     base: true,
-    layers: [{ kind: "wave", id: "arm", pivot: [303, 233], amp: 12, swings: 5, swing: 0.24, rest: [1.4, 2.2], first: 0.6 }],
+    layers: [{ kind: "wave", id: "arm", pivot: [303, 233], amp: 24, swings: 6, swing: 0.2, rest: [1.4, 2.2], first: 0.6 }],
   },
   p6c: {
     canvas: [479, 349],
     base: true,
-    layers: [{ kind: "wave", id: "arm", pivot: [296, 184], amp: 12, swings: 4, swing: 0.27, rest: [1.8, 2.8], first: 0.5 }],
+    layers: [{ kind: "wave", id: "arm", pivot: [296, 184], amp: 22, swings: 5, swing: 0.22, rest: [1.8, 2.8], first: 0.5 }],
   },
   // 担心格：妈妈喊"蛋黄都流出来了"时，蛋举着的小手慢慢缩回身体里（不再挥手，情绪对得上）
   p6d: {
@@ -98,39 +98,41 @@ export const IDLE: Record<string, IdleSpec> = {
   p5a: {
     canvas: [475, 474],
     base: true,
-    layers: [{ kind: "sway", id: "vine", pivot: [115, 50], home: [135, 120], amp: 1.5, period: 4.9, phase: 0.4, lean: 0.05, maxLean: 2, push: { radius: 240, deg: 2.4, dir: -1 } }],
+    layers: [{ kind: "sway", id: "vine", pivot: [115, 50], home: [135, 120], amp: 4, period: 4.9, phase: 0.4, lean: 0.15, maxLean: 4, push: { radius: 320, deg: 6, dir: -1 } }],
   },
   p5f: {
     canvas: [478, 500],
     base: true,
-    layers: [{ kind: "sway", id: "vine", pivot: [75, 45], home: [100, 110], amp: 1.6, period: 5.6, phase: 1.9, lean: 0.05, maxLean: 2, push: { radius: 240, deg: 2.4, dir: -1 } }],
+    layers: [{ kind: "sway", id: "vine", pivot: [75, 45], home: [100, 110], amp: 4.2, period: 5.6, phase: 1.9, lean: 0.15, maxLean: 4, push: { radius: 320, deg: 6, dir: -1 } }],
   },
   // 卧室：窗帘轻摆（上端钉在窗帘杆上）、两盆植物更小的摆。周期互不相同（6.3 / 5.2 / 4.4 / 3.7 秒）
   p5c: {
     canvas: [442, 455],
     base: true,
     layers: [
-      { kind: "sway", id: "curtainL", pivot: [228, 28], home: [228, 110], amp: 0.7, period: 6.3, phase: 0, lean: 0.03, maxLean: 1.2, push: { radius: 260, deg: 1.6, dir: -1 } },
-      { kind: "sway", id: "curtainR", pivot: [361, 28], home: [361, 110], amp: 0.8, period: 5.2, phase: 1.7, lean: 0.03, maxLean: 1.2, push: { radius: 260, deg: 1.6, dir: -1 } },
-      { kind: "sway", id: "plantL", pivot: [95, 95], home: [92, 70], amp: 1.1, period: 4.4, phase: 0.9, lean: 0.05, maxLean: 1.8, push: { radius: 220, deg: 2.2, dir: 1 } },
-      { kind: "sway", id: "plantR", pivot: [405, 160], home: [405, 135], amp: 1.3, period: 3.7, phase: 2.4, lean: 0.05, maxLean: 1.8, push: { radius: 220, deg: 2.2, dir: 1 } },
+      { kind: "sway", id: "curtainL", pivot: [228, 28], home: [228, 110], amp: 2.2, period: 6.3, phase: 0, lean: 0.12, maxLean: 3, push: { radius: 320, deg: 4.5, dir: -1 } },
+      { kind: "sway", id: "curtainR", pivot: [361, 28], home: [361, 110], amp: 2.5, period: 5.2, phase: 1.7, lean: 0.12, maxLean: 3, push: { radius: 320, deg: 4.5, dir: -1 } },
+      { kind: "sway", id: "plantL", pivot: [95, 95], home: [92, 70], amp: 3.2, period: 4.4, phase: 0.9, lean: 0.15, maxLean: 4, push: { radius: 300, deg: 6, dir: 1 } },
+      { kind: "sway", id: "plantR", pivot: [405, 160], home: [405, 135], amp: 3.6, period: 3.7, phase: 2.4, lean: 0.15, maxLean: 4, push: { radius: 300, deg: 6, dir: 1 } },
     ],
   },
-  // 炒菜格：锅里升起的热气，飘在左边的墙上（袖子和锅沿不盖）
+  // 炒菜格：锅里升起的热气。不裁切：一直飘出格子上沿、进到厨房里（溢出画面的感觉）；进格就是稳定状态，不用等
   p2e: {
     canvas: [976, 375],
     base: false,
     layers: [
       {
-        kind: "puffs", id: "steam", box: [85, 60, 187, 312], fromBottom: 12, rise: 190, size: 64, alpha: 0.26,
+        kind: "puffs", id: "steam", box: [95, 60, 190, 312], fromBottom: 6, rise: 620, size: 150, alpha: 0.85,
         puffs: [
-          { x: 70, dur: 4.6, delay: 0, drift: -14 },
-          { x: 38, dur: 5.4, delay: 1.1, drift: 12 },
-          { x: 82, dur: 4.1, delay: 2.0, drift: -8 },
-          { x: 52, dur: 5.9, delay: 2.9, drift: 16 },
-          { x: 24, dur: 4.8, delay: 3.6, drift: -10 },
+          { x: 60, dur: 6.2, delay: 0, drift: -40 },
+          { x: 25, dur: 7.4, delay: 1.1, drift: 30 },
+          { x: 80, dur: 5.6, delay: 2.0, drift: -26 },
+          { x: 45, dur: 8.0, delay: 2.9, drift: 44 },
+          { x: 10, dur: 6.6, delay: 3.6, drift: -34 },
+          { x: 70, dur: 7.0, delay: 4.4, drift: 22 },
+          { x: 35, dur: 5.9, delay: 5.1, drift: -18 },
         ],
-        push: { radius: 280, px: 7 },
+        push: { radius: 320, px: 22 },
       },
     ],
   },

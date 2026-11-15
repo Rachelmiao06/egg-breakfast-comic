@@ -353,7 +353,7 @@ function FlowLayer() {
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? reading : null} />;
+          : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
         return <Fragment key={p.key}>{wrap ? <div style={wrap}>{panel}</div> : panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
       })}

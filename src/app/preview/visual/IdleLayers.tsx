@@ -77,10 +77,11 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
         el.querySelectorAll<HTMLElement>("[data-puff]").forEach((p, i) => {
           const c = L.puffs[i];
           gsap.set(p, { xPercent: -50, yPercent: -50, opacity: 0 });
-          const t = gsap.timeline({ repeat: -1, delay: c.delay });
-          t.fromTo(p, { y: 0, x: 0, scale: 0.55 }, { y: -L.rise * s, x: c.drift * s, scale: 1.5, duration: c.dur, ease: "sine.out" }, 0);
+          const t = gsap.timeline({ repeat: -1 });
+          t.fromTo(p, { y: 0, x: 0, scale: 0.5 }, { y: -L.rise * s, x: c.drift * s, scale: 2.4, duration: c.dur, ease: "sine.out" }, 0);
           t.fromTo(p, { opacity: 0 }, { opacity: L.alpha, duration: c.dur * 0.35, ease: "sine.out" }, 0);
           t.to(p, { opacity: 0, duration: c.dur * 0.65, ease: "sine.in" }, c.dur * 0.35);
+          t.totalTime(((c.delay * 0.37) % 1) * c.dur + c.dur * 0.2); // 进格就是已经在飘的状态，不用等
           stops.push(() => t.kill());
         });
       }
@@ -131,7 +132,7 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
         if (L.kind === "puffs") {
           const [x0, y0, x1, y1] = L.box;
           return (
-            <div key={L.id} className="pointer-events-none absolute overflow-hidden" style={{ left: `${(x0 / cw) * 100}%`, top: `${(y0 / ch) * 100}%`, width: `${((x1 - x0) / cw) * 100}%`, height: `${((y1 - y0) / ch) * 100}%` }}>
+            <div key={L.id} className="pointer-events-none absolute" style={{ left: `${(x0 / cw) * 100}%`, top: `${(y0 / ch) * 100}%`, width: `${((x1 - x0) / cw) * 100}%`, height: `${((y1 - y0) / ch) * 100}%` }}>
               <div ref={refFor(L.id)} data-kind="puffs" className="absolute inset-0">
                 {L.puffs.map((c, i) => (
                   <span
@@ -144,7 +145,7 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
                       width: `${(L.size / (x1 - x0)) * 100}%`,
                       aspectRatio: "1",
                       opacity: 0,
-                      background: "radial-gradient(circle, rgba(255,252,244,1) 0%, rgba(255,250,238,0.55) 55%, rgba(255,250,238,0) 100%)",
+                      background: "radial-gradient(circle, rgba(255,252,244,1) 0%, rgba(255,250,238,0.75) 55%, rgba(255,250,238,0) 100%)",
                     }}
                   />
                 ))}
