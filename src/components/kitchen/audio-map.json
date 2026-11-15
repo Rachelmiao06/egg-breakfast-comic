@@ -1,6 +1,6 @@
 {
   "_doc": [
-    "【2026-11-15 用户听过后的场景定点，覆盖下面较早的说明】滚动决定每段的底声，前景动画事件决定动作声。油锅声 sizzle 只在开场（0.32，蛋在锅里煎）和炒菜段 stirfry（0.45，热锅下油，进入阶段从 0 升起；翻炒时持续，入锅那一声仍是 p2d 第 2 帧的 stirfryIn；退出阶段降到 0，调汁段进来时已经没有油锅声）；drop 动作阶段随蛋离锅 0.32 → 0，bag 之前收掉。备菜段 bag / idea / chop、调汁段 sauce、missing、prejump 都没有 sizzle：备菜段只有很轻的环境声 + 落刀动画的逐刀 chopHit，调汁段只有 room + 搅拌动画的 sauceStir；静态格（买菜、摆菜、案板、舀菜进碗）不加动作声（2026-11-15 用户修正：只有画面里确实在发生的动作才有声音）。hear / listen / catch / handoff 也没有 sizzle（2026-11-15 用户听过：接蛋前后背景里还有煎蛋声，去掉；这几段只留 room，起跳 hopTap1 + pop 和落铲 catch 照旧）。全部未经人耳试听。",
+    "【2026-11-15 用户听过后的场景定点，覆盖下面较早的说明】滚动决定每段的底声，前景动画事件决定动作声。油锅声 sizzle 只在开场（0.32，蛋在锅里煎）和炒菜段 stirfry（0.45，热锅下油，进入阶段从 0 升起；翻炒时持续，入锅那一声仍是 p2d 第 2 帧的 stirfryIn；退出阶段降到 0，调汁段进来时已经没有油锅声）；drop：蛋一跳出锅（进入阶段结束、动作阶段开始）sizzle 就在 12 vh 内从 0.32 收到 0，之后整段蛋飞向桌沿时只剩 room（2026-11-15 用户听过：蛋跳出锅之后还一直有滋滋声，应该从出锅那一刻就换）。首页 / 旧节拍表的 notice / spatula / serve / ending 也补上只有 room 的条目，不再退回节拍表里的 sizzle。备菜段 bag / idea / chop、调汁段 sauce、missing、prejump 都没有 sizzle：备菜段只有很轻的环境声 + 落刀动画的逐刀 chopHit，调汁段只有 room + 搅拌动画的 sauceStir；静态格（买菜、摆菜、案板、舀菜进碗）不加动作声（2026-11-15 用户修正：只有画面里确实在发生的动作才有声音）。hear / listen / catch / handoff 也没有 sizzle（2026-11-15 用户听过：接蛋前后背景里还有煎蛋声，去掉；这几段只留 room，起跳 hopTap1 + pop 和落铲 catch 照旧）。全部未经人耳试听。",
     "按场景编号（节拍表的 id）覆盖每段的 audio 字段，由 useKitchenAudio 读取；表里没有的场景沿用节拍数据里原来的值。同一张表同时适用于 src/app/preview/visual/beats.visual-v2.json（默认动效，19 段，含 drop）和 beats.visual.json（?motion=v1，18 段，无 drop）。",
     "共享事件位置（优先用）：at 写 \"@eggOnSpatula\" / \"@eggOnTable\" / \"@eggInBowl\"，由 src/lib/beats.ts 的 eventAt 换算；蛋的动画（Egg.tsx）读同一个函数，所以声音和画面永远落在同一点，两边都不写死数字。catch 用 @eggOnSpatula（v2 = 0.80，v1 = 0.78）。",
     "单次音效的 at：数字 = 段内进度 0–1；或阶段符号 enterEnd / actionEnd / holdEnd（可带偏移，如 actionEnd-0.02），由混音器按当前节拍表的 phases 换算，这样新旧两版节拍的动作结束点不同也只写一次（catch 落铲 = actionEnd：v1 0.78、v2 0.80）。",
@@ -55,7 +55,7 @@
   },
   "scenes": {
     "opening": { "loops": { "room": 0.2, "sizzle": 0.32 }, "fades": [], "oneshots": [] },
-    "drop": { "loops": { "room": 0.2, "sizzle": 0 }, "fades": [ { "sound": "sizzle", "from": 0.32, "to": 0, "phase": "action" } ], "oneshots": [] },
+    "drop": { "loops": { "room": 0.2, "sizzle": 0 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "sizzle", "from": 0.32, "to": 0, "start": "enterEnd", "end": "enterEnd+0.08" } ] },
     "bag": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
     "idea": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
     "chop": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
@@ -76,6 +76,10 @@
     "recognize": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [ { "sound": "room", "from": 0.2, "to": 0.14, "phase": "hold" } ], "oneshots": [] },
     "worry": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [ { "sound": "room", "from": 0.2, "to": 0.14, "phase": "hold" } ], "oneshots": [] },
     "punchline": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [ { "sound": "room", "from": 0.2, "to": 0.12, "phase": "hold" } ], "oneshots": [] },
+    "notice": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
+    "spatula": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
+    "serve": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
+    "ending": { "roomHz": 2500, "loops": { "room": 0.12 }, "fades": [], "oneshots": [] },
     "closeup": { "roomHz": 2500, "loops": { "room": 0.12 }, "fades": [ { "sound": "room", "from": 0.12, "to": 0.04, "phase": "hold" } ], "oneshots": [] }
   }
 }
