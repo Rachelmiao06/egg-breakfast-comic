@@ -25,6 +25,9 @@ type MusicRamp = { sound: string; from: number; to: number; start: At; end: At }
 type MusicStinger = { sound: string; at: At; gain?: number; rate?: number };
 type MusicScene = { stems: Partial<Record<Stem, number>>; ramps?: MusicRamp[]; stingers?: MusicStinger[]; bloop?: boolean };
 const SCENES = (musicMap as unknown as { scenes: Record<string, MusicScene> }).scenes;
+/** 妈妈的语气词（真人录音，见 docs/VOICE.md）：music-map.json 的 voiceAvailable 里列出的才加载，没列的保持静音、不发请求 */
+const VOICE_DIR = "/assets/audio/voice/";
+const VOICE_AVAILABLE = ((musicMap as unknown as { voiceAvailable?: string[] }).voiceAvailable ?? []).filter((n) => /^[a-z0-9-]+$/.test(n));
 const STINGER_SOUNDS = ["idea-ding", "missing-q", "catch-chord", "handoff-bell", "yolk-cascade", "mom-call", "egg-small", "egg-call", "punch-dum", "end-hold", "egg-bloop", "cricket"] as const;
 
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
@@ -163,10 +166,10 @@ class MusicEngine {
   }
 
   private async load() {
-    const names = [...STEM_NAMES, ...STINGER_SOUNDS.map((n) => "st-" + n)];
+    const names = [...STEM_NAMES, ...STINGER_SOUNDS.map((n) => "st-" + n), ...VOICE_AVAILABLE.map((n) => "v-" + n)];
     await Promise.all(names.map(async (n) => {
       try {
-        const r = await fetch(DIR + n + ".mp3");
+        const r = await fetch((n.startsWith("v-") ? VOICE_DIR + n.slice(2) : DIR + n) + ".mp3");
         if (!r.ok) throw new Error(String(r.status));
         const buf = await this.ctx.decodeAudioData(await r.arrayBuffer());
         if (!this.disposed) this.buffers[n] = buf;
@@ -210,7 +213,8 @@ class MusicEngine {
   setBloop(on: boolean) { this.bloop = on; }
 
   stinger(name: string, gain = 0.5, rate = 1) {
-    const buf = this.buffers["st-" + name];
+    const voice = this.buffers["v-" + name];
+    const buf = this.buffers["st-" + name] ?? voice;
     if (!buf || !this.audible || this.ctx.state !== "running") return false;
     const src = this.ctx.createBufferSource();
     src.buffer = buf; src.playbackRate.value = rate;
@@ -218,6 +222,7 @@ class MusicEngine {
     src.connect(g).connect(this.bus);
     src.onended = () => { src.disconnect(); g.disconnect(); };
     src.start();
+    if (voice) this.onDuck(buf.duration * 1000 + 150, 0.55); // 人声说话时配乐退到后面
     this.fired += 1;
     this.root.dataset.fired = String(this.fired);
     this.root.dataset.last = name;
@@ -241,15 +246,16 @@ class MusicEngine {
   };
 
   /** 前景动作声：配乐总线压低一小下 */
-  private onDuck = () => {
+  private onDuck = (holdMs: number | Event = DUCK_HOLD_S * 1000, to = DUCK_TO) => {
     if (!this.audible) return;
+    const hold = typeof holdMs === "number" ? holdMs : DUCK_HOLD_S * 1000;
     const now = this.ctx.currentTime;
     this.bus.gain.cancelScheduledValues(now);
-    this.bus.gain.setTargetAtTime(DUCK_TO, now, 0.02);
+    this.bus.gain.setTargetAtTime(to, now, 0.02);
     window.clearTimeout(this.duckTimer);
     this.duckTimer = window.setTimeout(() => {
       if (!this.disposed) this.bus.gain.setTargetAtTime(1, this.ctx.currentTime, DUCK_RELEASE_TC);
-    }, DUCK_HOLD_S * 1000);
+    }, hold);
   };
 
   dispose() {
