@@ -144,33 +144,49 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
 }
 
 /**
- * 蛋从漫画格后面偷偷探出头（egg-on-panel.webp 的上半身；不露手臂，用户说趴着搭手很怪）。画格有 overflow: hidden，
- * 所以蛋是格子旁边的独立元素（在 DOM 里排在格子前面 = 画在格子后面），位置按格子的 pos / dy 算（vw / vh）：
- * 图高 70% 处对齐格子上沿，格子盖住下面。格子入场到位后蛋从格子后面升起来，离场前缩回去。
+ * 蛋从漫画格右上角后面偷偷、慢慢探出头（egg-peek.webp = egg-on-panel 去掉手臂、只留上 70%，底边是平切的，
+ * 所以必须一直藏在格子后面：最高探到蛋图底边刚好在格子上沿以下）。画格有 overflow: hidden，所以蛋是格子旁边的独立元素
+ * （DOM 里排在格子前面 = 画在格子后面），位置按格子的 pos / dy 算（vw / vh）。
+ * 纵深：① 蛋在墙上的投影（drop-shadow，蛋离开墙面一点）；② 格子在蛋身上的投影（同一张图压暗、按高度渐隐，
+ *   贴着格子上沿最深）——两层一起，蛋和后面的背景就分开了。
+ * 探头：向右倾 PEEK.tilt 度（身体朝角外探），0 → 探出 1.8 s 缓出，离场 0.3 s 缩回；探出后轻微起伏。
  */
 const PERCH_PANEL = "p1b"; // bag 段右侧小格：上方没有别的格子，蛋有地方；也就是“袋子”那格
-// edge：蛋图高度的这个位置对齐格子上沿；格子在蛋前面，盖住下面的手臂和下半身（手臂起于图高约 72%），只露脸和上半身
-const PERCH = { left: 0.2, width: 0.64, bodyBottom: 0.7 };
+const PEEK = { cx: 0.64, width: 0.62, aspect: 900 / 493, tilt: 6, sink: 0.045 };
 function PerchEgg({ pos, dy, show }: { pos: Place; dy: number; show: boolean }) {
+  const eggH = (pos.w * PEEK.width) / PEEK.aspect; // 蛋高（vw）
+  const rest = 100 - (PEEK.sink * pos.w * 100) / eggH; // 探出后的 translateY 百分比（蛋底边下沉 sink·格宽）
+  const base: CSSProperties = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", userSelect: "none", pointerEvents: "none" };
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/assets/scene/egg-on-panel.webp"
-      alt=""
-      draggable={false}
-      className="pointer-events-none absolute select-none"
+    <div
+      aria-hidden
+      className="pointer-events-none absolute"
       style={{
-        left: `${pos.x + pos.w * PERCH.left}vw`,
+        left: `${pos.x + pos.w * (PEEK.cx - PEEK.width / 2)}vw`,
         top: `${pos.y + dy}vh`,
-        width: `${pos.w * PERCH.width}vw`,
-        // 蛋身底边对齐格子上沿；没出现时沉到格子后面（只是透明度 0 + 下沉，不裁切）
-        transform: `translateY(${show ? -PERCH.bodyBottom * 100 : -PERCH.bodyBottom * 100 + 38}%)`,
+        width: `${pos.w * PEEK.width}vw`,
+        aspectRatio: `${PEEK.aspect}`,
+        // 先把蛋底边放到格子上沿，再按探出程度下沉：没出来 = 整个蛋在格子后面（translateY 0），探出后留 sink
+        transform: `translateY(${show ? -rest : 0}%) rotate(${show ? PEEK.tilt : 0}deg)`,
         transformOrigin: "50% 100%",
         opacity: show ? 1 : 0,
-        transition: show ? "opacity 0.25s ease-out, transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.5)" : "opacity 0.2s ease-in, transform 0.3s ease-in",
-        zIndex: 1,
+        transition: show
+          ? "transform 1.8s cubic-bezier(0.22, 0.8, 0.28, 1), opacity 0.5s ease-out"
+          : "transform 0.3s ease-in, opacity 0.25s ease-in 0.1s",
       }}
-    />
+    >
+      {/* 墙上的投影 */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/assets/scene/egg-peek.webp" alt="" draggable={false} style={{ ...base, filter: "drop-shadow(0 0.5vw 0.55vw rgba(70,42,18,0.42)) drop-shadow(0 0.1vw 0.15vw rgba(70,42,18,0.35))" }} />
+      {/* 格子投在蛋身上的影：同一张图压暗，贴格子上沿最深、往上渐隐 */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/assets/scene/egg-peek.webp"
+        alt=""
+        draggable={false}
+        style={{ ...base, filter: "brightness(0.38) sepia(0.7) saturate(1.4)", opacity: 0.8, maskImage: "linear-gradient(to top, #000 0%, rgba(0,0,0,0.55) 22%, transparent 55%)", WebkitMaskImage: "linear-gradient(to top, #000 0%, rgba(0,0,0,0.55) 22%, transparent 55%)" }}
+      />
+    </div>
   );
 }
 
