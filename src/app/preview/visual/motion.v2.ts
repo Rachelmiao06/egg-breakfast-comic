@@ -17,10 +17,11 @@ type Raw = Partial<Beat> & { id: string; n: number; title: string; lengthVh: num
  * 可读窗口 = 入场结束（enter）到开始离场（enter+action+hold 再加格子离场触发点，约 12% 的退出区）。
  * 不吸附、不劫持滚动，只是让该慢的地方滚动距离更长；慢滚、停住、倒滚都不受影响。
  */
-export const BRISK_VH_PER_S = 45;
-/** 全部段落的滚动距离倍数：>1 = 整体更慢（同样的手势走得更少） */
-export const LEN_SCALE = 1.35;
-const readableWindow = (ph: Beat["phases"]) => ph.enter + ph.action + ph.hold + 0.12 * ph.exit - ph.enter * 0.9;
+export const BRISK_VH_PER_S = 40;
+/** 全部段落的滚动距离倍数：>1 = 整体更慢。2026-11-15：有读格门 / 表演锁之后不需要靠加长滚动距离防跳过，1.35 让人要一直不停地滚、蛋飞起来那段不连贯，改回 1 */
+export const LEN_SCALE = 1.0;
+/** 带格内动画的段：进入 / 离开各占的滚动距离（vh），与段总长无关 */
+const ENTER_VH = 75, EXIT_VH = 45;
 export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as Raw[]).map((b) => ({
   phases: { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 },
   kitchenDim: [0, 0, 0] as [number, number, number],
@@ -30,11 +31,18 @@ export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as
   pin: (b.pin ?? null) as Beat["pin"],
   egg: (b.egg ?? "loop") as Beat["egg"],
   audio: b.audio ?? { loops: {}, fades: [], oneshots: [] },
-})).map((b) => {
+})).map((b0) => {
+  let b = b0;
   const r = (b as unknown as Raw).readS;
-  const need = r ? Math.ceil((r * BRISK_VH_PER_S) / readableWindow(b.phases)) : 0;
-  // 整体放慢（2026-11-15 用户：还是太快）：每一段的滚动距离 × LEN_SCALE，读格下限先算再放大
-  return { ...b, lengthVh: Math.round(Math.max(b.lengthVh, need) * LEN_SCALE) };
+  if (r) {
+    // 带格内动画的段（动画由滚动带动，走完整个停留阶段）：进入、离开各占固定的滚动距离（ENTER_VH / EXIT_VH），
+    // 其余全是停留；段长 = 动画需要的滚动距离 + 进入 + 离开。这样同一段里的几个格子紧挨着依次出现（不会因为段很长而"隔了很久"：用户 2026-11-15），
+    // 长的只是格内动画那一截。
+    const len = Math.max(b.lengthVh, Math.ceil(r * BRISK_VH_PER_S + ENTER_VH + EXIT_VH));
+    const enter = ENTER_VH / len, exit = EXIT_VH / len;
+    b = { ...b, lengthVh: len, phases: { enter, action: 0, hold: 1 - enter - exit, exit } };
+  }
+  return { ...b, lengthVh: Math.round(b.lengthVh * LEN_SCALE) };
 }) as (Beat & { camera: string })[];
 
 export const BG = bg;

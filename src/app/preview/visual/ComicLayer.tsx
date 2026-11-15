@@ -462,17 +462,20 @@ function FlowLayer() {
           const topVh = pos.y + dy;
           stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh), entered: q >= s1 - 0.02, leaving: q > e0 };
         }
+        // 滚动带动的格内动画进度（SeqPanel / TurnPanel）：这一段"停留"阶段的滚动进度 0–1，之前 0、之后 1
+        const bph = beats[index[p.beat]].phases ?? { enter: 0.3, action: 0, hold: 0.45, exit: 0.25 };
+        const scrub = Math.min(1, Math.max(0, (q - bph.enter) / Math.max(0.01, bph.action + bph.hold)));
         const reading = perf && stage.entered && !stage.leaving && stage.vis >= 0.9; // 静止读格：妈妈的脸格才会眨眼
         const panel =
           p.key === "p2b" ? <ChopPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : p.key === "p4d" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P4D_FRAMES} schedule={P4D_SCHEDULE} gateS={2.2} staticSrc={P4D_FRAMES[7]} />
-          : p.key === "p6d" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P6D_FRAMES} schedule={P6D_SCHEDULE} gateS={3.4} text={P6D_TEXT} staticSrc="/assets/comic-v3/p6d.webp" />
-          : p.key === "p5f" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P5F_FRAMES} schedule={P5F_SCHEDULE} gateS={3.0} staticSrc={P5F_FRAMES[5]} />
-          : p.key === "p5b" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P5B_FRAMES} schedule={P5B_SCHEDULE} gateS={4.7} text={P5B_TEXT} staticSrc="/assets/comic-v3/p5b.webp" />
-          : p.key === "p5e" ? <TurnPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          : p.key === "p4d" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4D_FRAMES} schedule={P4D_SCHEDULE} staticSrc={P4D_FRAMES[7]} />
+          : p.key === "p6d" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P6D_FRAMES} schedule={P6D_SCHEDULE} text={P6D_TEXT} staticSrc="/assets/comic-v3/p6d.webp" />
+          : p.key === "p5f" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P5F_FRAMES} schedule={P5F_SCHEDULE} staticSrc={P5F_FRAMES[5]} />
+          : p.key === "p5b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P5B_FRAMES} schedule={P5B_SCHEDULE} text={P5B_TEXT} staticSrc="/assets/comic-v3/p5b.webp" />
+          : p.key === "p5e" ? <TurnPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : <FlowPanel push={false ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音

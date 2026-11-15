@@ -144,20 +144,15 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
  */
 const TURN_DIR = "/assets/comic-v6/p5e/";
 const TURN_FRAMES: [number, number][] = [[0, 0], [1, 0.4], [2, 0.7], [1, 1.0], [2, 1.2], [3, 1.4], [4, 1.6], [5, 1.9], [6, 2.2], [7, 2.28], [8, 2.4]];
-export function TurnPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
+export function TurnPanel({ p, pos, dy, scrub, animate }: { p: PanelSlot; pos: Place; dy: number; scrub: number; animate: boolean }) {
   const els = useRef<(HTMLImageElement | null)[]>([]);
-  const timers = useRef<number[]>([]);
-  const show = (n: number) => els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
-  const clear = () => { timers.current.forEach((id) => window.clearTimeout(id)); timers.current = []; flag(false); };
-  const play = () => {
-    clear();
-    show(0);
-    flag(true);
-    timers.current = TURN_FRAMES.slice(1).map(([n, at]) => window.setTimeout(() => { show(n); if (n === 8) { timers.current = []; flag(false); } }, at * 1000));
-  };
-  const stop = () => { if (timers.current.length) { clear(); show(8); } };
-  const reset = () => { clear(); show(0); };
-  useStage(q, stage, animate, play, stop, reset, animate ? 2.8 : 0, p.order ?? 0);
+  // 动画进度由滚动直接带动（scrub 0–1 = 这一段"停留"阶段的滚动进度）：慢滚一帧一帧走，回滚倒着走，没有"播过去"的问题
+  useEffect(() => {
+    const t = scrub * TURN_FRAMES[TURN_FRAMES.length - 1][1];
+    let n = 0;
+    for (const [i, at] of TURN_FRAMES) if (at <= t + 1e-6) n = i;
+    els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
+  });
   if (!animate) return <StaticImg src={`${TURN_DIR}pose-08.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -177,35 +172,26 @@ export function TurnPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
 export type SeqText = { size: [number, number]; rows: { str: string; x0: number; x1: number; y0: number; y1: number }[]; plan: { row: number; at: number; per: number }[] };
 /** 对白用真字体渲染（2026-11-15 用户：从图里减出来的字层又糊又锯齿、字体也不一致）：黑体粗字，墨色，逐字显示；字号按原格里每个字的宽度（cqw = 格宽的 1%） */
 const SEQ_FONT = '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif';
-export function SeqPanel({ p, pos, dy, q, stage, animate, frames, schedule, gateS, text, staticSrc }: {
-  p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean;
-  frames: string[]; schedule: [number, number][]; gateS: number; text?: SeqText; staticSrc: string;
+export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc }: {
+  p: PanelSlot; pos: Place; dy: number; scrub: number; animate: boolean;
+  frames: string[]; schedule: [number, number][]; text?: SeqText; staticSrc: string;
 }) {
   const els = useRef<(HTMLImageElement | null)[]>([]);
   const rowEls = useRef<(HTMLDivElement | null)[]>([]);
-  const timers = useRef<number[]>([]);
-  const last = schedule[schedule.length - 1][0];
-  const show = (n: number) => els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
-  // 第 r 行显示前 k 个字（其余不透明度 0）
-  const rowClip = (r: number, k: number) => {
-    const el = rowEls.current[r];
-    if (!el) return;
-    Array.from(el.children).forEach((c, i) => { (c as HTMLElement).style.opacity = i < k ? "1" : "0"; });
-  };
-  const allText = (full: boolean) => text?.rows.forEach((r, i) => rowClip(i, full ? [...r.str].length : 0));
-  const clear = () => { timers.current.forEach((id) => window.clearTimeout(id)); timers.current = []; flag(false); };
-  const play = () => {
-    clear(); show(0); allText(false); flag(true);
-    const t: number[] = [];
-    for (const [n, at] of schedule.slice(1)) t.push(window.setTimeout(() => show(n), at * 1000));
-    for (const { row, at, per } of text?.plan ?? []) for (let k = 1; k <= [...(text?.rows[row].str ?? "")].length; k++) t.push(window.setTimeout(() => rowClip(row, k), (at + (k - 1) * per) * 1000));
-    t.push(window.setTimeout(() => { timers.current = []; flag(false); }, (gateS - 0.2) * 1000));
-    timers.current = t;
-  };
-  const stop = () => { if (timers.current.length) { clear(); show(last); allText(true); } };
-  const reset = () => { clear(); show(0); allText(false); };
-  useStage(q, stage, animate, play, stop, reset, animate ? gateS : 0, p.order ?? 0);
-  useEffect(() => { allText(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 总时长 = 最后一次换图 / 最后一个字出现的时刻；滚动进度 × 总时长 = 当前"动画时间"，帧和字都由它决定（滚动直接带动，可倒放）
+  const total = Math.max(schedule[schedule.length - 1][1], ...(text?.plan.map((pl) => pl.at + [...(text.rows[pl.row].str)].length * pl.per) ?? [0]));
+  useEffect(() => {
+    const t = scrub * total;
+    let n = 0;
+    for (const [i, at] of schedule) if (at <= t + 1e-6) n = i;
+    els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
+    text?.rows.forEach((row, r) => {
+      const plan = text.plan.find((pl) => pl.row === r);
+      const k = plan ? Math.max(0, Math.min([...row.str].length, Math.floor((t - plan.at) / plan.per) + 1)) : 0;
+      const el = rowEls.current[r];
+      if (el) Array.from(el.children).forEach((c, i) => { (c as HTMLElement).style.opacity = i < k ? "1" : "0"; });
+    });
+  });
   if (!animate) return <StaticImg src={staticSrc} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>

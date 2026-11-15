@@ -155,6 +155,9 @@ function panelPresence(t: Timeline, beats: Beat[]) {
   return 1;
 }
 
+/** 阅读厨房图上沿之上补的天花板高度（场景像素，够镜头抬到最高处） */
+const CEILING_H = 700;
+
 function ReadingKitchen({ reveal }: { reveal: number }) {
   const R = BG.reading;
   const vp = useViewport();
@@ -279,6 +282,19 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
         transform: lq > 0.001 ? `scale(${(1 + LS.push * lp * lq).toFixed(4)})` : undefined,
       }}
     >
+      {/* 天花板（2026-11-15 用户：飞起来时镜头抬高，背景穿帮——这张图的上沿之上没画天花板，露出了旧厨房的墙）：
+          图的最上面几行往上拉伸、渐隐，再铺一层奶油色的天花板底；只在横版画（竖版的 box 本来就伸出画面）。
+          底图盖在远景层之下、多垫 8px，远景层的小幅视差不会露缝。 */}
+      {!portrait && (
+        <div aria-hidden data-bg="ceiling" className="pointer-events-none absolute" style={{ left: 0, top: -CEILING_H, width: "100%", height: CEILING_H + 8, background: "linear-gradient(to bottom, #f7e4c4, #fbe9cb)" }}>
+          <div className="absolute left-0 w-full overflow-hidden" style={{ bottom: 0, height: 120, filter: "blur(9px)", WebkitMaskImage: "linear-gradient(to top, #000 5%, transparent 85%)", maskImage: "linear-gradient(to top, #000 5%, transparent 85%)" }}>
+            <div className="absolute left-0 w-full overflow-hidden" style={{ bottom: 0, height: 6, transform: "scaleY(27)", transformOrigin: "bottom" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={PL ? PL.far.src : src} alt="" draggable={false} className="absolute left-0 top-0 max-w-none select-none" style={{ width: w, height: PL ? (h * PL.far.img[3]) / ih : h }} />
+            </div>
+          </div>
+        </div>
+      )}
       {PL ? (
         <>
           {/* 远景层：墙、瓷砖、吊柜、窗；比主体层少动（ticker 写 translate）。台面后沿以下多画了几十行墙，往上走时不露底 */}
