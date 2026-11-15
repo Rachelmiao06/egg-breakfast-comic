@@ -50,6 +50,8 @@ export type EggAnchors = {
   spatulaLand: Pt;
   bowlLand: Pt;
   eggAtTable: number;
+  /** 可选：深色墨线描边（蛋图自己的轮廓是金色细线，和背景里胡萝卜、葱的深棕黑描边不是一个画风）；px 是蛋图原始像素（随蛋缩放） */
+  ink?: { color: string; px: number };
   eggOnSpatula: number;
   eggInBowl: number;
   /** 可选：接蛋飞行的最高点（脚底的场景 y）。给了就越过接蛋格上框再落到铲面；不给用旧的固定抬升 */
@@ -128,6 +130,11 @@ type Plan = {
   /** 阅读停留阶段：站点小跳更少、更小 */
   calm?: boolean;
 };
+function inkFilter(ink?: { color: string; px: number }) {
+  if (!ink) return undefined;
+  const { color: c, px: p } = ink;
+  return { filter: `drop-shadow(${p}px 0 0 ${c}) drop-shadow(${-p}px 0 0 ${c}) drop-shadow(0 ${p}px 0 ${c}) drop-shadow(0 ${-p}px 0 ${c})` };
+}
 const TABLE_LIKE = new Set(["toTable", "table", "ready", "leap"]);
 
 const b_isFlight = (b: Beat) => b.egg === "flight";
@@ -188,8 +195,6 @@ function hopBetween(A: Pt, B: Pt, t: number, scaleA: number, scaleB: number, lif
   const ph = (k * n) % 1, hop = k >= 1 ? 0 : Math.sin(Math.PI * ph);
   return { x: A.x + (B.x - A.x) * k - REST.x, y: A.y + (B.y - A.y) * k - lift * hop - REST.y, scale: scaleA + (scaleB - scaleA) * smooth(k), rotation: spin * hop };
 }
-/** 三次贝塞尔（一个坐标） */
-const cub = (a: number, b: number, c: number, d: number, t: number) => (1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t * t * c + t ** 3 * d;
 /**
  * 高跳轨迹上参数 s 处的脚底点（场景像素）：
  *   L → M：三次贝塞尔，从桌面向上起跳、朝她的视线方向，最后竖直到达 M（与下一段同方向，速度方向连续）；
@@ -200,8 +205,9 @@ export function trajFoot(T: EggTraj, s: number): Pt {
   const k = clamp01(s);
   const { L, M, E, R, C } = T;
   if (k <= T.sM) {
-    const u = k / T.sM, dy = L.y - M.y;
-    return { x: cub(L.x, L.x + (M.x - L.x) * 0.25, M.x, M.x, u), y: cub(L.y, L.y - 0.55 * dy, M.y + 0.45 * dy, M.y, u) };
+    // L → M：像超人一样直线掠过去（不是抛物线）：匀速为主，起步和收尾各缓一点
+    const u = k / T.sM, e = u * u * (3 - 2 * u) * 0.35 + u * 0.65;
+    return { x: L.x + (M.x - L.x) * e, y: L.y + (M.y - L.y) * e };
   }
   if (k <= T.sE) { const u = (k - T.sM) / (T.sE - T.sM); return { x: M.x + (E.x - M.x) * u, y: M.y + (E.y - M.y) * u }; }
   if (k <= T.sR) { const u = (k - T.sE) / (T.sR - T.sE); return { x: E.x + (R.x - E.x) * u, y: E.y + (R.y - E.y) * u }; }
@@ -211,7 +217,14 @@ export function trajFoot(T: EggTraj, s: number): Pt {
 function trajPose(T: EggTraj, s: number): Pose {
   const f = trajFoot(T, s);
   const u = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
-  return { x: f.x - REST.x, y: f.y - REST.y, scale: T.scaleL + (T.scaleC - T.scaleL) * u, rotation: T.tiltC * u };
+  // 平飞（L → M）：身体顺着飞行方向倾斜（头朝前，最多 75°），起飞和到点时回正；之后竖直上升不倾斜
+  let lean = 0;
+  if (s < T.sM) {
+    const v = s / T.sM, ang = Math.max(-75, Math.min(75, (Math.atan2(T.M.x - T.L.x, T.L.y - T.M.y) * 180) / Math.PI));
+    const sm = (q: number) => { const c = clamp01(q); return c * c * (3 - 2 * c); };
+    lean = ang * sm(v / 0.2) * (1 - sm((v - 0.8) / 0.2));
+  }
+  return { x: f.x - REST.x, y: f.y - REST.y, scale: T.scaleL + (T.scaleC - T.scaleL) * u, rotation: T.tiltC * u + lean };
 }
 
 /** 本段之前，蛋最后停在哪一站（决定 flight 从哪起飞） */
@@ -774,7 +787,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
             transition: showShadow ? "opacity 0.2s" : "none",
           }}
         />
-        <div ref={eggRef} className="absolute inset-0 will-change-transform">
+        <div ref={eggRef} className="absolute inset-0 will-change-transform" style={inkFilter(anchors?.ink)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={baseImgRef} data-active-egg src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
           {/* 表情图预先加载、默认隐藏；切换只改 visibility，同一帧内只有一张脸 */}

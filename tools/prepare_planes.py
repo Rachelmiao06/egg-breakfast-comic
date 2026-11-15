@@ -218,15 +218,18 @@ def main() -> None:
     # 近景层只剩台面（后沿以下），道具不再在里面，页面上按同样位置另画（Backdrops planes.props）。
     # 切割线：左区域 x < 420 = 层板架（连罐子、盆栽、油瓶）；右区域 x ≥ SPLIT_X 且在葱身子之外 = 菜篮（连菜、格纹布）；
     # 右区域 x < SPLIT_X、y > SCALLION_Y 的是葱角色的身子（叶子是另一个角色层）。
-    props = {}
+    # 每个像素只属于一张切片（按位置硬分），透明度都来自整体羽化后的同一张 alpha，所以切片之间没有接缝
+    # （各自羽化再叠会在分界线上露出底下的墙，是一条亮线）
     yy, xx = np.mgrid[0:H, 0:W]
-    left = objects & (xx < ZONES[0][2])
-    right = objects & (xx >= ZONES[1][0])
+    full = cv2.GaussianBlur(objects.astype(np.float32), (3, 3), 0)
+    part = full > 0
+    left = part & (xx < ZONES[0][2])
+    right = part & (xx >= ZONES[1][0])
     scallion = right & (xx < SPLIT_X) & (yy > SCALLION_Y)
-    props["shelf"], props["scallion"], props["basket"] = left, scallion, right & ~scallion
+    props = {"shelf": left, "scallion": scallion, "basket": right & ~scallion}
     prop_boxes = {}
     for name, m in props.items():
-        a = cv2.GaussianBlur(m.astype(np.float32), (3, 3), 0)
+        a = full * m
         ys, xs = np.where(a > 0)
         x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
         rgba = np.dstack([rgb, np.round(a * 255).astype(np.uint8)])[y0:y1, x0:x1]
