@@ -144,12 +144,13 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
 }
 
 /**
- * 蛋趴在漫画格上沿（egg-on-panel.webp：只有上半身，手臂垂下来搭在格子前面）。画格有 overflow: hidden，
- * 所以蛋是格子旁边的独立元素，位置按格子的 pos / dy 算（vw / vh）：蛋身底边（图高 83.2% 处）对齐格子上沿，
- * 手臂盖在格子前面。格子入场到位后蛋从格子后面弹出来，离场前收回。
+ * 蛋从漫画格后面偷偷探出头（egg-on-panel.webp 的上半身；不露手臂，用户说趴着搭手很怪）。画格有 overflow: hidden，
+ * 所以蛋是格子旁边的独立元素（在 DOM 里排在格子前面 = 画在格子后面），位置按格子的 pos / dy 算（vw / vh）：
+ * 图高 70% 处对齐格子上沿，格子盖住下面。格子入场到位后蛋从格子后面升起来，离场前缩回去。
  */
 const PERCH_PANEL = "p1b"; // bag 段右侧小格：上方没有别的格子，蛋有地方；也就是“袋子”那格
-const PERCH = { left: 0.2, width: 0.64, bodyBottom: 0.832 };
+// edge：蛋图高度的这个位置对齐格子上沿；格子在蛋前面，盖住下面的手臂和下半身（手臂起于图高约 72%），只露脸和上半身
+const PERCH = { left: 0.2, width: 0.64, bodyBottom: 0.7 };
 function PerchEgg({ pos, dy, show }: { pos: Place; dy: number; show: boolean }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -386,8 +387,8 @@ function FlowLayer() {
         const perch = p.key === PERCH_PANEL && !vp.portrait;
         return (
           <Fragment key={p.key}>
-            {wrap ? <div style={wrap}>{panel}</div> : panel}
             {perch && <PerchEgg pos={pos} dy={dy} show={stage.entered && !stage.leaving} />}
+            {wrap ? <div style={wrap}>{panel}</div> : panel}
             <PanelSignal k={p.key} q={q} stage={stage} />
           </Fragment>
         );
