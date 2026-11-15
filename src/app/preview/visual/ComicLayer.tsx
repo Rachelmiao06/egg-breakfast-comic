@@ -8,7 +8,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { ChopPanel, HearPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled } from "./PanelPerf";
+import { ChopPanel, HearPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer, ClosingBlink } from "./Blink";
 import FrameReact from "./FrameReact";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
@@ -245,6 +245,12 @@ function avoidEgg(list: PanelSpec[], places: Record<string, Place>, egg: Rect, v
   }
 }
 
+/** 入场方式（URL ?reveal=flow 切回条漫式整列上移；默认逐格出现） */
+function revealMode() {
+  if (typeof window === "undefined") return "step";
+  return new URLSearchParams(window.location.search).get("reveal") === "flow" ? "flow" : "step";
+}
+
 function FlowLayer() {
   const { timeline: t, beats, reducedMotion } = useScene();
   const vp = useViewport();
@@ -252,11 +258,20 @@ function FlowLayer() {
   const g = t.index + t.p;
   const index: Record<string, number> = {};
   beats.forEach((b, i) => (index[b.id] = i));
-  const visible = PANELS.filter((p) => !p.hideInFlow && index[p.beat] !== undefined && g - index[p.beat] > -0.16 && g - index[p.beat] < 1.16);
+  // 入场方式：默认"逐格出现"（用户 2026-11-14 偏好旧版：每段的格子在原位一张一张出现，停稳阅读，整段一起离开，
+  // 下一段的格子不会从屏幕下沿提前露出）；?reveal=flow 是之前的整列随滚动上移（条漫式），留作对比
+  const step = revealMode() !== "flow";
+  const visible = PANELS.filter((p) => {
+    if (p.hideInFlow || index[p.beat] === undefined) return false;
+    const q = g - index[p.beat];
+    return step ? q >= 0 && q < 1 : q > -0.16 && q < 1.16;
+  });
   const groups: Record<string, PanelSpec[]> = {};
   // 提前离场的格（exitAt 早于同段其他格）单独成组排版：它离开后，同段其他格的位置不受影响
   const groupOf = (p: PanelSpec) => (p.exitAt && p.exitAt[1] < 0.7 ? `${p.beat}:solo:${p.key}` : p.beat);
   for (const p of visible) if (p.role !== "closeup") (groups[groupOf(p)] ??= []).push(p);
+  // 逐格出现时，独占一段的格子可以有自己的阅读位置（slots.json soloPlace，例如结尾的担心格、回答格），位置换成它再排版
+  if (step) for (const [id, list] of Object.entries(groups)) if (list.length === 1 && list[0].soloPlace) groups[id] = [{ ...list[0], ...list[0].soloPlace }];
   const places: Record<string, Place> = {};
   const pans: Record<string, number> = {};
   const egg = EGG_VISIBLE.has(t.beat.egg) || EGG_VISIBLE.has(beats[t.index + 1]?.egg ?? "") ? eggRectNow(vp.w, vp.h) : null;
@@ -280,21 +295,47 @@ function FlowLayer() {
         const q = g - index[p.beat];
         if (p.role === "closeup") return <CloseupShot key={p.key} p={p} q={q} portrait={vp.portrait} vw={vp.w} reducedMotion={reducedMotion} seconds={beats[index[p.beat]].seconds} />;
         const i = p.order ?? 0;
-        const pos = places[p.key] ?? { x: p.x, y: p.y, w: p.w };
+        const pos = { ...(places[p.key] ?? { x: p.x, y: p.y, w: p.w }) };
         const hVh = hOf(p, pos.w, vp.w, vp.h);
         const pan = pans[p.key] ?? 0;
-        const [s0, s1] = p.enterAt ?? [-0.14 + i * 0.05, 0.34];
-        const [e0, e1] = p.exitAt ?? [0.7 + i * 0.03, 1.14];
-        // 竖屏整列较高时：停留阶段由滚动直接带动缓慢上移（读条漫），离场从上移后的位置继续
-        const panNow = pan * clamp01((q - s1) / (e0 - s1));
-        const enterOff = 100 - pos.y + 4;
-        const exitOff = pos.y - pan + hVh + 4;
-        let dy = -panNow;
-        if (q < s1) dy = enterOff * (1 - outCubic((q - s0) / (s1 - s0)));
-        else if (q > e0) dy = -pan - exitOff * inQuad((q - e0) / (e1 - e0));
-        // 格内表演的触发看格子在屏幕上的真实状态：入场结束、可见比例、是否开始离场（竖屏整列上移时也成立）
-        const topVh = pos.y + dy;
-        const stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh), entered: q >= s1 - 0.02, leaving: q > e0 };
+        let dy: number, stage: Stage, wrap: CSSProperties | null = null;
+        if (step) {
+          // 逐格出现：本段进入阶段里按 order 错开，每格从自己的方向（slots.json from）小幅滑入并淡入，停在原位；
+          // 退出阶段整段淡出并略向上离开。格子位置仍用新版布局（fitPlaces / columnPlaces）。
+          const b = beats[index[p.beat]];
+          const ph = b.phases ?? { enter: 0.3, action: 0, hold: 0.45, exit: 0.25 };
+          const enterEnd = Math.max(0.05, ph.enter + ph.action * 0.5);
+          const exitStart = ph.enter + ph.action + ph.hold;
+          const group = groups[groupOf(p)] ?? [p];
+          const n = group.length;
+          const rank = group.filter((o) => (o.order ?? 0) < i).length;
+          const span = n === 1 ? 1 : 0.62;
+          const [s0, s1] = p.enterAt ?? (() => { const a = n === 1 ? 0 : (rank * (1 - span)) / (n - 1); return [a * enterEnd, (a + span) * enterEnd]; })();
+          const [e0, e1] = p.exitAt ?? [exitStart, 1];
+          const k = outCubic(clamp01((q - s0) / Math.max(1e-6, s1 - s0)));
+          const x = clamp01((q - e0) / Math.max(1e-6, e1 - e0));
+          const [ox, oy] = p.from === "seam" ? [0, 0] : offsetFor(p.from, k);
+          const panNow = pan * clamp01((q - s1) / Math.max(1e-6, e0 - s1));
+          dy = oy - panNow - 12 * inQuad(x);
+          const op = (p.from === "seam" ? k : Math.min(1, k * 1.4)) * (1 - inQuad(x));
+          const topVh = pos.y + dy;
+          stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh) * (op >= 0.95 ? 1 : op), entered: q >= s1 - 0.01, leaving: q > e0 };
+          if (ox !== 0) pos.x += ox;
+          if (op < 1) wrap = { opacity: op };
+        } else {
+          const [s0, s1] = p.enterAt ?? [-0.14 + i * 0.05, 0.34];
+          const [e0, e1] = p.exitAt ?? [0.7 + i * 0.03, 1.14];
+          // 竖屏整列较高时：停留阶段由滚动直接带动缓慢上移（读条漫），离场从上移后的位置继续
+          const panNow = pan * clamp01((q - s1) / (e0 - s1));
+          const enterOff = 100 - pos.y + 4;
+          const exitOff = pos.y - pan + hVh + 4;
+          dy = -panNow;
+          if (q < s1) dy = enterOff * (1 - outCubic((q - s0) / (s1 - s0)));
+          else if (q > e0) dy = -pan - exitOff * inQuad((q - e0) / (e1 - e0));
+          // 格内表演的触发看格子在屏幕上的真实状态：入场结束、可见比例、是否开始离场（竖屏整列上移时也成立）
+          const topVh = pos.y + dy;
+          stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh), entered: q >= s1 - 0.02, leaving: q > e0 };
+        }
         const reading = perf && stage.entered && !stage.leaving && stage.vis >= 0.9; // 静止读格：妈妈的脸格才会眨眼
         const panel =
           p.key === "p2b" ? <ChopPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
@@ -303,7 +344,7 @@ function FlowLayer() {
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
-        return <Fragment key={p.key}>{panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
+        return <Fragment key={p.key}>{wrap ? <div style={wrap}>{panel}</div> : panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
       })}
       {perf && <FrameReact />}
     </div>
@@ -400,7 +441,9 @@ function SlideLayer() {
   const vp = useViewport();
   const beat = beats[t.index];
   const hasCloseup = beats.some((b) => b.id === "closeup");
-  const list = PANELS.filter((p) => (p.beat === "closeup" && !hasCloseup ? "punchline" : p.beat) === beat.id);
+  const hasWorry = beats.some((b) => b.id === "worry");
+  // 旧版节拍表没有 closeup / worry 段：这两段的格子并回 punchline，和以前一样
+  const list = PANELS.filter((p) => ((p.beat === "closeup" && !hasCloseup) || (p.beat === "worry" && !hasWorry) ? "punchline" : p.beat) === beat.id);
   const n = Math.max(1, list.length);
   const places = vp.portrait ? stackPlaces(list, vp.w, vp.h) : null;
   return (

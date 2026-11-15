@@ -397,7 +397,8 @@
   },
   {
    "key": "p6d",
-   "beat": "punchline",
+   "soloPlace": { "x": 20, "y": 16, "w": 60 },
+   "beat": "worry",
    "src": "/assets/comic-v3/p6d.webp",
    "source": "06-recognition-and-punchline.png D 格",
    "dialogueInImage": true,
@@ -411,6 +412,7 @@
   },
   {
    "key": "p6e",
+   "soloPlace": { "x": 29, "y": 14, "w": 42 },
    "beat": "punchline",
    "src": "/assets/comic-v3/p6e.webp",
    "source": "06-recognition-and-punchline.png E 格",
