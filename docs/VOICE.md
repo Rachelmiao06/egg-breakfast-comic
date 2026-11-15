@@ -1,6 +1,6 @@
 # 妈妈的语气词（人声）
 
-> 状态（2026-11-15）：**已接入 6 条**（mom-sigh / huh / hmm-q / oh / laugh / wow），用 ElevenLabs 的 Yating Lin（普通话、中年女声）生成；还差 mom-hum / aha / gasp / ah / uh 5 条（生成通道繁忙，等重试）。原始生成文件在 `tools/voice_raw/`，成品在 `public/assets/audio/voice/`（裁掉首尾静音、-18 LUFS、单声道）。新增一条：放文件 + 在 `music-map.json` 的 `voiceAvailable` 登记名字。
+> 状态（2026-11-15）：**已接入 9 条**（mom-sigh / huh / hmm-q / oh / laugh / wow / hum / aha / ah），用 ElevenLabs 的 Yating Lin（普通话、中年女声）生成；还差 mom-gasp / uh 2 条（生成通道繁忙，等重试）。原始生成文件在 `tools/voice_raw/`，成品在 `public/assets/audio/voice/`（裁掉首尾静音、-18 LUFS、单声道）。新增一条：放文件 + 在 `music-map.json` 的 `voiceAvailable` 登记名字。
 > 生成时的要求：可爱、轻巧、**不要前面的吸气声**（用户 2026-11-15）。
 > 为什么没有：语气词必须是自然、好听的中年女声，不能是电子音。我没有办法合成这种声音（代码合成出来就是电子音），所以需要真人录音或高品质的人声生成工具。
 
