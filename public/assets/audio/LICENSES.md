@@ -1,6 +1,6 @@
 # 音效许可记录
 
-均无需署名；记录仅作内部溯源。来源页面的许可已逐条在站内核对（2026-11-13）。
+除 stirfry-in.mp3、pour.mp3 两条为 **CC BY 4.0（需要署名，见文末"署名"）** 外，均无需署名；记录仅作内部溯源。来源页面的许可已逐条在站内核对（2026-11-13）。
 处理栏：由 `tools/audio_build.sh` 从 `tools/audio_raw/`（原始下载）生成，可重复执行；测量用 `tools/audio_measure.sh`（2026-11-13，未经人耳试听）。响度规则：目标 -18 LUFS，但真峰值限幅不超过 -1 dBTP + 允许量（持续声 6 dB、敲击声 3 dB），所以敲击类达不到 -18。
 
 | 文件 | 原始标题 | 来源 | 作者 | 许可 | 处理 |
@@ -8,7 +8,7 @@
 | room-loop.mp3 | Kitchen room tone day | https://pixabay.com/sound-effects/film-special-effects-kitchen-room-tone-day-61809/ | freesound_community | Pixabay Content License | 取前 40.5 s（重采样 44.1 kHz），在 1 s 附近挑零交叉点旋转（0.984 s）+ 0.5 s 等功率交叉淡化接缝 → 40.0 s 循环；+27.2 dB，限幅器按循环处理（三份相接取中间）；128 kbps。成品 -18.4 LUFS，-4.6 dBTP；回绕采样跳变 0.8× 中位，首尾 20 ms 无凹陷 |
 | sizzle-loop.mp3 | Frying Pan Hot Sizzle Loop 1 | https://pixabay.com/sound-effects/film-special-effects-frying-pan-hot-sizzle-loop-1-200912/ | floraphonic | Pixabay Content License | 取前 20.5 s，零交叉旋转（0.980 s）+ 0.5 s 交叉淡化接缝 → 20.0 s 循环；+4.4 dB 并按循环限幅。成品 -20.2 LUFS，-0.5 dBTP；回绕采样跳变 0.3× 中位 |
 | chop-loop.mp3 | Knife Cut Veggies Foley 4 | https://pixabay.com/sound-effects/household-knife-cut-veggies-foley-4-211705/ | floraphonic | Pixabay Content License | 末尾补 0.29 s 静音使首尾刀声间隔≈1.05 s，零交叉旋转（0.593 s）+ 0.1 s 交叉淡化（接缝在静音段内）→ 6.526 s 循环；+2.5 dB，按循环限幅。成品 -26.3 LUFS，-2.2 dBTP；首尾 20 ms 无凹陷 |
-| stirfry-in.mp3 | sizzle4-water-into-hot-pan | https://pixabay.com/sound-effects/film-special-effects-sizzle4-water-into-hot-pan-42578/ | freesound_community | Pixabay Content License | 取 [0.86, 2.66]（起音 0.88 s，之前为静音）一声爆发，尾部 0.7 s 淡出 → 1.8 s；+1.7 dB（限幅器开延迟补偿）。成品 -18.3 LUFS，-4.7 dBTP |
+| stirfry-in.mp3 | Stir fry 07.wav | https://freesound.org/people/LG/sounds/77923/ | LG | CC BY 4.0（需署名） | 2026-11-14 替换（旧版"水滴进热锅"没有食材落锅声，移到 `alt/stirfry-in-water.mp3`，不再加载）。Freesound HQ 预览 mp3（原文件需登录）。原档 17.3 s：0.44–0.48 s 食材一下落进锅（低频冲击），随后滋啦声铺开。取 [0.42, 2.02]，5 ms 淡入、0.6 s 淡出 → 1.6 s；+9.0 dB，限幅。成品 -18.4 LUFS，-2.0 dBTP。由前景 p2d 第一批玉米落锅时触发 |
 | sauce-stir-loop.mp3 | Spoon Stir in Bowl | https://pixabay.com/sound-effects/household-spoon-stir-in-bowl-437705/ | u_xg7ssi08yr | Pixabay Content License | 取 [0.80, 18.70]（两端都在勺声间隙），零交叉旋转（0.620 s）+ 0.2 s 交叉淡化 → 17.7 s 循环；+2.0 dB（受峰值限制），按循环限幅。成品 -30.2 LUFS，-1.6 dBTP；回绕采样跳变 0.6× 中位 |
 | catch.mp3 | soft plop | https://pixabay.com/sound-effects/film-special-effects-soft-plop-97691/ | freesound_community | Pixabay Content License | 取第一声 plop [0.47, 1.07]（起音 0.49 s、峰值 0.52 s），尾部 0.15 s 淡出 → 0.6 s；+6.9 dB（限幅器开延迟补偿，开头不再多出约 4 ms 静音）。成品 -19.6 LUFS，-2.2 dBTP |
 | bowl-down.mp3 | Bowl placed on table（Mixkit 条目 1799） | https://mixkit.co/free-sound-effects/kitchen/ | Mixkit | Mixkit Sound Effects Free License | 原档 WAV 16-bit 44.1 kHz，用 ffmpeg 转成 mp3 192 kbps（1.1 s） |
@@ -18,14 +18,24 @@
 | hop-tap-2.mp3 | Knife Cut Veggies Foley 4（同上） | https://pixabay.com/sound-effects/household-knife-cut-veggies-foley-4-211705/ | floraphonic | Pixabay Content License | 同上，取峰值 4.683 s 那一下 → 0.092 s；+12.3 dB。成品 -2.3 dBTP，瞬时响度最大 -23.5 LUFS |
 | hop-tap-3.mp3 | Knife Cut Veggies Foley 4（同上） | https://pixabay.com/sound-effects/household-knife-cut-veggies-foley-4-211705/ | floraphonic | Pixabay Content License | 同上，取峰值 3.212 s 那一下 → 0.092 s；+9.7 dB。成品 -2.3 dBTP，瞬时响度最大 -24.4 LUFS |
 | pop.mp3 | Happy Pop 1 | https://pixabay.com/sound-effects/film-special-effects-happy-pop-1-185286/ | floraphonic | Pixabay Content License | 2026-11-14 用户批准下载（非商用项目）。原档 1.04 s，起音 0.025 s，约 0.17 s 衰减到底。取 [0.02, 0.30]，2 ms 淡入、尾部 0.1 s 淡出 → 0.28 s；+2.9 dB（受峰值限制）。成品 -2.3 dBTP，瞬时响度最大 -17.9 LUFS（与 catch 的 -17.4 相当；文件短于 0.4 s，积分响度无意义） |
+| stirfry-stir.mp3 | FOODCook_Carmelized Onions Large Steel Pan Stirring Wooden Spatula Bubbling Medium Heat_001_RambleRecordings | https://freesound.org/people/buzkill/sounds/808520/ | buzkill | CC0 1.0 | 2026-11-14 新增（翻炒）。Freesound HQ 预览 mp3。原档 75.8 s，前 28 s 木铲在钢锅里推洋葱、轻刮锅，5.0 / 11.75 / 14.75 s 有较重敲锅。取 [6.2, 9.4]（三下均匀推铲，最响 -29 dB），0.15 s 淡入、0.7 s 淡出 → 3.2 s；+12.6 dB，限幅。成品 -21.0 LUFS，-2.2 dBTP。由前景 kitchen:action stirfry 开始 / 停止 |
+| sauce-stir.mp3 | stirring bowl.wav | https://freesound.org/people/dynamique/sounds/554557/ | dynamique | CC0 1.0 | 2026-11-14 新增（调汁，替代整段循环 sauce-stir-loop）。Freesound HQ 预览 mp3（单声道，标签：木勺、玻璃碗、液体、搅拌）。原档很轻（-34 LUFS，底噪约 -62 dB）。取 [9.95, 12.55]：0.15 / 0.75 / 1.65 s 三下碰碗落在前景两圈（1.9 s）里；afftdn 降噪 10 dB、高通 120 Hz，0.08 s 淡入、0.4 s 淡出 → 2.6 s；+18.3 dB（受峰值限制）。成品 -24.1 LUFS，-2.2 dBTP。由前景 kitchen:action sauceStir 开始 / 停止。液体搅动的成分较弱，以木勺碰碗为主 |
+| pour.mp3 | Pouring oil (SoundAction 072) | https://freesound.org/people/alexarje/sounds/721754/ | alexarje（Alexander Refsum Jensenius） | CC BY 4.0（需署名） | 2026-11-14 新增（淋汁）。Freesound HQ 预览 mp3。原档 44 s：0.95 s 起是细细一股油流（宽带、柔和），3.2 s 后变成一下一下的咕嘟（大流量，不用）。取 [0.85, 2.05]，高通 150 Hz，0.08 s 淡入、0.35 s 淡出 → 1.2 s；+23.5 dB，限幅。成品 -18.5 LUFS，-1.8 dBTP，播放电平 0.25。在 p4c（勺子淋汁格）进入阅读位置后 0.9 s 播 |
+| egg-hop.mp3 | Wet Splat 2.mp3 | https://freesound.org/people/nebulasnails/sounds/495117/ | nebulasnails | CC0 1.0 | 2026-11-14 新增（开场蛋落回锅面）。Freesound HQ 预览 mp3。原档 0.55 s，起音 0.025 s。取 [0.02, 0.20]，两次 2 kHz 低通把"啪"压成很软的"噗"，2 ms 淡入、0.08 s 淡出 → 0.18 s；按峰值 +5.5 dB。播放电平 0.16，每次音高 ±6%、电平 ±1.5 dB，两次至少隔 1.8 s |
 
 ## 尚无素材
 
 | 文件 | 说明 |
 |---|---|
-| stirfry-loop.mp3 | 翻炒循环：本轮只选了下锅单次声，没有选翻炒循环。候选仍在搜集目录 `03-veg-sizzle/`（如 Frying vegetables 60865，66 s，带锅铲翻动）。 |
-| pour.mp3 | 淋酱汁：素材库里没找到合格录音，按约定留空。 |
+| stirfry-loop.mp3 | 翻炒循环：不用循环。翻炒改为一段 3.2 s 的 stirfry-stir.mp3，跟前景动作开始 / 停止。 |
 
 ## 待用户下载
 
-无。本轮未使用需要登录的站点。
+Freesound 原文件（wav / flac）需要登录，本轮用的是公开 HQ 预览 mp3（约 150–230 kb/s）。觉得有压缩感时，登录后下载原文件放进 `tools/audio_raw/`（同名，扩展名可改）重跑 `tools/audio_build.sh`：77923、808520、554557、721754、495117（链接见上表）。
+
+## 署名（CC BY 4.0，网页上需要可见的署名）
+
+- "Stir fry 07.wav" by LG — https://freesound.org/people/LG/sounds/77923/ — CC BY 4.0 — 裁切、淡入淡出、响度处理（stirfry-in.mp3）
+- "Pouring oil (SoundAction 072)" by alexarje (Alexander Refsum Jensenius) — https://freesound.org/people/alexarje/sounds/721754/ — CC BY 4.0 — 裁切、高通、淡入淡出、响度处理（pour.mp3）
+
+许可原文：https://creativecommons.org/licenses/by/4.0/ 。署名需要出现在网页上用户看得到的地方（例如页脚"音效致谢"），由集成会话加；这里只是记录。
