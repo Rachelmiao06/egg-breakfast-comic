@@ -12,10 +12,11 @@
  * 减少动态效果或 ?perf=0：显示原静态格（new pics 第 1 帧）；声音仍在同样的时刻派发，画面不动。
  */
 import gsap from "gsap";
-import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useSyncExternalStore, type CSSProperties } from "react";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
 import { PAPER_SHADOW } from "./paper";
+import { holdScroll, releaseScroll } from "@/lib/scroll-gate";
 
 type Place = { x: number; y: number; w: number };
 /** 声像跟着格子：按格子中心在屏幕上的横向位置给 -0.7…0.7（左边的格声音偏左，右边偏右）；厨房声不受影响 */
@@ -62,8 +63,12 @@ const flag = (on: boolean) => {
  *   在边缘来回滚动不会反复触发：播过之后，没有离开到复位线以外就不会再播。
  * - 关掉表演（减少动态效果 / ?perf=0）时立即复位；卸载时复位。
  */
-function useStage(q: number, stage: Stage, enabled: boolean, play: () => void, stop: () => void, reset: () => void) {
+function useStage(q: number, stage: Stage, enabled: boolean, playRaw: () => void, stopRaw: () => void, resetRaw: () => void, gateS = 0) {
   const played = useRef(false);
+  const gateId = useId();
+  // gateS > 0：开始表演时拦住滚动（src/lib/scroll-gate.ts），表演收住 / 复位 / 卸载时放开
+  const wrap = (f: () => void, hold: boolean) => () => { if (gateS > 0) { if (hold) holdScroll(gateId, gateS); else releaseScroll(gateId); } f(); };
+  const play = wrap(playRaw, true), stop = wrap(stopRaw, false), reset = wrap(resetRaw, false);
   const wasEnabled = useRef(enabled);
   useEffect(() => {
     if (!enabled) {
@@ -77,7 +82,7 @@ function useStage(q: number, stage: Stage, enabled: boolean, play: () => void, s
   });
   // 卸载时复位，并清掉"播过"标记：格子离开视口被卸载、再次进入重新挂载时能再播；
   // 开发模式 StrictMode 的"挂载 → 模拟卸载 → 再挂载"也一样（否则刚开始就被复位，而 played 还是 true，整段不播）
-  useEffect(() => () => { played.current = false; reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { played.current = false; reset(); releaseScroll(gateId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
@@ -103,7 +108,7 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   // 否则停在"抬眼"半途，回滚回来也一直是半截表情。已播完时什么都不做。
   const stop = () => { hearSignal("stop"); if (timers.current.length) { clear(); show(2); } };
   const reset = () => { hearSignal("reset"); clear(); show(0); };
-  useStage(q, stage, animate, play, stop, reset);
+  useStage(q, stage, animate, play, stop, reset, 2.4);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -196,7 +201,7 @@ function LayersPanel({
     tl.current = t;
     debugTl(k, t);
   };
-  useStage(q, stage, animate || runStatic, play, stop, reset);
+  useStage(q, stage, animate || runStatic, play, stop, reset, animate ? 2.6 : 0);
   if (!animate) return <StaticImg src={`${F4}${k}-f1.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const layer = (n: string, src: string, ref: boolean) => (
     // eslint-disable-next-line @next/next/no-img-element
@@ -329,7 +334,7 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
     tl.current = t;
     debugTl("p2d", t);
   };
-  useStage(q, stage, true, play, stop, reset);
+  useStage(q, stage, true, play, stop, reset, animate ? 3.2 : 0);
   if (!animate) return <StaticImg src={`${P2D}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   const layer = (n: string) => (
@@ -387,7 +392,7 @@ export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; po
     }
     timer.current = window.setTimeout(() => { clear(); halt(); flag(false); }, STIR_LOOP_MS * STIR_LAPS);
   };
-  useStage(q, stage, true, play, stop, reset);
+  useStage(q, stage, true, play, stop, reset, animate ? 2.8 : 0);
   if (!animate) return <StaticImg src={`${P3A}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   return (
@@ -447,7 +452,7 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
     tl.current = t;
     debugTl("p6e", t);
   };
-  useStage(q, stage, animate, play, stop, reset);
+  useStage(q, stage, animate, play, stop, reset, 2.2);
   if (!animate) return <StaticImg src={`${P5}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   const layer = (n: string, o: number) => (

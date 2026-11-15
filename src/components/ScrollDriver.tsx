@@ -13,6 +13,7 @@ import { locate, phaseEdges, totalVh } from "@/lib/beats";
 import { setScrollVelocity } from "@/lib/scroll-velocity";
 import { useScene } from "@/lib/scene-context";
 import { REPLAY_EVENT } from "@/lib/replay";
+import { scrollHeld } from "@/lib/scroll-gate";
 
 /**
  * smooth = true：用 Lenis 作为全站唯一的平滑层（触控板、鼠标滚轮都经过它），
@@ -22,6 +23,18 @@ import { REPLAY_EVENT } from "@/lib/replay";
 /** 一次甩出去的距离上限（vh）；读带格内动画的格子时用更小的上限 */
 const THROW_VH = 100;
 const THROW_READING_VH = 45;
+
+/** 读格门的位置：当前段"停留"结束处（px）。格内动画没播完（scrollHeld）时，故事不能越过它 */
+function gatePx(beats: { lengthVh: number; phases: { enter: number; action: number; hold: number } }[], scrollPx: number) {
+  const vhPx = window.innerHeight / 100;
+  let acc = 0;
+  for (let i = 0; i < beats.length; i++) {
+    const b = beats[i], len = b.lengthVh;
+    if (scrollPx / vhPx < acc + len || i === beats.length - 1) return (acc + len * (b.phases.enter + b.phases.action + b.phases.hold)) * vhPx;
+    acc += len;
+  }
+  return Infinity;
+}
 
 export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
   const { beats, setTimeline } = useScene();
@@ -87,6 +100,11 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
         virtualScroll: ({ deltaY, event }) => {
           const l = lenis;
           if (!l || deltaY === 0) return true;
+          // 读格门：格内动画还在播，且已经走到这一段"停留"的末尾，不再接受向前的滚动
+          if (deltaY > 0 && scrollHeld() && l.animatedScroll >= gatePx(beats, l.animatedScroll) - 3) {
+            if (event.cancelable) event.preventDefault();
+            return false;
+          }
           const vhPx = window.innerHeight / 100;
           const ahead = l.targetScroll - l.animatedScroll;
           if (Math.sign(ahead) !== Math.sign(deltaY)) return true; // 反向永远放行（马上能掉头）
@@ -125,7 +143,18 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
         window.removeEventListener("resize", addSnaps);
         snap.destroy();
       };
-      tick = (time) => lenis?.raf(time * 1000);
+      let pulling = false;
+      tick = (time) => {
+        // 读格门：已经被甩过了门（惯性 / 触屏原生滚动），温柔地拉回门口，不硬跳
+        if (lenis && scrollHeld()) {
+          const gate = gatePx(beats, lenis.animatedScroll);
+          if (!pulling && lenis.animatedScroll > gate + 6) {
+            pulling = true;
+            lenis.scrollTo(gate, { duration: 0.6, easing: (t) => 1 - Math.pow(1 - t, 3), force: true, onComplete: () => { pulling = false; } });
+          }
+        }
+        lenis?.raf(time * 1000);
+      };
       gsap.ticker.add(tick);
       gsap.ticker.lagSmoothing(0);
     } else {
