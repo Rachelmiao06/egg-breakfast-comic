@@ -103,4 +103,4 @@
 
 - 无需改 beats 数据：音量和触发点都在 audio-map.json。若试听后要调 sauce（0.4）/ chop（0.5）/ 炒菜段 sizzle（0.45），改 audio-map.json 即可。
 - 空位素材（脚步、妈妈喊、蛋喊、啵、淋汁）到位后：放入 `public/assets/audio/` 对应文件名，`tools/audio_build.sh` 加一条处理规则，LICENSES.md 记一行，README 表状态改为"已接入"。
-- （2026-11-14 晚）网页上需要可见的音效署名：stirfry-in（LG "Stir fry 07"）和 pour（alexarje "Pouring oil (SoundAction 072)"）是 CC BY 4.0，署名文字见 public/assets/audio/LICENSES.md 文末。建议放在页脚或结尾的"音效致谢"。
+- ~~（2026-11-14 晚）网页上需要可见的音效署名~~ 已完成：唯一的署名是声音按钮左边的「音效致谢」（SoundToggle.tsx）；集成会话的页底署名已撤回（08e467f），不要再加第二处。
