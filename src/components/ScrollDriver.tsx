@@ -87,7 +87,7 @@ export default function ScrollDriver({ smooth = true, readingBeats = DEFAULT_REA
       });
       // 与 GSAP 共用同一个 ticker：Lenis、速度、画格动效在同一帧里更新，不会各走各的 rAF
       // 阅读点磁吸（滚动、动画、声音连在一起）：格内动画和声音在"格子到位"时按真实时间播，所以读者必须能稳稳停在格子上。
-      // 1) 滑停后：落在有画格的段里，就用 Lenis 缓动滑到该段的阅读点（停留阶段中点）；已在停留阶段（格子完整可见）就不动；
+      // 1) 滑停后：落在有画格的段里，就用 Lenis 缓动滑到该段的阅读点（停留阶段中点）；离阅读点 8vh 以内就不动，停留阶段里偏了则吸回阅读点；
       //    顺着滑动方向走：往下滑出停留阶段 → 下一格，往上 → 回到这一格；两段之间不相邻（中间是蛋飞行等自由段）就不抢。
       // 2) 快滑 / 猛滑：这次手势的目标越过了下一格的停留区，就先停在它的阅读点（lock 住惯性约 1 秒），让这一格播完整；之后的手势再往前。
       type Stop = { start: number; holdA: number; read: number; holdB: number; end: number };
@@ -116,14 +116,15 @@ export default function ScrollDriver({ smooth = true, readingBeats = DEFAULT_REA
         if (!lenis) return;
         const dist = Math.abs(y - lenis.scroll) / window.innerHeight;
         settling = true;
-        lenis.scrollTo(y, { duration: Math.min(1.3, 0.55 + dist * 0.5), easing: easeInOutCubic, lock: true, onComplete: () => { settling = false; } });
+        lenis.scrollTo(y, { duration: Math.min(1.4, 0.7 + dist * 0.5), easing: easeInOutCubic, lock: true, onComplete: () => { settling = false; } });
       };
       const adjacent = (a: Stop, b: Stop) => Math.abs(a.end - b.start) < 2;
       const pick = (y: number): number | null => {
         const i = stops.findIndex((st) => y >= st.start - 1 && y <= st.end + 1);
         if (i < 0) return null;
         const st = stops[i];
-        if (y >= st.holdA - 1 && y <= st.holdB + 1) return null; // 停留阶段：格子完整可见，不动
+        if (Math.abs(y - st.read) <= window.innerHeight * 0.08) return null; // 离阅读点 8vh 以内：算到位，不动
+        if (y >= st.holdA - 1 && y <= st.holdB + 1) return st.read; // 停留阶段里偏了：轻轻吸回阅读点（更粘）
         if (y < st.holdA) {
           if (dir >= 0) return st.read;
           const prev = stops[i - 1];
@@ -154,7 +155,7 @@ export default function ScrollDriver({ smooth = true, readingBeats = DEFAULT_REA
         if (Math.abs(y - lastY) > 0.5) { dir = Math.sign(y - lastY); lastY = y; }
         limit();
         settleCall?.kill();
-        settleCall = gsap.delayedCall(0.16, settle);
+        settleCall = gsap.delayedCall(0.1, settle);
       });
       const onTouch = (on: boolean) => () => { touching = on; if (!on) { settleCall?.kill(); settleCall = gsap.delayedCall(0.2, settle); } };
       const ts = onTouch(true), te = onTouch(false);
