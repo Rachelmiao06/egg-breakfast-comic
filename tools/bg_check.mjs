@@ -2,7 +2,7 @@
 // 后景无头检查（headless Chrome over CDP，不依赖 puppeteer）。
 // 对每个视口，从头到尾按固定步长滚过 /preview/background，每个采样点量：
 //   - 蛋元素个数（img[src*="egg.webp"]，必须始终 = 1）
-//   - 交接之后（handoff 进入阶段结束起）蛋是否完全不可见；唯一例外是环境段 tablecall（碗里的蛋），
+//   - 交接之后（handoff 进入阶段结束起）蛋是否完全不可见；（旧版唯一例外是环境段 tablecall 碗里的蛋，方案 B 已删），
 //     这时蛋必须在 B3 碗里（碗不透明度 ≥ 0.9，脚底在碗前沿线之下 = 被前沿遮挡层挡住）
 //   - 蛋在桌沿时（drop 落桌后 → catch 起跳前）脚底是否落在桌面上（B1 的 top 线 ≤ 脚底 ≤ edge 线）且整只蛋在视口内
 //   - 当前后景名（HUD）
@@ -26,7 +26,7 @@ let acc = 0;
 for (const b of beats) { starts[b.id] = acc; acc += b.lengthVh; }
 const total = acc;
 const at = (id, p) => starts[id] + p * beats.find((b) => b.id === id).lengthVh;
-const SHOTS = { opening: at("opening", 0.4), dropMid: at("drop", 0.45), tableLanded: at("drop", 0.95), bag: at("bag", 0.5), prejump: at("prejump", 0.6), hear: at("hear", 0.5), catchFlight: at("catch", 0.45), catchHold: at("catch", 0.92), handoff: at("handoff", 0.6), bowl: at("bowl", 0.8), call: at("call", 0.95), tablecall: at("tablecall", 0.6), tablecallOut: at("tablecall", 0.93), search: at("search", 0.6), eggcall: at("eggcall", 0.5), return: at("return", 0.6), punchline: at("punchline", 0.5), closeup: at("closeup", 0.8) };
+const SHOTS = { opening: at("opening", 0.4), dropMid: at("drop", 0.45), tableLanded: at("drop", 0.95), bag: at("bag", 0.5), prejump: at("prejump", 0.6), hear: at("hear", 0.5), catchFlight: at("catch", 0.45), catchHold: at("catch", 0.92), handoff: at("handoff", 0.6), bowl: at("bowl", 0.8), call: at("call", 0.95), searchIn: at("search", 0.12), search: at("search", 0.6), eggcall: at("eggcall", 0.5), return: at("return", 0.6), punchline: at("punchline", 0.5), closeup: at("closeup", 0.8) };
 // SHOTS_ONLY="名字:节拍:p,..."：只截这些点（不做全程采样），用来逐帧看换场
 const SHOTS_ONLY = process.env.SHOTS_ONLY ? Object.fromEntries(process.env.SHOTS_ONLY.split(",").map((t) => { const [n, b, p] = t.split(":"); return [n, at(b, +p)]; })) : null;
 
@@ -74,9 +74,11 @@ const go = async (vh, settle = 700) => {
 const beatOf = (vh) => { let b = beats[0]; for (const x of beats) if (vh >= starts[x.id]) b = x; return { id: b.id, p: (vh - starts[b.id]) / b.lengthVh }; };
 // 蛋在桌沿：drop 落定（动作阶段 0.15+0.6 = 0.75 之后，留 0.05 余量）→ catch 起跳（enter 0.22）之前
 // 蛋在桌沿且应在画面里：drop 落桌 → hear 中段，以及 catch 18% → 起跳；hear 结尾到 catch 开头是 listen 停顿，镜头故意让蛋出画
-const onTable = (vh) => (vh >= at("drop", 0.8) && vh <= at("hear", 0.5)) || (vh >= at("catch", 0.18) && vh <= at("catch", 0.2));
+// 一跳设计（docs/EGG-JUMP.md）：hear 之后蛋一直在空中（M → E → R），catch 从画外上方落下，不再回到桌沿
+const onTable = (vh) => vh >= at("drop", 0.8) && vh <= at("hear", 0.5);
 const afterHandoff = (vh) => vh >= at("handoff", 0.36);
-const inTablecall = (vh) => vh >= starts.tablecall && vh < starts.search;
+// 方案 B（2026-11-15）删掉了 tablecall：交接之后任何时刻蛋都不可见
+const inTablecall = (vh) => starts.tablecall !== undefined && vh >= starts.tablecall && vh < starts.search;
 
 if (process.env.RECORD) {
   const [w, h] = sizes[0];
