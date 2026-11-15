@@ -17,7 +17,7 @@ assert len(fs) == len(names), len(fs)
 im = {n: Image.open(f) for n, f in zip(names, fs)}
 # 流的长度：yolkM 最短、yolkS 中、yolkL 最长（按像素范围确认）
 base = im["base"].convert("RGBA")
-for n in ["faceA", "faceB", "faceClosed", "yolk1", "yolk2", "yolk3", "steam", "text"]:
+for n in ["faceA", "yolk3", "steam", "text"]:
     im[n].convert("RGBA").save(f"{out}/{n}.webp", quality=92, method=6)
 base.convert("RGB").save(f"{out}/base.webp", quality=92, method=6)
 # 泡遮罩：白色 = 泡（含描边、尾巴），转成 alpha，浏览器按普通 alpha 遮罩用
