@@ -350,25 +350,54 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
 }
 
 /**
- * 调酱汁格 p3a：整条手臂（袖子 + 手 + 勺）绕肩膀（框上沿）转着搅：右下 → 右 → 右上 → 回到左边，两圈后停在静止姿态。
- * 幅度取自 C-sauce 第 3 帧（右移约 5% 画布宽、下移约 1%、转 5°）；袖子往右时收进围裙后面（围裙、碗前壁、框线是遮挡层），勺头在碗里滑。
- * 声音：开始时 sauceStir start，两圈转完 / 离场 / 复位时 stop。静态格同一时刻派发。
+ * 调酱汁格 p3a（2026-11-15 用 ChatGPT 交付的 p3a-stir.webp，public/assets/comic-v5/p3a/stir.webp）。
+ * 以前是把整条手臂当一张贴图绕肩转，手臂是刚体、酱汁不动；现在是 6 张手绘的搅拌姿态（勺子在碗里一圈的位置，手腕、袖子、酱汁漩涡随之变化）
+ * 补成的 42 帧、25 fps、1.64 s 一圈的首尾相接循环动画图（508×508）。
+ * 格子到位后才挂上动画图（每次从第 1 帧开始，所以和静态格首帧完全一致），搅 3 圈（约 4.9 s，声音 sauceStir 同时开始）后停回静态的第 1 帧（首尾相接，不跳）。
+ * 离场 / 复位：卸掉动画图，回到静态首帧，声音停。减少动态效果：静态首帧，声音时刻不变。
+ * 注意：动画图自己循环，离场收住时可能停在圈中间（立即落回首帧，一帧的跳变，离场时发生，看不到）。
  */
-const STIR = { x: 4.9, y: 1.2, rot: 5, laps: 2, sec: 2.3 };
-function sauceScript(tl: gsap.core.Timeline, t: Targets, start: () => void) {
-  const st = { a: 0 };
-  tl.call(start, [], 0);
-  tl.to(st, {
-    a: STIR.laps, duration: STIR.sec, ease: "sine.inOut",
-    onUpdate: () => {
-      const th = st.a * Math.PI * 2;
-      gsap.set(t.part, { xPercent: (STIR.x / 2) * (1 - Math.cos(th)), yPercent: STIR.y * Math.sin(th), rotation: (STIR.rot / 2) * (1 - Math.cos(th)) });
-    },
-  }, 0);
-}
-export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
+const P3A = "/assets/comic-v5/p3a/";
+const STIR_LOOP_MS = 1640;
+const STIR_LAPS = 3;
+export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const snd = useActionSound("sauceStir");
-  return <LayersPanel {...props} k="p3a" pivot={[37.94, 1.64]} build={(tl, t, pan) => sauceScript(tl, t, () => snd.start(pan))} runStatic haltAtEnd onHalt={snd.stop} />;
+  const anim = useRef<HTMLImageElement>(null);
+  const timer = useRef(0);
+  const live = useRef(false);
+  const clear = () => {
+    window.clearTimeout(timer.current);
+    const el = anim.current;
+    if (el) { el.onload = null; el.style.opacity = "0"; el.removeAttribute("src"); }
+  };
+  const halt = () => { if (live.current) { live.current = false; snd.stop(); } };
+  const reset = () => { clear(); halt(); flag(false); };
+  const stop = () => { if (!live.current) return; clear(); halt(); flag(false); };
+  const play = () => {
+    reset();
+    live.current = true;
+    const pan = panFor(pos);
+    snd.start(pan);
+    const el = anim.current;
+    if (animate && el) {
+      flag(true);
+      // 换一个带时间戳的地址，动画图每次都从第 1 帧开始；解码好才显示，之前底下是静态首帧
+      el.onload = () => { el.style.opacity = "1"; };
+      el.src = `${P3A}stir.webp?t=${Date.now()}`;
+    }
+    timer.current = window.setTimeout(() => { clear(); halt(); flag(false); }, STIR_LOOP_MS * STIR_LAPS);
+  };
+  useStage(q, stage, true, play, stop, reset);
+  if (!animate) return <StaticImg src={`${P3A}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
+  const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
+  return (
+    <div className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`${P3A}static.webp`} alt="" draggable={false} className={img} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img ref={anim} alt="" draggable={false} aria-hidden className={img} style={{ opacity: 0 }} />
+    </div>
+  );
 }
 
 /**
