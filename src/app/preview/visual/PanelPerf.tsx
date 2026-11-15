@@ -211,13 +211,16 @@ function LayersPanel({
 /**
  * 切胡萝卜格 p2b：握刀的手（连袖口和刀）整体往下切，绕袖口与手腕交界轻微转动。
  * 最低姿态取自 A-chopping 第 3 帧相对第 1 帧的位姿（下移 18% 画布高、转 1°）；刀尖落进胡萝卜后面（胡萝卜、扶菜的手、对白泡、框线都是遮挡层）。
- * 三刀：小抬 → 快落 → 刀刃接触的那一刻派发 chopHit → 短停 → 抬回 → 停顿；三刀后停在抬刀姿态（和静态格一样）。
+
+ * CHOP_STROKES 刀：小抬 → 快落 → 刀刃接触的那一刻派发 chopHit → 短停 → 抬回 → 停顿；三刀后停在抬刀姿态（和静态格一样）。
  * 静态格画面不动，三下刀声照常、时刻相同。
  */
 const CHOP_DOWN = { yPercent: 18, xPercent: 0, rotation: 1.5 };
+/** 刀数：2026-11-15 用户要求切菜声持续更久，声音逐刀跟着动画走，所以加长的是动画本身（原来 3 刀，约 1.8 s；现在约 5 s） */
+const CHOP_STROKES = 8;
 function chopScript(tl: gsap.core.Timeline, t: Targets, pan: number) {
   let at = 0;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < CHOP_STROKES; i++) {
     tl.to(t.part, { yPercent: -1.6, rotation: -0.8, duration: 0.1, ease: "power1.out" }, at); // 小抬
     at += i === 0 ? 0.14 : 0.11;
     tl.to(t.part, { ...CHOP_DOWN, duration: 0.1, ease: "power3.in" }, at); // 落刀
@@ -225,7 +228,7 @@ function chopScript(tl: gsap.core.Timeline, t: Targets, pan: number) {
     tl.call(() => oneshot("chopHit", pan), [], at); // 刀刃接触
     at += 0.07;
     tl.to(t.part, { yPercent: 0, xPercent: 0, rotation: 0, duration: 0.22, ease: "power2.out" }, at); // 抬回
-    at += 0.22 + (i === 2 ? 0 : 0.1);
+    at += 0.22 + (i === CHOP_STROKES - 1 ? 0 : 0.1);
   }
 }
 export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {

@@ -5,54 +5,349 @@
     "进入阶段电平从上一段渐变过来（与 beats.ts loopLevels 同一规则），所以音乐随滚动换景，不用任何额外的滚动监听。ramps 与 audio-map 同写法：段内进度 start–end 内 from → to，at 可写数字 / enterEnd / actionEnd / holdEnd±偏移 / @事件。",
     "stingers：单次的音乐事件，向下越过 at 时播一次（与 audio-map 的单次音效是两套，互不挤占）。sound 对应 public/assets/audio/music/st-<sound>.mp3。gain 是相对电平，rate 是变速变调。",
     "bloop：这一段里开场蛋每落回锅面一次，马林巴响一个五声音阶的音（蛋的声音就是马林巴）。",
-    "全部由 tools/music_build.py 合成，未经人耳试听；整体音乐音量可用 localStorage kitchen.musicGain（默认 1，0 = 关音乐）或网址 ?music=0.6 临时调。"
+    "全部由 tools/music_build.py 合成，未经人耳试听；整体音乐音量可用 localStorage kitchen.musicGain（默认 1，0 = 关音乐）或网址 ?music=0.6 临时调。",
+    "2026-11-15：去掉钟琴 / 马林巴的小事件（idea-ding、handoff-bell、yolk-cascade、mom-call、egg-small、egg-call）和开场的 egg-bloop，用户觉得突然很多游戏音效；保留 missing-q、catch-chord（改成指弹 + 垫音）、punch-dum、cricket、end-hold。"
   ],
-  "voiceAvailable": ["mom-sigh", "mom-huh", "mom-hmm-q", "mom-oh", "mom-laugh", "mom-wow", "mom-hum", "mom-aha", "mom-ah"],
+  "voiceAvailable": [
+    "mom-sigh",
+    "mom-huh",
+    "mom-hmm-q",
+    "mom-oh",
+    "mom-laugh",
+    "mom-wow",
+    "mom-hum",
+    "mom-aha",
+    "mom-ah"
+  ],
   "scenes": {
-    "opening": { "stems": {}, "bloop": true },
-    "drop": { "stems": { "home-pad": 0.25, "home-pluck": 0.3, "home-sparkle": 0.45 }, "bloop": true },
-    "bag": { "stems": { "home-pad": 0.3, "home-pluck": 0.35, "home-bass": 0.35, "home-sparkle": 0.15 }, "stingers": [{ "sound": "mom-sigh", "at": 0.4, "gain": 0.9 }] },
-    "idea": { "stems": { "home-pad": 0.28, "home-pluck": 0.35, "home-bass": 0.35, "home-melody": 0.35 }, "stingers": [{ "sound": "mom-hum", "at": 0.4, "gain": 0.9 }, { "sound": "mom-aha", "at": 0.54, "gain": 0.9 }, { "sound": "idea-ding", "at": 0.56, "gain": 0.5 }] },
-    "chop": { "stems": { "home-pad": 0.1, "home-pluck": 0.18, "home-bass": 0.24 } },
-    "stirfry": { "stems": { "home-pad": 0.1, "home-pluck": 0.25, "home-bass": 0.28, "home-melody": 0.1, "home-sparkle": 0.08 } },
-    "sauce": { "stems": { "home-pad": 0.15, "home-pluck": 0.2, "home-bass": 0.22, "home-melody": 0.22 } },
-    "missing": { "stems": { "home-pad": 0.1, "curious": 0.55 }, "stingers": [{ "sound": "missing-q", "at": "enterEnd+0.02", "gain": 0.5 }, { "sound": "mom-hmm-q", "at": "enterEnd+0.08", "gain": 0.9 }] },
-    "prejump": { "stems": { "curious": 0.5, "home-sparkle": 0.22 } },
-    "hear": { "stems": { "curious": 0.3 }, "stingers": [{ "sound": "mom-huh", "at": 0.5, "gain": 0.9 }] },
-    "listen": { "stems": { "curious": 0.12 } },
+    "opening": {
+      "stems": {}
+    },
+    "drop": {
+      "stems": {
+        "home-pad": 0.25,
+        "home-pluck": 0.3,
+        "home-sparkle": 0.45
+      }
+    },
+    "bag": {
+      "stems": {
+        "home-pad": 0.3,
+        "home-pluck": 0.35,
+        "home-bass": 0.35,
+        "home-sparkle": 0.15
+      },
+      "stingers": [
+        {
+          "sound": "mom-sigh",
+          "at": 0.4,
+          "gain": 0.9
+        }
+      ]
+    },
+    "idea": {
+      "stems": {
+        "home-pad": 0.28,
+        "home-pluck": 0.35,
+        "home-bass": 0.35,
+        "home-melody": 0.35
+      },
+      "stingers": [
+        {
+          "sound": "mom-hum",
+          "at": 0.4,
+          "gain": 0.9
+        },
+        {
+          "sound": "mom-aha",
+          "at": 0.54,
+          "gain": 0.9
+        }
+      ]
+    },
+    "chop": {
+      "stems": {
+        "home-pad": 0.1,
+        "home-pluck": 0.18,
+        "home-bass": 0.24
+      }
+    },
+    "stirfry": {
+      "stems": {
+        "home-pad": 0.1,
+        "home-pluck": 0.25,
+        "home-bass": 0.28,
+        "home-melody": 0.1,
+        "home-sparkle": 0.08
+      }
+    },
+    "sauce": {
+      "stems": {
+        "home-pad": 0.15,
+        "home-pluck": 0.2,
+        "home-bass": 0.22,
+        "home-melody": 0.22
+      }
+    },
+    "missing": {
+      "stems": {
+        "home-pad": 0.1,
+        "curious": 0.55
+      },
+      "stingers": [
+        {
+          "sound": "missing-q",
+          "at": "enterEnd+0.02",
+          "gain": 0.5
+        },
+        {
+          "sound": "mom-hmm-q",
+          "at": "enterEnd+0.08",
+          "gain": 0.9
+        }
+      ]
+    },
+    "prejump": {
+      "stems": {
+        "curious": 0.5,
+        "home-sparkle": 0.22
+      }
+    },
+    "hear": {
+      "stems": {
+        "curious": 0.3
+      },
+      "stingers": [
+        {
+          "sound": "mom-huh",
+          "at": 0.5,
+          "gain": 0.9
+        }
+      ]
+    },
+    "listen": {
+      "stems": {
+        "curious": 0.12
+      }
+    },
     "catch": {
-      "stems": { "home-pad": 0.3, "home-pluck": 0.45, "home-bass": 0.4, "home-melody": 0.45, "home-sparkle": 0.5 },
+      "stems": {
+        "home-pad": 0.3,
+        "home-pluck": 0.45,
+        "home-bass": 0.4,
+        "home-melody": 0.45,
+        "home-sparkle": 0.5
+      },
       "ramps": [
-        { "sound": "home-pad", "from": 0, "to": 0.3, "start": "enterEnd", "end": "@eggOnSpatula" },
-        { "sound": "home-pluck", "from": 0, "to": 0.45, "start": "enterEnd", "end": "@eggOnSpatula" },
-        { "sound": "home-bass", "from": 0, "to": 0.4, "start": "enterEnd", "end": "@eggOnSpatula" },
-        { "sound": "home-melody", "from": 0, "to": 0.45, "start": "enterEnd", "end": "@eggOnSpatula" },
-        { "sound": "home-sparkle", "from": 0, "to": 0.5, "start": "enterEnd", "end": "@eggOnSpatula" }
+        {
+          "sound": "home-pad",
+          "from": 0,
+          "to": 0.3,
+          "start": "enterEnd",
+          "end": "@eggOnSpatula"
+        },
+        {
+          "sound": "home-pluck",
+          "from": 0,
+          "to": 0.45,
+          "start": "enterEnd",
+          "end": "@eggOnSpatula"
+        },
+        {
+          "sound": "home-bass",
+          "from": 0,
+          "to": 0.4,
+          "start": "enterEnd",
+          "end": "@eggOnSpatula"
+        },
+        {
+          "sound": "home-melody",
+          "from": 0,
+          "to": 0.45,
+          "start": "enterEnd",
+          "end": "@eggOnSpatula"
+        },
+        {
+          "sound": "home-sparkle",
+          "from": 0,
+          "to": 0.5,
+          "start": "enterEnd",
+          "end": "@eggOnSpatula"
+        }
       ],
-      "stingers": [{ "sound": "mom-oh", "at": "@eggOnSpatula-0.05", "gain": 0.9 }, { "sound": "catch-chord", "at": "@eggOnSpatula", "gain": 0.5 }]
+      "stingers": [
+        {
+          "sound": "mom-oh",
+          "at": "@eggOnSpatula-0.05",
+          "gain": 0.9
+        },
+        {
+          "sound": "catch-chord",
+          "at": "@eggOnSpatula",
+          "gain": 0.5
+        }
+      ]
     },
-    "handoff": { "stems": { "home-pad": 0.35, "home-pluck": 0.5, "home-bass": 0.45, "home-melody": 0.5, "home-sparkle": 0.3 }, "stingers": [{ "sound": "handoff-bell", "at": "enterEnd+0.02", "gain": 0.45 }, { "sound": "mom-laugh", "at": "enterEnd+0.08", "gain": 0.9 }] },
-    "bowl": { "stems": { "home-pad": 0.3, "home-pluck": 0.15, "home-bass": 0.3, "tender": 0.5 } },
-    "yolk": { "stems": { "home-pad": 0.42, "home-bass": 0.2, "home-sparkle": 0.3, "tender": 0.5 }, "stingers": [{ "sound": "yolk-cascade", "at": "enterEnd+0.05", "gain": 0.5 }, { "sound": "mom-wow", "at": "enterEnd+0.1", "gain": 0.9 }] },
-    "call": { "stems": { "home-pad": 0.28, "home-melody": 0.2, "tender": 0.22 }, "stingers": [{ "sound": "mom-call", "at": 0.25, "gain": 0.5 }, { "sound": "egg-small", "at": 0.55, "gain": 0.5 }] },
-    "search": { "stems": { "empty": 0.55 } },
-    "eggcall": { "stems": { "empty": 0.2, "curious": 0.15 }, "stingers": [{ "sound": "egg-call", "at": 0.25, "gain": 0.55 }] },
-    "return": { "stems": { "home-pad": 0.3, "tender": 0.38, "curious": 0.1 } },
-    "recognize": { "stems": { "home-pad": 0.35, "home-melody": 0.4, "tender": 0.45 }, "stingers": [{ "sound": "mom-gasp", "at": 0.2, "gain": 0.9 }, { "sound": "egg-small", "at": 0.62, "gain": 0.55, "rate": 1.26 }] },
-    "worry": { "stems": { "home-pad": 0.12, "curious": 0.38, "empty": 0.22 }, "stingers": [{ "sound": "mom-ah", "at": 0.2, "gain": 0.9 }] },
+    "handoff": {
+      "stems": {
+        "home-pad": 0.35,
+        "home-pluck": 0.5,
+        "home-bass": 0.45,
+        "home-melody": 0.5,
+        "home-sparkle": 0.3
+      },
+      "stingers": [
+        {
+          "sound": "mom-laugh",
+          "at": "enterEnd+0.08",
+          "gain": 0.9
+        }
+      ]
+    },
+    "bowl": {
+      "stems": {
+        "home-pad": 0.3,
+        "home-pluck": 0.15,
+        "home-bass": 0.3,
+        "tender": 0.5
+      }
+    },
+    "yolk": {
+      "stems": {
+        "home-pad": 0.42,
+        "home-bass": 0.2,
+        "home-sparkle": 0.3,
+        "tender": 0.5
+      },
+      "stingers": [
+        {
+          "sound": "mom-wow",
+          "at": "enterEnd+0.1",
+          "gain": 0.9
+        }
+      ]
+    },
+    "call": {
+      "stems": {
+        "home-pad": 0.28,
+        "home-melody": 0.2,
+        "tender": 0.22
+      }
+    },
+    "search": {
+      "stems": {
+        "empty": 0.55
+      }
+    },
+    "eggcall": {
+      "stems": {
+        "empty": 0.2,
+        "curious": 0.15
+      }
+    },
+    "return": {
+      "stems": {
+        "home-pad": 0.3,
+        "tender": 0.38,
+        "curious": 0.1
+      }
+    },
+    "recognize": {
+      "stems": {
+        "home-pad": 0.35,
+        "home-melody": 0.4,
+        "tender": 0.45
+      },
+      "stingers": [
+        {
+          "sound": "mom-gasp",
+          "at": 0.2,
+          "gain": 0.9
+        }
+      ]
+    },
+    "worry": {
+      "stems": {
+        "home-pad": 0.12,
+        "curious": 0.38,
+        "empty": 0.22
+      },
+      "stingers": [
+        {
+          "sound": "mom-ah",
+          "at": 0.2,
+          "gain": 0.9
+        }
+      ]
+    },
     "punchline": {
-      "stems": { "curious": 0.18, "empty": 0.2 },
+      "stems": {
+        "curious": 0.18,
+        "empty": 0.2
+      },
       "ramps": [
-        { "sound": "curious", "from": 0.18, "to": 0, "start": 0.25, "end": 0.4 },
-        { "sound": "empty", "from": 0.2, "to": 0, "start": 0.25, "end": 0.4 }
+        {
+          "sound": "curious",
+          "from": 0.18,
+          "to": 0,
+          "start": 0.25,
+          "end": 0.4
+        },
+        {
+          "sound": "empty",
+          "from": 0.2,
+          "to": 0,
+          "start": 0.25,
+          "end": 0.4
+        }
       ],
-      "stingers": [{ "sound": "punch-dum", "at": 0.42, "gain": 0.5 }, { "sound": "mom-uh", "at": 0.5, "gain": 0.9 }]
+      "stingers": [
+        {
+          "sound": "punch-dum",
+          "at": 0.42,
+          "gain": 0.5
+        },
+        {
+          "sound": "mom-uh",
+          "at": 0.5,
+          "gain": 0.9
+        }
+      ]
     },
-    "closeup": { "stems": {}, "stingers": [{ "sound": "end-hold", "at": 0.12, "gain": 0.4 }] },
-
-    "notice": { "stems": { "curious": 0.35, "home-sparkle": 0.2 } },
-    "spatula": { "stems": { "curious": 0.3, "home-pad": 0.2 } },
-    "serve": { "stems": { "home-pad": 0.35, "home-bass": 0.2, "tender": 0.5 }, "stingers": [{ "sound": "handoff-bell", "at": "enterEnd+0.02", "gain": 0.45 }] },
-    "ending": { "stems": { "home-pad": 0.35, "tender": 0.4 }, "stingers": [{ "sound": "yolk-cascade", "at": 0.3, "gain": 0.5 }] }
+    "closeup": {
+      "stems": {},
+      "stingers": [
+        {
+          "sound": "end-hold",
+          "at": 0.12,
+          "gain": 0.4
+        }
+      ]
+    },
+    "notice": {
+      "stems": {
+        "curious": 0.35,
+        "home-sparkle": 0.2
+      }
+    },
+    "spatula": {
+      "stems": {
+        "curious": 0.3,
+        "home-pad": 0.2
+      }
+    },
+    "serve": {
+      "stems": {
+        "home-pad": 0.35,
+        "home-bass": 0.2,
+        "tender": 0.5
+      }
+    },
+    "ending": {
+      "stems": {
+        "home-pad": 0.35,
+        "tender": 0.4
+      }
+    }
   }
 }

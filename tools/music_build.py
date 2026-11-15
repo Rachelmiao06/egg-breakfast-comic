@@ -413,15 +413,18 @@ def stinger_idea():
 
 
 def stinger_missing():
-    ev = [(0.0, marimba(76, 0.9, 1.0), -0.1, 1.0), (0.3, marimba(81, 0.8, 1.2), 0.1, 1.0), (0.3, glock(93, 0.3, 2.0), 0.3, 1.0)]
+    """还少点什么：两个上行的指弹音 + 一团悬着的暖垫音（2026-11-15：不再用马林巴 / 钟琴，太像游戏音效）"""
+    ev = [(0.0, soft_nylon(64, 0.9, 1.0), -0.1, 1.0), (0.3, soft_nylon(69, 0.8, 1.4), 0.1, 1.0)]
     for m in (57, 62, 64):
         ev.append((0.25, pad_note(m + 12, 1.6, att=0.5, rel=1.5, vel=0.5), 0.0, 1.0))
     return render_once(ev, 0.4, 1.8, 3.2)
 
 
 def stinger_catch():
-    ev = [(i * 0.055, glock(m, 0.85, 2.2), 0.1 * (i - 1.5), 1.0) for i, m in enumerate((72, 76, 79, 84))]
-    ev += [(0.0, kalimba(60, 0.8, 2.2), -0.2, 1.0), (0.0, kalimba(67, 0.6, 2.2), 0.2, 1.0), (0.14, kalimba(76, 0.7, 2.2), 0.0, 1.0)]
+    """接住：一下温暖的扫弦 + 垫音鼓起，没有叮叮声"""
+    ev = []
+    for i, m in enumerate((48, 55, 60, 64, 67)):
+        ev.append((i * 0.03, soft_nylon(m, 0.9, 2.0), 0.0, 1.0))
     for m in (60, 64, 67, 72):
         ev.append((0.02, pad_note(m, 1.4, att=0.12, rel=1.6, vel=0.7), 0.0, 1.0))
     return render_once(ev, 0.28, 1.6, 3.6)
@@ -485,9 +488,10 @@ def stinger_bloop():
 
 
 STINGERS = {
-    "idea-ding": stinger_idea, "missing-q": stinger_missing, "catch-chord": stinger_catch, "handoff-bell": stinger_handoff,
-    "yolk-cascade": stinger_yolk, "mom-call": stinger_mom_call, "egg-small": stinger_egg_small, "egg-call": stinger_egg_call,
-    "punch-dum": stinger_punch, "cricket": stinger_cricket, "end-hold": stinger_end, "egg-bloop": stinger_bloop,
+    # 2026-11-15 用户：突然很多"叮叮叮"的游戏音效很奇怪。去掉钟琴 / 马林巴的小事件（idea-ding、handoff-bell、yolk-cascade、
+    # mom-call、egg-small、egg-call、egg-bloop）；它们的函数留在上面，需要时再加回这张表。人声语气词（voice/）接管这些位置。
+    "missing-q": stinger_missing, "catch-chord": stinger_catch,
+    "punch-dum": stinger_punch, "cricket": stinger_cricket, "end-hold": stinger_end,
 }
 
 
