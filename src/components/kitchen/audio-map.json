@@ -1,5 +1,6 @@
 {
   "_doc": [
+    "【2026-11-15 第六轮】切菜段去掉整段循环 chop（0.75）：它的节奏（约 1.05 s 一刀）和前景动画的三刀对不上（用户：哒哒声和动作不连接）。切菜声只剩前景逐刀派发的 chopHit（0.9），每一声都落在刀刃接触的那一帧；想让切菜声更久，要在前景 PanelPerf 的 chopScript 里增加刀数（现在 3 刀）。",
     "【2026-11-15 第五轮】油锅滋滋声只属于蛋在锅里的开场：stirfry 段的 sizzle 也去掉（之前 0.3），全片只有 opening 有 sizzle，蛋一跳出锅（drop）就收到 0，之后再没有。翻炒段的声音只剩 stirfry-loop（木铲推菜）和入锅的 stirfryIn。",
     "【2026-11-15 第四轮】调汁段在木勺搅碗之外加摆放 / 食物的声音（用户要求）：p3a 格到位 0.15 s vegTable（瓶子、碗放到桌上的轻木头声）；p3b 舀菜进碗 0.25 s 和 1.15 s 各一下 vegBowl（菜粒落在饭上）。vegTable / vegBowl 电平 0.45 / 0.4 → 0.8。仍未经人耳试听。",
     "【2026-11-15 第三轮：用户要求备菜三段声音更长更明显、盖过配乐】chop / stirfry / sauce 三段改回整段持续的循环声：chop 0.75（逐刀 chopHit 仍由动画触发，音量 0.5 → 0.9）、stirfry 1.0（新做的 stirfry-loop：翻炒 + 锅里滋滋 0.3）、sauce 0.9（sauce-stir-loop）；sauceStir 动作声改为静音，避免和循环重复；配乐在这三段同时压低（music-map.json）。未经人耳试听。",
@@ -66,7 +67,7 @@
     "drop": { "loops": { "room": 0.2, "sizzle": 0 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "sizzle", "from": 0.6, "to": 0, "start": "enterEnd", "end": "enterEnd+0.08" } ] },
     "bag": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
     "idea": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
-    "chop": { "roomHz": 2500, "loops": { "room": 0.2, "chop": 0.75 }, "fades": [], "oneshots": [] },
+    "chop": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
     "stirfry": { "roomHz": 2500, "loops": { "room": 0.15, "stirfry": 1.0 }, "fades": [], "oneshots": [] },
     "sauce": { "roomHz": 2500, "loops": { "room": 0.15, "sauce": 0.9 }, "fades": [], "oneshots": [] },
     "missing": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
