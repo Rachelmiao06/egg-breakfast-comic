@@ -8,7 +8,9 @@
     "全部由 tools/music_build.py 合成，未经人耳试听；整体音乐音量可用 localStorage kitchen.musicGain（默认 1，0 = 关音乐）或网址 ?music=0.6 临时调。",
     "2026-11-15：去掉钟琴 / 马林巴的小事件（idea-ding、handoff-bell、yolk-cascade、mom-call、egg-small、egg-call）和开场的 egg-bloop，用户觉得突然很多游戏音效；保留 missing-q、catch-chord（改成指弹 + 垫音）、punch-dum、cricket、end-hold。",
     "2026-11-15：idea 段去掉「哦！」(mom-aha)——第二格妈妈已经笑着说「先炒个配菜饭吧」，再来一声惊喜的「哦！」显得奇怪（用户）。文件 voice/mom-aha.mp3 保留，位置待定。",
-    "2026-11-15：idea 第二格（「先炒个配菜饭吧」，妈妈笑着）0.6 处一声轻轻满意的「嗯。」(mom-content)，替换掉去掉的「哦！」。"
+    "2026-11-15：idea 第二格（「先炒个配菜饭吧」，妈妈笑着）0.6 处一声轻轻满意的「嗯。」(mom-content)，替换掉去掉的「哦！」。",
+    "2026-11-15：yolk 段在「哇！」之前加蛋黄流出来的黏稠流动声 yolk-ooze（用户要「蛋流心」的声音；合成的，没有录音，可替换成录音）。",
+    "2026-11-15：return 段（妈妈回到碗前，疑惑地看着蛋）0.5 处先用 mom-hmm-q（嗯……？）当「很疑惑」的声音；等新生成的「咦……？」(mom-confused) 到了再换。"
   ],
   "voiceAvailable": [
     "mom-sigh",
@@ -224,8 +226,13 @@
       },
       "stingers": [
         {
+          "sound": "yolk-ooze",
+          "at": "enterEnd+0.03",
+          "gain": 0.9
+        },
+        {
           "sound": "mom-wow",
-          "at": "enterEnd+0.1",
+          "at": "enterEnd+0.12",
           "gain": 0.9
         }
       ]
@@ -253,7 +260,14 @@
         "home-pad": 0.3,
         "tender": 0.38,
         "curious": 0.1
-      }
+      },
+      "stingers": [
+        {
+          "sound": "mom-hmm-q",
+          "at": 0.5,
+          "gain": 0.9
+        }
+      ]
     },
     "recognize": {
       "stems": {

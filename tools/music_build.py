@@ -483,6 +483,25 @@ def stinger_cricket():
     return render_once(ev, 0.12, 0.6, 0.6)
 
 
+def stinger_ooze():
+    """蛋黄流出来：黏稠、缓慢、湿润的流动声（低通噪声 + 缓慢起伏）+ 几个小气泡 "咕噜"。合成的，不是录音 """
+    d = 2.4
+    t = tt(d)
+    n = lowpass(RNG.standard_normal(len(t)), 700, 2) + 0.6 * bandpass(RNG.standard_normal(len(t)), 250, 500)
+    wob = lowpass(RNG.standard_normal(len(t)), 3, 2)
+    wob = 0.65 + 0.35 * wob / (np.abs(wob).max() + 1e-9)
+    env = (1 - np.exp(-t / 0.18)) * np.exp(-np.maximum(t - 1.3, 0) / 0.45)
+    y = n * wob * env * 0.5
+    for bt, f0 in ((0.45, 180), (0.9, 220), (1.25, 170), (1.7, 200)):
+        tb = tt(0.12)
+        f = f0 * (1 + 1.4 * tb / 0.12)
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        b = np.sin(ph) * np.exp(-tb / 0.035) * (1 - np.exp(-tb / 0.003))
+        i = int(bt * SR)
+        y[i:i + len(b)] += 0.55 * b
+    return render_once([(0.0, y, 0.0, 1.0)], 0.12, 0.8, 0.4)
+
+
 def stinger_bloop():
     return render_once([(0.0, marimba(72, 1.0, 0.9), 0.0, 1.0)], 0.12, 0.7, 1.2)
 
@@ -490,7 +509,7 @@ def stinger_bloop():
 STINGERS = {
     # 2026-11-15 用户：突然很多"叮叮叮"的游戏音效很奇怪。去掉钟琴 / 马林巴的小事件（idea-ding、handoff-bell、yolk-cascade、
     # mom-call、egg-small、egg-call、egg-bloop）；它们的函数留在上面，需要时再加回这张表。人声语气词（voice/）接管这些位置。
-    "missing-q": stinger_missing, "catch-chord": stinger_catch,
+    "missing-q": stinger_missing, "catch-chord": stinger_catch, "yolk-ooze": stinger_ooze,
     "punch-dum": stinger_punch, "cricket": stinger_cricket, "end-hold": stinger_end,
 }
 

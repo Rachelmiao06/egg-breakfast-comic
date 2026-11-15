@@ -28,7 +28,7 @@ const SCENES = (musicMap as unknown as { scenes: Record<string, MusicScene> }).s
 /** 妈妈的语气词（真人录音，见 docs/VOICE.md）：music-map.json 的 voiceAvailable 里列出的才加载，没列的保持静音、不发请求 */
 const VOICE_DIR = "/assets/audio/voice/";
 const VOICE_AVAILABLE = ((musicMap as unknown as { voiceAvailable?: string[] }).voiceAvailable ?? []).filter((n) => /^[a-z0-9-]+$/.test(n));
-const STINGER_SOUNDS = ["missing-q", "catch-chord", "punch-dum", "end-hold", "cricket"] as const;
+const STINGER_SOUNDS = ["missing-q", "catch-chord", "yolk-ooze", "punch-dum", "end-hold", "cricket"] as const;
 
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
 const LEVEL_TC = 0.35;
