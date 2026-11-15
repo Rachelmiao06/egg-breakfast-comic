@@ -301,3 +301,8 @@ A、B 到位后可以去掉近景的裁切复用和主格的色块背景；C 不
 - 每一格：`comic:panel` {key, phase:"start"|"stop"|"reset"}（同一套到位规则，ComicLayer 对所有非特写格派发；只有真的 start 过才发 stop / reset）。
 实测事件序列（1440×900，动画与减少动态效果两种）：stirfryIn 在格子到位后 0.68 s，stirfry start 1.20 s，离场 stop；sauceStir start 0.31 s、stop 1.56 s；无重复、无空信号。
 
+声音约定（kitchen-audio 2026-11-14 补充，本分支暂不改代码）：
+- 淋汁 p4c：做淋汁动画时（素材请求第 4 节），在液流出现的那一帧派发 `kitchen:action` {name:"pour", phase:"start"}，液流消失 / 离场 / 复位时 {phase:"stop"}。p4c 现在是静态图，淋汁暂不出声。
+- 翻炒：p2d 派发的 `kitchen:action` stirfry 由混音器先静音（audio-map cues.muted）；以后 p2e 有木铲动画，把 start / stop 挂到木铲动作上。
+- 放碗声只给 p4e，p4b 用更软的落饭声，都走现有的 `comic:panel`，这边不用改。
+
