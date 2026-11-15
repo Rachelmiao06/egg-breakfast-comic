@@ -18,7 +18,7 @@ export default function PaperFrameTexture() {
 
   useEffect(() => {
     // 已经烘过（StrictMode 重复挂载 / 热更新）就不再渲染
-    if (document.getElementById("paper-frame-texture")) { setDone(true); return; }
+    if (document.getElementById("paper-frame-texture")) return;
     let tries = 0;
     let timer = 0;
     const grab = () => {
