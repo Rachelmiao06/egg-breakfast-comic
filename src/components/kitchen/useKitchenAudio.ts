@@ -66,7 +66,12 @@ export const KITCHEN_ONESHOT_EVENT = "kitchen:oneshot";
  * 与滚动无关：停止滚动后照样响到动画自己发 stop。
  */
 export const KITCHEN_ACTION_EVENT = "kitchen:action";
-type MapAction = { loops: Partial<Record<LoopSound, number>>; duck?: Partial<Record<LoopSound, number>> };
+type MapAction = {
+  loops: Partial<Record<LoopSound, number>>;
+  duck?: Partial<Record<LoopSound, number>>;
+  /** start 时把这一路循环跳到指定秒数（稀疏的素材从声音密集处开始，短动作里才听得到） */
+  seek?: Partial<Record<LoopSound, number>>;
+};
 const ACTIONS = ((audioMap as { actions?: Record<string, MapAction> }).actions ?? {}) as Record<string, MapAction>;
 /** 单次音效：文件与播放音量（素材已统一到约 -18 LUFS，这里是相对电平） */
 const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number }> = {
@@ -411,7 +416,13 @@ class KitchenMixer {
       warnOnce(`${KITCHEN_ACTION_EVENT}: 未登记的动作 ${String(name)}`);
       return;
     }
-    if (d.phase === "start") this.active.add(name);
+    if (d.phase === "start") {
+      this.active.add(name);
+      for (const [loop, sec] of Object.entries(ACTIONS[name].seek ?? {}) as [LoopSound, number][]) {
+        const ch = this.loops[loop];
+        if (ch && ch.level === 0) { try { ch.el.currentTime = sec; } catch { /* 还没加载 */ } }
+      }
+    }
     else if (d.phase === "stop") this.active.delete(name);
     else return;
     this.root.dataset.actions = [...this.active].join(" ");
@@ -459,7 +470,10 @@ class KitchenMixer {
       const want = this.effectiveTarget(name, ch.target);
       ch.el.dataset.want = want.toFixed(3);
       const target = this.soundOn && !this.hidden && ch.ok ? want : 0;
-      const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), step);
+      // 正在被前景动作抬起 / 压低的那几路用 4 倍速度起声（动作只有 1–2 s，2.5/s 的平滑会吃掉开头）；动作结束按常速收尾
+      const fast = [...this.active].some((a) => ACTIONS[a].loops[name] !== undefined || ACTIONS[a].duck?.[name] !== undefined);
+      const st = fast ? step * 4 : step;
+      const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), st);
       const level = Math.min(1, Math.max(0, v));
       if (level !== ch.level) this.apply(ch, level);
       if (target > 0 && ch.el.paused && !ch.priming && (this.unlocked || !this.gestureNeeded)) this.play(ch);
