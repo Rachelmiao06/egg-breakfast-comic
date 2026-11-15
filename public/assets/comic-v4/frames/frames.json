@@ -1,0 +1,35 @@
+{
+ "C-sauce": {
+  "group": "C-sauce",
+  "key": "p3a",
+  "aspect": 1.0041,
+  "size": [
+   1000,
+   996
+  ],
+  "regionPx": 462915,
+  "framePx": 1484918
+ },
+ "A-chopping": {
+  "group": "A-chopping",
+  "key": "p2b",
+  "aspect": 1.5118,
+  "size": [
+   1100,
+   728
+  ],
+  "regionPx": 291113,
+  "framePx": 1572840
+ },
+ "B-pouring": {
+  "group": "B-pouring",
+  "key": "p2d",
+  "aspect": 3.0338,
+  "size": [
+   1600,
+   527
+  ],
+  "regionPx": 1057889,
+  "framePx": 1493993
+ }
+}
