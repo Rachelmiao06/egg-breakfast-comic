@@ -1,5 +1,6 @@
 {
   "_doc": [
+    "【2026-11-15 用户听过后的场景定点，覆盖下面较早的说明】滚动决定每段的底声，前景动画事件决定动作声。油锅声 sizzle 只在开场（0.32，蛋在锅里煎）和炒菜段 stirfry（0.45，热锅下油，进入阶段从 0 升起；翻炒时持续，入锅那一声仍是 p2d 第 2 帧的 stirfryIn；退出阶段降到 0，调汁段进来时已经没有油锅声）；drop 动作阶段随蛋离锅 0.32 → 0，bag 之前收掉。备菜段 bag / idea / chop、调汁段 sauce、missing、prejump 都没有 sizzle：备菜段只有很轻的环境声 + 落刀动画的逐刀 chopHit，调汁段只有 room + 搅拌动画的 sauceStir；静态格（买菜、摆菜、案板、舀菜进碗）不加动作声（2026-11-15 用户修正：只有画面里确实在发生的动作才有声音）。hear / listen / catch 暂时保持原样。全部未经人耳试听。",
     "按场景编号（节拍表的 id）覆盖每段的 audio 字段，由 useKitchenAudio 读取；表里没有的场景沿用节拍数据里原来的值。同一张表同时适用于 src/app/preview/visual/beats.visual-v2.json（默认动效，19 段，含 drop）和 beats.visual.json（?motion=v1，18 段，无 drop）。",
     "共享事件位置（优先用）：at 写 \"@eggOnSpatula\" / \"@eggOnTable\" / \"@eggInBowl\"，由 src/lib/beats.ts 的 eventAt 换算；蛋的动画（Egg.tsx）读同一个函数，所以声音和画面永远落在同一点，两边都不写死数字。catch 用 @eggOnSpatula（v2 = 0.80，v1 = 0.78）。",
     "单次音效的 at：数字 = 段内进度 0–1；或阶段符号 enterEnd / actionEnd / holdEnd（可带偏移，如 actionEnd-0.02），由混音器按当前节拍表的 phases 换算，这样新旧两版节拍的动作结束点不同也只写一次（catch 落铲 = actionEnd：v1 0.78、v2 0.80）。",
@@ -47,20 +48,21 @@
     "eggRice"
   ],
   "cues": {
-    "_doc": "前景事件 → 声音（2026-11-14 晚第二轮）。action：kitchen:action 的 name → 一段动作声（start 从头播，stop 0.2 s 淡出）；pour 要求前景在液流出现 / 消失的帧派发 start / stop（p4c 现在是静态图，没有事件就不出声）。muted：刻意静音的动作（stirfry：p2e 翻炒格是静态图，没有可见的翻炒动作，不放连续刮锅声；翻炒动画到位后把 stirfry: stirfryStir 放回 action）。panel：comic:panel 的格子 key → start 之后 delay 秒播的单次声：p4b 蛋被放到饭上 → eggRice；p4e 妈妈把碗放到桌上 → bowlDown（放碗声只用于这一格）。逐帧接触声（chopHit、stirfryIn、eggHop）直接用 kitchen:oneshot。",
+    "_doc": "前景事件 → 声音（2026-11-14 晚第二轮）。action：kitchen:action 的 name → 一段动作声（start 从头播，stop 0.2 s 淡出）；pour 要求前景在液流出现 / 消失的帧派发 start / stop（p4c 现在是静态图，没有事件就不出声）。muted：刻意静音的动作（stirfry：p2e 翻炒格是静态图，没有可见的翻炒动作，不放连续刮锅声；翻炒动画到位后把 stirfry: stirfryStir 放回 action）。panel：comic:panel 的格子 key → start 之后 delay 秒播的单次声：p4b 蛋被放到饭上 → eggRice；p4e 妈妈把碗放到桌上 → bowlDown（放碗声只用于这一格）。逐帧接触声（chopHit、stirfryIn、eggHop）直接用 kitchen:oneshot。 2026-11-15 用户修正：只有画面里确实在发生的动作才加声音，不为填满声音新增动作声。静态格 p1a / p1b / p1d / p2a / p2c / p3b 不挂声音（bag-rustle、bag-down、veg-table、veg-board、board-scrape、veg-bowl 文件留在仓库、许可照常登记，但不在 available 里、不加载）；等这些格做成真正的局部动画、画面里出现放菜 / 舀菜的动作帧时再按动作帧接。p4b egg-rice、p4e bowl-down 是用户之前确认过的，保留。",
     "action": { "sauceStir": "sauceStir", "pour": "pour" },
     "muted": [ "stirfry" ],
     "panel": { "p4b": [ { "sound": "eggRice", "delay": 0.05 } ], "p4e": [ { "sound": "bowlDown", "delay": 0.2 } ] }
   },
   "scenes": {
     "opening": { "loops": { "room": 0.2, "sizzle": 0.32 }, "fades": [], "oneshots": [] },
-    "drop": { "loops": { "room": 0.2, "sizzle": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.32, "to": 0.2, "phase": "action" } ], "oneshots": [] },
-    "bag": { "roomHz": 2500, "loops": { "room": 0.25, "sizzle": 0.12 }, "fades": [], "oneshots": [] },
-    "idea": { "roomHz": 2500, "loops": { "room": 0.25, "sizzle": 0.1 }, "fades": [ { "sound": "sizzle", "from": 0.1, "to": 0.05, "phase": "hold" } ], "oneshots": [] },
-    "chop": { "roomHz": 2500, "loops": { "room": 0.2, "sizzle": 0.06 }, "fades": [], "oneshots": [] },
-    "stirfry": { "roomHz": 2500, "loops": { "room": 0.2, "sizzle": 0.1 }, "fades": [], "oneshots": [] },
-    "sauce": { "roomHz": 2500, "loops": { "room": 0.2, "sizzle": 0.08 }, "fades": [], "oneshots": [] },
-    "missing": { "roomHz": 2500, "loops": { "room": 0.25, "sizzle": 0.2 }, "fades": [ { "sound": "sizzle", "from": 0.2, "to": 0.04, "phase": "hold" } ], "oneshots": [] },
+    "drop": { "loops": { "room": 0.2, "sizzle": 0 }, "fades": [ { "sound": "sizzle", "from": 0.32, "to": 0, "phase": "action" } ], "oneshots": [] },
+    "bag": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
+    "idea": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
+    "chop": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
+    "stirfry": { "roomHz": 2500, "loops": { "room": 0.2, "sizzle": 0.45 }, "fades": [ { "sound": "sizzle", "from": 0.45, "to": 0, "phase": "exit" } ], "oneshots": [] },
+    "sauce": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
+    "missing": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
+    "prejump": { "loops": { "room": 0.22 }, "fades": [], "oneshots": [] },
     "hear": { "roomHz": 2500, "loops": { "room": 0.18, "sizzle": 0.6 }, "fades": [ { "sound": "sizzle", "from": 0.6, "to": 0.3, "phase": "hold" } ], "oneshots": [] },
     "listen": { "oncePerVisit": true, "loops": { "room": 0.14, "sizzle": 0.05 }, "fades": [], "oneshots": [] },
     "catch": { "roomHz": 2500, "loops": { "room": 0.18, "sizzle": 0.38 }, "fades": [ { "sound": "sizzle", "from": 0.3, "to": 0.38, "phase": "action" } ], "oneshots": [ { "sound": "catch", "at": "@eggOnSpatula" } ] },

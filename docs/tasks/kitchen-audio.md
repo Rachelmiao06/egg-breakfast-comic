@@ -99,6 +99,17 @@
 
 合并说明：集成会话的 668b598 同时改了 useKitchenAudio.ts / audio-map.json（动作期间抬高 sizzle / sauce 循环）。合并时保留了声音分支的版本（短句式动作声），节拍表删除 stirfryIn 和 PanelPerf 注释来自 668b598。
 
+## 按场景重新定点（2026-11-15，用户听过后说"新版所有的声音都不对"；全部未经人耳试听）
+
+原则：每一段的声音都和画面里正在发生的事对得上；滚动决定这一段有什么底声，动画事件决定动作声什么时候响；不用不相关的声音填空。逐段做法见 public/assets/audio/README.md "按场景重新定点"。
+新文件（都是 Freesound CC0，许可见 LICENSES.md）：bag-rustle（p1a）、bag-down（p1b）、veg-table（p1d）、veg-board（p2a）、board-scrape（p2c）、veg-bowl（p3b）。没有洗菜的画面，所以没有加洗菜声。
+混音器：comic:panel 一格可以挂多个声音（各自一个声部，离场时都淡出），每条可带 gain。
+录制核对（真实混音输出，headless，3006）：sizzle 在 bag / idea / chop / sauce / missing 全程为 0（tablecall 段已在 main a64188d 删除），opening 0.32、stirfry 最高 0.45；调汁格搅拌开始时 sizzle = 0（之前 0.18，已把 stirfry 的油锅声收进它自己的退出阶段）；每格声音各响一次：bag 两声、idea 一声、chop 放案板 1 + 落刀 3 + 推菜 1、stirfryIn 1、sauce 搅拌 1 + 舀菜 1 + 碗轻放 1。
+
+## 修正：只有画面里确实在发生的动作才有声音（2026-11-15，用户）
+
+撤掉静态格上的提示音：p1a bag-rustle、p1b bag-down、p1d veg-table、p2a veg-board、p2c board-scrape、p3b veg-bowl + bowl-down（文件和许可保留，不在 available、不加载）。保留：开场 eggHop 与点火、p2b chopHit、p2d stirfryIn、p3a sauceStir、炒菜段 sizzle 底声、用户确认过的 p4b egg-rice 与 p4e bowl-down。eggSmall（画外小声"我在这儿……"）没有合适素材，保持静音，只用文字。备菜段和调汁段只有很轻的 room（bag / idea 0.25、chop / sauce 0.2，低通 2500 Hz）。
+
 ## 需要集成会话改：
 
 - 无需改 beats 数据：音量和触发点都在 audio-map.json。若试听后要调 sauce（0.4）/ chop（0.5）/ 炒菜段 sizzle（0.45），改 audio-map.json 即可。
