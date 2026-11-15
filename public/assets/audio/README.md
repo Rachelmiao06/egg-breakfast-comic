@@ -50,6 +50,23 @@
 
 用户要求：滚动让镜头进入，动作和声音随后按真实时间一起播放；不能画面停了声音继续，也不能停滚就断。所以切菜、下锅、翻炒、调汁、淋汁、放碗、开场蛋跳都改成**前景事件触发**（`kitchen:oneshot` / `kitchen:action` / `comic:panel`，见 useKitchenAudio.ts 文件头），触发时刻由 PanelPerf / ComicLayer / Egg 的动画时间轴决定；对应的滚动触发和整段循环已去掉，同一动作不会响两遍。前景没派发事件时这些声音保持静音（不退回滚动触发）。接蛋 catch 仍按 @eggOnSpatula：蛋的飞行本身由滚动驱动，所以声音也跟滚动。
 
+## 按场景重新定点（2026-11-15，用户听过之后）
+
+滚动决定每段的底声，前景动画事件决定动作声。
+
+| 段 | 底声（滚动） | 动作声（事件） |
+|---|---|---|
+| opening | room 0.2 + sizzle 0.32（蛋在锅里煎，一直有油） | eggHop（蛋落回锅面）、点火两下 |
+| drop | sizzle 在动作阶段随蛋离锅 0.32 → 0，bag 之前收掉 | — |
+| bag | room 0.25，**无 sizzle** | p1a 到位 → bag-rustle；p1b 到位 → bag-down（袋子落台面） |
+| idea | room 0.25，无 sizzle | p1d 到位 → veg-table（把菜摆到桌上） |
+| chop | room 0.2，无 sizzle | p2a 到位 → veg-board；p2b 落刀帧 → chop-hit（每刀）；p2c 到位 → board-scrape |
+| stirfry | sizzle 0.45（进入阶段从 0 升起，翻炒时持续，退出阶段降到 0） | p2d 第 2 帧 → stirfry-in（一次）；翻炒 kitchen:action stirfry 静音，由 sizzle 底声承担 |
+| sauce | room 0.2，**无 sizzle**（调汁格开始时 sizzle 已是 0） | p3a 两圈 → sauce-stir；p3b 到位 → veg-bowl，1.2 s 后 bowl-down（gain 0.5，碗轻放） |
+| missing / prejump | 无 sizzle | — |
+| hear / listen / catch | 暂时保持原样 | Egg 起跳 hopTap1 + pop、catch @eggOnSpatula |
+| tablecall | 无 sizzle（原 0.05 删掉） | — |
+
 ## 接触声对齐（2026-11-14 晚第二轮）
 
 接触声从文件里"接触之前"的位置跳过（ONESHOTS.skip），让主要撞击落在事件后约 10 ms：chop-hit 0.030 s、catch 0.044 s、egg-rice 0.020 s、egg-hop 0.006 s、bowl-down 0.055 s，开头 3 ms 淡入防咔哒。
