@@ -53,4 +53,15 @@
 - `npm run lint`、`npm run build` 通过。commit 并 push 到本分支，不合并 main。报告贴节拍 1、5、7、8 截图和剩余问题。
 
 ## 需要集成会话改：
-（在这里追加）
+
+1. `src/app/page.tsx`：`<KitchenScene foreground={<MomForeground/>}>`（`import MomForeground from "@/components/comic/MomForeground"`），
+   否则节拍 5–7 的妈妈不会出现在首页。`<ComicScroll/>` 已是 fixed 浮层，放在 `<ScrollDriver/>` 旁即可；
+   `/dev/beats` 里可以用 `ComicScroll` 替换 `PanelStandIns` + `EndingStandIn`，用 `MomForeground` 替换 `MomStandIn`。
+2. 结尾近景图到了放到 `public/assets/comic/ending.webp`（或告诉我路径），我把 `ComicScroll.tsx` 顶部的 `ENDING_SRC` 指过去即可；
+   占位会自动换成静态图。
+3. `.claude/launch.json`：本机 3000/3001 被其他会话占用，我本地用 3002 预览（`npm run dev -- -p 3002`），没有改提交的配置。
+4. 第五版起本分支不再有 ScrollTrigger、滚动区高度和 `mom-store.ts`；第四版之前的占位文件（土豆汤/旧吐司裁的
+   `public/assets/comic/placeholder/`、`catch-point.ts`、`story.ts`、`ComicCard.tsx`、`tools/make_placeholders.py`）已删除，它们在 cfd3d3e 里还能找到。
+5. 第六版：本分支只做布局，画格用简单淡入/位移（进入上浮 28px、退出上飘 16px、整格 ±3px CSS 漂浮），没有速度倾斜和镜头；
+   停留组（`pin` / `pinState`）留给主会话整合运动小样时在同一份 timeline 上叠加，画格的显隐包络不需要改。
+   节拍表按现值验证，没有改长度的要求。
