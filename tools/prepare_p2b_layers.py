@@ -49,8 +49,9 @@ save(front, "front")
 print("bubble px", int(bub.sum()), "bbox", np.argwhere(bub).min(0), np.argwhere(bub).max(0))
 
 st = L["base0"].copy()
-for k in ("knifeA",):
-    st.alpha_composite(L[k])
+# 静态格的刀和动画第 1 帧一致：绕左缘（0%, 35%）顺时针转 5°，刀尖压到胡萝卜上（PanelPerf.tsx KNIFE_FIT）
+kn = L["knifeA"].rotate(-5, resample=Image.BICUBIC, center=(0, OH * 0.35))
+st.alpha_composite(kn)
 st.alpha_composite(front)
 save(st, "static", rgb=True)
 print("ok", (OW, OH), "aspect", OW / OH)

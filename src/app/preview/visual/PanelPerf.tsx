@@ -227,12 +227,22 @@ const CHOP_STROKES = 8;
 const P2B_LAYERS = ["base0", "base1", "base2", "knifeA", "knifeB", "knifeC", "front"];
 const P2B_INIT: Record<string, number> = { base0: 1, base1: 0, base2: 0, knifeA: 1, knifeB: 0, knifeC: 0, front: 1 };
 const P2B_END: Record<string, number> = { base0: 1, base1: 1, base2: 1, knifeA: 1, knifeB: 0, knifeC: 0, front: 1 };
+/**
+ * 刀要真的落在胡萝卜上（2026-11-15 用户反馈：刀尖悬在手指上方，完全没切进萝卜）。
+ * 生成的刀姿态是按整根胡萝卜画的；胡萝卜被切短、连同扶菜的手一起往右下移之后，刀尖就落在空处了。
+ * 所以握刀层按胡萝卜状态整体绕左缘（袖口所在边，原点 0% 35%）顺时针转一点，把刀尖压到胡萝卜上表面（切在扶菜手指的左边，真实切菜就是贴着指节下刀），
+ * 最后一档再右移一点；切换发生在第 3 / 第 6 刀接触之后的停顿里（0.18 s 缓动）。度数 = 刀尖落到该状态胡萝卜上缘所需的角度（按图量的）。
+ */
+const KNIFE_ORIGIN = "0% 35%";
+const KNIFE_FIT = [{ rotation: 5, xPercent: 0 }, { rotation: 5.5, xPercent: 0.5 }, { rotation: 9.5, xPercent: 2.5 }];
+const KNIFE_LAYERS = ["knifeA", "knifeB", "knifeC"] as const;
 export function ChopPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const els = useRef<Record<string, HTMLImageElement | null>>({});
   const tl = useRef<gsap.core.Timeline | null>(null);
   const apply = (v: Record<string, number>) => Object.entries(v).forEach(([n, o]) => { const el = els.current[n]; if (el) gsap.set(el, { opacity: o }); });
-  const reset = () => { tl.current?.kill(); tl.current = null; apply(P2B_INIT); flag(false); };
-  const settle = () => { apply(P2B_END); flag(false); };
+  const fit = (k: number) => KNIFE_LAYERS.forEach((n) => { const el = els.current[n]; if (el) gsap.set(el, { ...KNIFE_FIT[k], transformOrigin: KNIFE_ORIGIN }); });
+  const reset = () => { tl.current?.kill(); tl.current = null; apply(P2B_INIT); fit(0); flag(false); };
+  const settle = () => { apply(P2B_END); fit(2); flag(false); };
   const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; settle(); };
   const play = () => {
     reset();
@@ -249,8 +259,11 @@ export function ChopPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
       pose("knifeB", at); at += 0.06;
       pose("knifeA", at); // 压下去
       t.call(() => oneshot("chopHit", pan), [], at); // 刀刃接触
-      if (i === 2) t.to(g("base1"), { opacity: 1, duration: 0.12, ease: "none" }, at);
-      if (i === 5) t.to(g("base2"), { opacity: 1, duration: 0.12, ease: "none" }, at);
+      if (i === 2 || i === 5) {
+        const k = i === 2 ? 1 : 2;
+        t.to(g(`base${k}`), { opacity: 1, duration: 0.12, ease: "none" }, at); // 胡萝卜切短一截
+        KNIFE_LAYERS.forEach((n) => t.to(g(n), { ...KNIFE_FIT[k], duration: 0.18, ease: "power2.inOut" }, at + 0.04)); // 刀跟着落到新的菜上
+      }
       at += 0.22;
     }
     tl.current = t;
@@ -262,7 +275,7 @@ export function ChopPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
     <div className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
       {P2B_LAYERS.map((n) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P2B}${n}.webp`} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none pointer-events-none" style={{ opacity: P2B_INIT[n] }} />
+        <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P2B}${n}.webp`} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none pointer-events-none" style={{ opacity: P2B_INIT[n], ...(n.startsWith("knife") ? { transformOrigin: KNIFE_ORIGIN, transform: `rotate(${KNIFE_FIT[0].rotation}deg)` } : {}) }} />
       ))}
     </div>
   );
@@ -398,39 +411,33 @@ export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: num
 }
 
 /**
- * 结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。分层（tools/prepare_p6e_layers.py，public/assets/comic-v5/p6e/，全部 1463×1075 同尺寸同位置）：
- *   base（空泡、没有蛋脸、没有淌出的蛋黄）＋ yolk3（淌出的蛋黄，固定一个形态）＋ faceA（蛋脸，固定）＋ bubble（泡形遮罩，alpha）＋ text（对白字层）＋ steam（碗口热气）。
- * 2026-11-15 用户反馈：蛋黄和蛋脸都不该动（多层蛋黄淡入叠在一起发脏、重影；脸一动就破坏了"面无表情"的笑点）。
- * 所以只动两样，每样有理由：
- *   1. 对白：停顿 → 气泡以外的画面轻微降饱和、降对比（只作用于底图、蛋黄、蛋脸）；泡本身用泡形遮罩叠一份不加滤镜的底图，所以保持奶油白；
- *      整句约半秒内从浅墨渐浓。进入稳定前泡里是空的。
- *   2. 碗口一缕很淡的热气（常驻轻飘，只改透明度和极小的上移，不改形）。
- * 离场落到终态（降饱和 + 文字全显），复位回到原样。减少动态效果 / ?perf=0：直接显示终态静图（static.webp）。不加发光、投影、抖动。
+ * 对白分层样板：结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。
+ * 不是打字机：原漫画、气泡轮廓和构图都不动，只把气泡里的旧字清掉（tools/replace_bubble_text.py --clean-only → p6e-clean-c.webp），
+ * 对白换成透明字层 p6e-text-c.webp（同一套字形预先排好，不依赖浏览器字体；旧版用网页文字回退苹方加描边，和其它对白字形不一致）。
+ * 播放（格子进入并稳定后，按真实时间）：
+ *   1. 短暂停顿；
+ *   2. 气泡以外的画面轻微降饱和、降对比（底图加 CSS filter）；气泡本身用精确的泡形遮罩（tools/dialogue_layers.py → p6e-bubble.webp，
+ *      原图里泡的纸面 + 描边 + 尾巴）叠一份不加滤镜的原图，所以泡保持奶油白、不透明、清楚，分界沿着泡原来不规则的纸边；
+ *   3. 整句对白在约半秒内从浅墨渐浓，一直清楚可读，不逐字跳出。
+ * 进入稳定前气泡里是空的（反转对白不提前露出）。离场落到终态（降饱和 + 文字全显），复位回到原样（文字隐藏）。
+ * 减少动态效果 / ?perf=0：直接显示完整原图（p6e.webp，字已排在图里）。不加发光、投影、抖动。
  */
-const P5 = "/assets/comic-v5/p6e/";
+const P3 = "/assets/comic-v3/";
 const P6E_TEXT = "没事，是我拉肚子了。";
 const DIM = { saturate: 0.68, contrast: 0.9, brightness: 1.02 };
 export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  const art = useRef<HTMLDivElement>(null);
-  const els = useRef<Record<string, HTMLImageElement | null>>({});
+  const base = useRef<HTMLImageElement>(null);
+  const text = useRef<HTMLImageElement>(null);
   const tl = useRef<gsap.core.Timeline | null>(null);
-  const steamTw = useRef<gsap.core.Tween | null>(null);
   const look = useRef({ dim: 0, ink: 0, show: 0 });
   const apply = () => {
     const { dim, ink, show } = look.current;
-    if (art.current) art.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
-    const text = els.current.text;
-    if (text) text.style.opacity = String(show * (0.22 + 0.78 * ink));
+    if (base.current) base.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
+    if (text.current) text.current.style.opacity = String(show * (0.22 + 0.78 * ink)); // 字是图层（tools/replace_bubble_text.py --text-layer），淡入就是透明度
   };
   const setLook = (v: { dim: number; ink: number; show: number }) => { look.current = { ...v }; apply(); };
-  const steamAt = (o: number) => { steamTw.current?.kill(); steamTw.current = null; const el = els.current.steam; if (el) gsap.set(el, { opacity: o, yPercent: 0 }); };
-  const reset = () => { tl.current?.kill(); tl.current = null; steamAt(0); setLook({ dim: 0, ink: 0, show: 0 }); };
-  const stop = () => {
-    if (!tl.current) return;
-    tl.current.kill(); tl.current = null;
-    steamAt(0.45);
-    setLook({ dim: 1, ink: 1, show: 1 });
-  };
+  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0 }); };
+  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1 }); };
   const play = () => {
     reset();
     const st = look.current;
@@ -438,36 +445,22 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
     t.to(st, { dim: 1, duration: 0.6, ease: "power1.inOut" }, 0); // 泡以外轻微降饱和、降对比
     t.to(st, { show: 1, duration: 0.12, ease: "none" }, 0.3); // 对白出现（浅墨）
     t.to(st, { ink: 1, duration: 0.5, ease: "power1.out" }, 0.3); // 从浅墨渐浓
-    const steam = els.current.steam;
-    if (steam) {
-      t.to(steam, { opacity: 0.45, duration: 1.4, ease: "sine.out" }, 0.8);
-      t.call(() => { steamTw.current = gsap.to(steam, { yPercent: -1.6, opacity: 0.8, duration: 3.2, ease: "sine.inOut", yoyo: true, repeat: -1 }); }, [], 2.2);
-    }
     tl.current = t;
   };
   useStage(q, stage, animate, play, stop, reset);
-  if (!animate) return <StaticImg src={`${P5}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
+  if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none";
-  const layer = (n: string, o: number) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P5}${n}.webp`} alt="" draggable={false} className={`${img} pointer-events-none`} style={{ opacity: o }} />
-  );
   return (
-    <div className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
-      {/* 会被降饱和的部分：底图、蛋黄、蛋脸（都固定不动） */}
-      <div ref={art} className="absolute inset-0">
-        {layer("base", 1)}
-        {layer("yolk3", 1)}
-        {layer("faceA", 1)}
-      </div>
-      {/* 泡本身：同一张底图、不加滤镜，只露出泡形遮罩里的部分 */}
+    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${P5}base.webp`} alt="" draggable={false} className={img}
-        style={{ maskImage: `url(${P5}bubble.webp)`, WebkitMaskImage: `url(${P5}bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
-      {/* 对白字层：字形预先排好，不依赖浏览器字体 */}
-      {layer("text", 0)}
-      {layer("steam", 0)}
-      <span className="sr-only">{P6E_TEXT}</span>
+      <img ref={base} src={`${P3}p6e-clean-c.webp`} alt="" draggable={false} className={img} />
+      {/* 泡本身：同一张图、不加滤镜，只露出泡形遮罩里的部分 */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`${P3}p6e-clean-c.webp`} alt="" draggable={false} className={img}
+        style={{ maskImage: `url(${P3}p6e-bubble.webp)`, WebkitMaskImage: `url(${P3}p6e-bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
+      {/* 新对白：和图里其它对白同一套字形（Lantinghei SC Heavy 排好的透明层），不依赖浏览器有没有这个字体 */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img ref={text} src={`${P3}p6e-text-c.webp`} alt={P6E_TEXT} draggable={false} className={`${img} pointer-events-none`} style={{ opacity: 0 }} />
     </div>
   );
 }
