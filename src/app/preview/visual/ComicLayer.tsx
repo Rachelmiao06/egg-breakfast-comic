@@ -13,6 +13,7 @@ import { BLINK_PANELS, BlinkLayer, ClosingBlink } from "./Blink";
 import FrameReact from "./FrameReact";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import { replayStory } from "@/lib/replay";
+import { ENTER_SCALE, PAPER_PARALLAX, PAPER_SHADOW } from "./paper";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -295,7 +296,8 @@ function FlowLayer() {
     }
   }
   return (
-    <div data-comic-flow className="pointer-events-none fixed inset-0 z-10">
+    // 画格是最近的一层：整层随鼠标做比厨房桌面更大的视差（KitchenLayers 发布在 <html> 上的 --kl-mouse-*，触屏和减少动态效果时为 0）
+    <div data-comic-flow className="pointer-events-none fixed inset-0 z-10" style={{ translate: `calc(var(--kl-mouse-x, 0) * ${-PAPER_PARALLAX.x}vw) calc(var(--kl-mouse-y, 0) * ${-PAPER_PARALLAX.y}vh)` }}>
       {visible.map((p) => {
         const q = g - index[p.beat];
         if (p.role === "closeup") return <CloseupShot key={p.key} p={p} q={q} portrait={vp.portrait} vw={vp.w} reducedMotion={reducedMotion} seconds={beats[index[p.beat]].seconds} />;
@@ -303,7 +305,7 @@ function FlowLayer() {
         const pos = { ...(places[p.key] ?? { x: p.x, y: p.y, w: p.w }) };
         const hVh = hOf(p, pos.w, vp.w, vp.h);
         const pan = pans[p.key] ?? 0;
-        let dy: number, stage: Stage, reveal: { on: boolean; off: [number, number] } | null = null;
+        let dy: number, stage: Stage, reveal: { on: boolean; off: [number, number]; scale: number; origin: string } | null = null;
         if (step) {
           // 逐格出现：本段进入阶段里按 order 错开，每格从自己的方向（slots.json from）小幅滑入并淡入，停在原位；
           // 退出阶段整段淡出并略向上离开。格子位置仍用新版布局（fitPlaces / columnPlaces）。
@@ -328,7 +330,7 @@ function FlowLayer() {
           dy = -panNow;
           const topVh = pos.y + dy;
           stage = { vis: on ? clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh) : 0, entered: on, leaving: q >= tOut };
-          reveal = { on, off: q >= tOut ? [0, -8] : p.from === "seam" ? [0, 0] : offsetFor(p.from, 0) };
+          reveal = { on, off: q >= tOut ? [0, -8] : p.from === "seam" ? [0, 0] : offsetFor(p.from, 0), scale: q >= tOut ? 1 : 1 + ENTER_SCALE, origin: `${(pos.x + pos.w / 2).toFixed(2)}vw ${(pos.y + dy + hVh / 2).toFixed(2)}vh` };
         } else {
           const [s0, s1] = p.enterAt ?? [-0.14 + i * 0.05, 0.34];
           const [e0, e1] = p.exitAt ?? [0.7 + i * 0.03, 1.14];
@@ -352,7 +354,7 @@ function FlowLayer() {
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
-        return <Fragment key={p.key}>{reveal ? <Reveal on={reveal.on} off={reveal.off} reduced={reducedMotion}>{panel}</Reveal> : panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
+        return <Fragment key={p.key}>{reveal ? <Reveal on={reveal.on} off={reveal.off} scale={reveal.scale} origin={reveal.origin} reduced={reducedMotion}>{panel}</Reveal> : panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
       })}
       {perf && <FrameReact />}
     </div>
@@ -469,9 +471,9 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
 /**
  * 逐格出现模式的出入场：on 由滚动决定，过渡按真实时间播放（CSS transition）。挂载时先以"不在"状态画一帧再切到 on，
  * 快速滚进某段（格子一挂载就该在）也有淡入。off：不在时的位移（入场前 = 格子来的方向，离场后 = 向上 8vh）。
- * 包一层铺满的 absolute 容器，子元素的 vw / vh 定位不变。
+ * 包一层铺满的 absolute 容器，子元素的 vw / vh 定位不变。入场前还略放大（paper.ts ENTER_SCALE，以格子中心为原点），落定时缩回 1。
  */
-function Reveal({ on, off, reduced, children }: { on: boolean; off: [number, number]; reduced: boolean; children: ReactNode }) {
+function Reveal({ on, off, scale, origin, reduced, children }: { on: boolean; off: [number, number]; scale: number; origin: string; reduced: boolean; children: ReactNode }) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => setShown(on)); });
@@ -484,7 +486,7 @@ function Reveal({ on, off, reduced, children }: { on: boolean; off: [number, num
       ? "opacity 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1)"
       : "opacity 0.35s ease-in, transform 0.4s ease-in";
   return (
-    <div className="absolute inset-0" style={{ opacity: shown ? 1 : 0, transform: shown ? "none" : `translate3d(${dx}vw, ${dy}vh, 0)`, transition }}>
+    <div className="absolute inset-0" style={{ opacity: shown ? 1 : 0, transform: shown || reduced ? "none" : `translate3d(${dx}vw, ${dy}vh, 0) scale(${scale})`, transformOrigin: origin, transition }}>
       {children}
     </div>
   );
@@ -493,7 +495,7 @@ function Reveal({ on, off, reduced, children }: { on: boolean; off: [number, num
 function FlowPanel({ p, pos, dy, blink = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
-    <div className="absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)` }}>
+    <div className="absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
       {p.src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />

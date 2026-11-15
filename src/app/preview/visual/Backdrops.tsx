@@ -22,12 +22,13 @@
  */
 import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
+import type { Beat, Timeline } from "@/lib/beats";
 import { Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import { BG, curve, gNow } from "./motion.v2";
 import { HEAR_EVENT } from "./PanelPerf";
 import { useViewport } from "./viewport";
-import { useSlots } from "./slots";
+import { PANELS, useSlots } from "./slots";
 import { eggAtTableFor, tableWaitFor } from "./eggPath";
 
 type Keys = [string, number, number][];
@@ -144,10 +145,19 @@ function useFriendReactions(enabled: boolean) {
   }, [enabled]);
 }
 
+/** 画格在场的程度（远景软化用）：本段有画格为 1、没有为 0；只在与"没有画格的段"相邻的进入 / 退出阶段渐变，两个有画格的段之间保持 1 */
+function panelPresence(t: Timeline, beats: Beat[]) {
+  const has = (b: Beat | undefined) => !!b && PANELS.some((p) => p.beat === b.id && !p.hideInFlow && p.role !== "closeup");
+  if (!has(t.beat)) return 0;
+  if (t.phase === "enter" && !has(beats[t.index - 1])) return t.phaseP;
+  if (t.phase === "exit" && !has(beats[t.index + 1])) return 1 - t.phaseP;
+  return 1;
+}
+
 function ReadingKitchen({ reveal }: { reveal: number }) {
   const R = BG.reading;
   const vp = useViewport();
-  const { timeline: t, reducedMotion } = useScene();
+  const { timeline: t, reducedMotion, beats } = useScene();
   const { cfg } = useSlots();
   useFriendReactions(!reducedMotion);
   const portrait = !!R.srcPortrait && vp.w / vp.h < R.portraitBelow;
@@ -180,6 +190,65 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
   const L = portrait ? LS.lightPortrait : LS.light;
   const lx = L.from[0] + (L.to[0] - L.from[0]) * lp, ly = L.from[1] + (L.to[1] - L.from[1]) * lp;
   const lpct = (b: number[]) => ({ left: `${(b[0] / liw) * 100}%`, top: `${(b[1] / lih) * 100}%`, width: `${(b[2] / liw) * 100}%`, height: `${(b[3] / lih) * 100}%` });
+  // 纵深（reading.planes，横版拆层时）：远景平面（墙、层板、菜篮、小角色、窗）比主体层少动（只在横向：切缝在横木纹上，竖向错位会在羽化带里叠影），
+  // 近景平面（台面前半）和蛋一起动；
+  // 画格在场时远景软化（预烘的软化版叠化进来，小角色和窗玻璃加一点模糊）。竖版没有拆层，保持单张。
+  const PL = !portrait && actors.length ? R.planes : null;
+  const farSoft = PL && !reducedMotion ? panelPresence(t, beats) : 0;
+  const farShift = PL
+    ? `calc(var(--kl-mouse-x, 0) * ${PL.far.mouse}px + var(--kl-depth-x, 0px) * ${PL.far.depth}) calc(var(--kl-mouse-y, 0) * ${PL.far.mouseY}px)`
+    : undefined;
+  const blur = (px: number): CSSProperties | undefined => (PL && farSoft > 0.01 ? { filter: `blur(${(px * farSoft).toFixed(2)}px)` } : undefined);
+  const actorEls = actors.map((a) => {
+    const deg = reducedMotion ? 0 : Math.min(a.range[1], Math.max(a.range[0], bgCurve(a.curve as CurveName, g)));
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        key={a.id}
+        data-actor={a.id}
+        src={a.src}
+        alt=""
+        draggable={false}
+        className="absolute select-none"
+        style={{ ...pct(a.img), ...blur(PL?.soft.friendsBlur ?? 0), transform: `rotate(${deg.toFixed(2)}deg)`, transformOrigin: `${((a.pivot[0] - a.img[0]) / a.img[2]) * 100}% ${((a.pivot[1] - a.img[1]) / a.img[3]) * 100}%` }}
+      />
+    );
+  });
+  // 远景：窗外的树比墙面慢一点（横向），阅读停留时镜头不动，它也不动；减少动态效果时不做
+  const windowEls =
+    !portrait &&
+    !reducedMotion &&
+    R.window.panes.map((p, i) => {
+      const pw = p[2] - p[0], ph = p[3] - p[1];
+      return (
+        <div key={i} data-window-pane={i} className="absolute overflow-hidden" style={pct([p[0], p[1], pw, ph])}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt=""
+            draggable={false}
+            className="absolute max-w-none select-none"
+            style={{
+              left: `${(-p[0] / pw) * 100}%`,
+              top: `${(-p[1] / ph) * 100}%`,
+              width: `${(iw / pw) * 100}%`,
+              height: `${(ih / ph) * 100}%`,
+              transformOrigin: `${((p[0] + pw / 2) / iw) * 100}% ${((p[1] + ph / 2) / ih) * 100}%`,
+              transform: `scale(${R.window.scale})`,
+              // 拆层时窗在远景平面里，只再多一点横向鼠标视差；未拆层时按厨房中景与主体层的差值
+              translate: PL ? `calc(var(--kl-mouse-x, 0) * ${PL.windowMouse}px) 0px` : `calc((var(--kl-counter-x, 0px) - var(--kl-mid-x, 0px)) * ${R.window.parallax}) 0px`,
+              ...blur(PL?.soft.windowBlur ?? 0),
+            }}
+          />
+        </div>
+      );
+    });
+  const occluderEls =
+    actors.length > 0 &&
+    R.occluders.map((o) => (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img key={o.id} data-occluder={o.id} src={o.src} alt="" draggable={false} className="absolute select-none" style={{ ...pct(o.img), ...blur(PL?.soft.friendsBlur ?? 0) }} />
+    ));
   return (
     <div
       data-bg="reading"
@@ -197,54 +266,33 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
         transform: lq > 0.001 ? `scale(${(1 + LS.push * lp * lq).toFixed(4)})` : undefined,
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
-      {actors.map((a) => {
-        const deg = reducedMotion ? 0 : Math.min(a.range[1], Math.max(a.range[0], bgCurve(a.curve as CurveName, g)));
-        return (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={a.id}
-            data-actor={a.id}
-            src={a.src}
-            alt=""
-            draggable={false}
-            className="absolute select-none"
-            style={{ ...pct(a.img), transform: `rotate(${deg.toFixed(2)}deg)`, transformOrigin: `${((a.pivot[0] - a.img[0]) / a.img[2]) * 100}% ${((a.pivot[1] - a.img[1]) / a.img[3]) * 100}%` }}
-          />
-        );
-      })}
-      {/* 远景：窗外的树比墙面慢一点（横向），阅读停留时镜头不动，它也不动；减少动态效果时不做 */}
-      {!portrait &&
-        !reducedMotion &&
-        R.window.panes.map((p, i) => {
-          const pw = p[2] - p[0], ph = p[3] - p[1];
-          return (
-            <div key={i} data-window-pane={i} className="absolute overflow-hidden" style={pct([p[0], p[1], pw, ph])}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt=""
-                draggable={false}
-                className="absolute max-w-none select-none"
-                style={{
-                  left: `${(-p[0] / pw) * 100}%`,
-                  top: `${(-p[1] / ph) * 100}%`,
-                  width: `${(iw / pw) * 100}%`,
-                  height: `${(ih / ph) * 100}%`,
-                  transformOrigin: `${((p[0] + pw / 2) / iw) * 100}% ${((p[1] + ph / 2) / ih) * 100}%`,
-                  transform: `scale(${R.window.scale})`,
-                  translate: `calc((var(--kl-counter-x, 0px) - var(--kl-mid-x, 0px)) * ${R.window.parallax}) 0px`,
-                }}
-              />
-            </div>
-          );
-        })}
-      {actors.length > 0 &&
-        R.occluders.map((o) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={o.id} data-occluder={o.id} src={o.src} alt="" draggable={false} className="absolute select-none" style={pct(o.img)} />
-        ))}
+      {PL ? (
+        <>
+          {/* 远景平面：墙、瓷砖、窗、层板、菜篮（站在台面后沿的东西都在这里）、小角色；比主体层少动 */}
+          <div data-plane="far" className="absolute inset-0" style={{ translate: farShift }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={PL.far.src} alt="" draggable={false} className="absolute select-none" style={pct(PL.far.img)} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img data-plane-soft src={PL.soft.src} alt="" draggable={false} className="absolute select-none" style={{ ...pct(PL.far.img), opacity: farSoft }} />
+            {actorEls}
+            {windowEls}
+            {occluderEls}
+          </div>
+          {/* 近景平面：台面前半（上沿羽化接到远景的台面上），蛋站在这里，和主体层一起动 */}
+          <div data-plane="near" className="absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={PL.near.src} alt="" draggable={false} className="absolute select-none" style={pct(PL.near.img)} />
+          </div>
+        </>
+      ) : (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
+          {actorEls}
+          {windowEls}
+          {occluderEls}
+        </>
+      )}
       {lq > 0.001 && (
         <>
           {/* 台面前沿近景层：以底边中点为原点再多推近一点，只往外长、盖住台面 */}

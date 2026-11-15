@@ -53,3 +53,6 @@ next-env.d.ts
 /notes/background-scenes/shots/
 /notes/background-scenes/.profile/
 /notes/background-scenes/samples-*.json
+
+# 厨房分层的整画布中间文件（tools/split_scene.py 输出，页面加载的是打包后的 webp）
+source/layers/
