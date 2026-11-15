@@ -9,7 +9,8 @@ import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
 import { ChopPanel, DialoguePanel, HearPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
-import { BLINK_PANELS, BlinkLayer, ClosingBlink } from "./Blink";
+import { BLINK_PANELS, BlinkLayer } from "./Blink";
+import ReactionFace from "./ReactionFace";
 import FrameReact from "./FrameReact";
 import { IdleStack } from "./IdleLayers";
 import { IDLE } from "./idle";
@@ -370,7 +371,7 @@ function FlowLayer() {
 function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelSpec; q: number; portrait: boolean; vw: number; reducedMotion: boolean; seconds: Record<string, number> }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   const perfOn = usePerfEnabled();
-  const nativeW = 515; // p6f.webp 原始宽度
+  const nativeW = 966; // p6f 新素材原始宽度（comic-v5/p6f/base.webp）
   // 结尾的妈妈反应是三个大画面之一：最多放大到原图 1.4 倍，避免发虚
   const wPx = portrait ? Math.min(vw * 0.9, nativeW * 1.4) : Math.min(vw * 0.52, nativeW * 1.4);
   const k = outCubic((q + 0.02) / 0.42); // 进入阶段 0.5：0.4 处已落定
@@ -378,10 +379,8 @@ function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelS
   if (q < -0.05) return null;
   return (
     <div className="panel-frame absolute left-1/2 top-1/2" style={{ width: wPx, aspectRatio: `${aspect}`, transform: `translate(-50%, calc(-50% + ${(1 - k) * 7}vh))`, opacity: k }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
-      {/* 眼神僵住：三个点之前不眨眼，最后一个点之后约 1.2 秒才眨第一下 */}
-      <ClosingBlink stable={stable} enabled={!reducedMotion && perfOn} afterMs={((seconds.dotDelay ?? 0.5) + 2 * (seconds.dotGap ?? 0.6) + 1.2) * 1000} />
+      {/* 妈妈的反应：瞪大 → 看碗 → 看观众 → 半闭眼 → 慢眨眼 / 嘴角抽动，额头黑线和汗滴（ReactionFace）；减少动态效果只显示瞪大的静帧 */}
+      <ReactionFace active={stable && !reducedMotion && perfOn} />
       {stable && <Dots key="dots" instant={reducedMotion} delay={seconds.dotDelay ?? 0.5} gap={seconds.dotGap ?? 0.6} portrait={portrait} />}
       {/* 三个点全部出现后，再留约 1.6 秒安静画面，才轻轻出现“再看一次” */}
       {stable && <ReplayButton key="replay" afterMs={((seconds.dotDelay ?? 0.5) + 2 * (seconds.dotGap ?? 0.6) + 1.6) * 1000} instant={reducedMotion} />}
