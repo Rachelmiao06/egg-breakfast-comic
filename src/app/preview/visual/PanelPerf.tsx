@@ -375,9 +375,10 @@ export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: num
 
 /**
  * 结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。2026-11-15 用 ChatGPT 的三张新帧做"蛋黄流动"（tools/prepare_p6e_flow.py，public/assets/comic-v5/p6e/）：
- *   base = 第 1 帧（蛋黄刚破口，泡里是空的）；patch2 / patch3 = 第 2 / 3 帧里"蛋黄流出处"的一块羽化椭圆（已配准到第 1 帧），其余画面永远是第 1 帧。
+ *   base = 第 1 帧叠上第 2 帧"蛋黄流出处"的一块羽化椭圆（已配准到第 1 帧）：起点就是中等流量，接得上上一格 p6d（蛋黄已经流出来不少），泡里是空的；
+ *   patch3 = 第 3 帧里同一块椭圆（流得最远），其余画面永远是第 1 帧。
  *   为什么不整张交叉淡入：三张是各自重新生成的，碗沿、米粒的线条有细小差异，整张淡入会出现重影；只换流出处的一块，别处纹丝不动。
- *   蛋、蛋脸、碗都不动，只有蛋黄在流：第 1 秒多开始往外淌（patch2 淡入 0.9 s），再往前淌到最远（patch3 淡入 1.1 s），停在最远，不倒回去。
+ *   蛋、蛋脸、碗都不动，只有蛋黄在流：从中等流量继续往外淌到最远（patch3 淡入 1.4 s），停在最远，不倒回去（用户 2026-11-15：上一格已经流出来不少，只能"更多"，不能先缩回去）。
  * 对白：停顿 → 气泡以外的画面轻微降饱和、降对比（作用于底图和补丁）；泡本身用泡形遮罩（bubble.webp，alpha）叠一份不加滤镜的底图，保持奶油白；
  * 对白字层（text.webp，旧字层按新泡外框缩放）整句约半秒内从浅墨渐浓。进入稳定前泡里是空的。
  * 离场落到终态（降饱和 + 文字全显 + 蛋黄流到最远），复位回到原样。减少动态效果 / ?perf=0：直接显示终态静图（static.webp）。不加发光、投影、抖动。
@@ -389,17 +390,16 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
   const art = useRef<HTMLDivElement>(null);
   const els = useRef<Record<string, HTMLImageElement | null>>({});
   const tl = useRef<gsap.core.Timeline | null>(null);
-  const look = useRef({ dim: 0, ink: 0, show: 0, f2: 0, f3: 0 });
+  const look = useRef({ dim: 0, ink: 0, show: 0, f3: 0 });
   const apply = () => {
-    const { dim, ink, show, f2, f3 } = look.current;
+    const { dim, ink, show, f3 } = look.current;
     if (art.current) art.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
     if (els.current.text) els.current.text.style.opacity = String(show * (0.22 + 0.78 * ink));
-    if (els.current.patch2) els.current.patch2.style.opacity = String(f2);
     if (els.current.patch3) els.current.patch3.style.opacity = String(f3);
   };
-  const setLook = (v: { dim: number; ink: number; show: number; f2: number; f3: number }) => { look.current = { ...v }; apply(); };
-  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0, f2: 0, f3: 0 }); };
-  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1, f2: 1, f3: 1 }); };
+  const setLook = (v: { dim: number; ink: number; show: number; f3: number }) => { look.current = { ...v }; apply(); };
+  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0, f3: 0 }); };
+  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1, f3: 1 }); };
   const play = () => {
     reset();
     const st = look.current;
@@ -407,8 +407,7 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
     t.to(st, { dim: 1, duration: 0.6, ease: "power1.inOut" }, 0); // 泡以外轻微降饱和、降对比
     t.to(st, { show: 1, duration: 0.12, ease: "none" }, 0.3); // 对白出现（浅墨）
     t.to(st, { ink: 1, duration: 0.5, ease: "power1.out" }, 0.3); // 从浅墨渐浓
-    t.to(st, { f2: 1, duration: 0.9, ease: "sine.inOut" }, 1.2); // 蛋黄往外淌
-    t.to(st, { f3: 1, duration: 1.1, ease: "sine.inOut" }, 2.6); // 再淌到最远，停住
+    t.to(st, { f3: 1, duration: 1.4, ease: "sine.inOut" }, 1.3); // 蛋黄接着往外淌，淌到最远，停住
     tl.current = t;
     debugTl("p6e", t);
   };
@@ -421,10 +420,9 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
   );
   return (
     <div className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
-      {/* 会被降饱和的部分：底图 + 蛋黄流出处的两块补丁 */}
+      {/* 会被降饱和的部分：底图（中等流量）+ 蛋黄流出处的一块补丁（流到最远） */}
       <div ref={art} className="absolute inset-0">
         {layer("base", 1)}
-        {layer("patch2", 0)}
         {layer("patch3", 0)}
       </div>
       {/* 泡本身：同一张底图、不加滤镜，只露出泡形遮罩里的部分 */}

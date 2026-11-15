@@ -2,7 +2,9 @@
 用法：python3 -I tools/prepare_p6e_flow.py <p6e-full-frames 目录>（p6e-frame-01/02/03.png，泡里没有字）
 三张都是重新生成的整格：碗、米饭、配菜的边线有细小差异，第 3 帧还缩放 / 微旋转了，整张交叉淡入会出现碗沿、米粒的重影。
 所以：SIFT + RANSAC 把第 2、3 帧仿射配准到第 1 帧；只取"蛋黄流出处"的一块椭圆（羽化边缘）叠在第 1 帧上，其余永远是第 1 帧。
-输出（1400 宽）：base = 第 1 帧；patch2 / patch3 = 第 2 / 3 帧的椭圆补丁（RGBA）；bubble = 泡形遮罩（alpha，奶油色连通域膨胀到包住描边）；
+2026-11-15 用户指出：上一格 p6d 里蛋黄已经流出来不少，这一格不能先缩回一点再淌。所以第 1 帧（刚破口）不再出现：
+起点 = 第 1 帧 + 第 2 帧补丁（中等流量，接得上 p6d），只往"更多"走（第 3 帧补丁淡入）。
+输出（1400 宽）：base = 第 1 帧叠上第 2 帧补丁（起点）；patch3 = 第 3 帧的椭圆补丁（RGBA，终点）；bubble = 泡形遮罩（alpha，奶油色连通域膨胀到包住描边）；
 text = 旧对白字层（comic-v3/p6e-text-c.webp）按新旧泡的外框对应缩放平移；static = 第 3 帧补丁 + 对白（终态，减少动态效果用）。
 """
 import sys
@@ -72,11 +74,11 @@ resized = old_text.resize((round(old_text.size[0] * sx), round(old_text.size[1] 
 tw.alpha_composite(resized, (round(nx0 - ox0 * sx), round(ny0 - oy0 * sy)))
 print("text scale", round(sx, 3), round(sy, 3))
 
-st = base.copy(); st.alpha_composite(P3); st.alpha_composite(tw)
+start = base.copy(); start.alpha_composite(P2)  # 起点：中等流量
+st = start.copy(); st.alpha_composite(P3); st.alpha_composite(tw)
 import os
 os.makedirs(OUT, exist_ok=True)
-base.convert("RGB").save(f"{OUT}/base.webp", quality=92, method=6)
-P2.save(f"{OUT}/patch2.webp", quality=92, method=6)
+start.convert("RGB").save(f"{OUT}/base.webp", quality=92, method=6)
 P3.save(f"{OUT}/patch3.webp", quality=92, method=6)
 mask.save(f"{OUT}/bubble.webp", quality=95, method=6)
 tw.save(f"{OUT}/text.webp", quality=95, method=6)
