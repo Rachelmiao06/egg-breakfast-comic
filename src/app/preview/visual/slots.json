@@ -427,13 +427,13 @@
     "w": 42
    },
    "beat": "punchline",
-   "src": "/assets/comic-v3/p6e.webp",
+   "src": "/assets/comic-v5/p6e/static.webp",
    "source": "06-recognition-and-punchline.png E 格",
    "dialogueInImage": true,
    "x": 24,
    "y": 42,
    "w": 30,
-   "aspect": 1.393,
+   "aspect": 1.3659,
    "from": "left",
    "order": 1,
    "role": "hero"

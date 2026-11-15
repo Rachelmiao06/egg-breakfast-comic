@@ -374,33 +374,32 @@ export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: num
 }
 
 /**
- * 对白分层样板：结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。
- * 不是打字机：原漫画、气泡轮廓和构图都不动，只把气泡里的旧字清掉（tools/replace_bubble_text.py --clean-only → p6e-clean-c.webp），
- * 对白换成透明字层 p6e-text-c.webp（同一套字形预先排好，不依赖浏览器字体；旧版用网页文字回退苹方加描边，和其它对白字形不一致）。
- * 播放（格子进入并稳定后，按真实时间）：
- *   1. 短暂停顿；
- *   2. 气泡以外的画面轻微降饱和、降对比（底图加 CSS filter）；气泡本身用精确的泡形遮罩（tools/dialogue_layers.py → p6e-bubble.webp，
- *      原图里泡的纸面 + 描边 + 尾巴）叠一份不加滤镜的原图，所以泡保持奶油白、不透明、清楚，分界沿着泡原来不规则的纸边；
- *   3. 整句对白在约半秒内从浅墨渐浓，一直清楚可读，不逐字跳出。
- * 进入稳定前气泡里是空的（反转对白不提前露出）。离场落到终态（降饱和 + 文字全显），复位回到原样（文字隐藏）。
- * 减少动态效果 / ?perf=0：直接显示完整原图（p6e.webp，字已排在图里）。不加发光、投影、抖动。
+ * 结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。2026-11-15 用 ChatGPT 的三张新帧做"蛋黄流动"（tools/prepare_p6e_flow.py，public/assets/comic-v5/p6e/）：
+ *   base = 第 1 帧（蛋黄刚破口，泡里是空的）；patch2 / patch3 = 第 2 / 3 帧里"蛋黄流出处"的一块羽化椭圆（已配准到第 1 帧），其余画面永远是第 1 帧。
+ *   为什么不整张交叉淡入：三张是各自重新生成的，碗沿、米粒的线条有细小差异，整张淡入会出现重影；只换流出处的一块，别处纹丝不动。
+ *   蛋、蛋脸、碗都不动，只有蛋黄在流：第 1 秒多开始往外淌（patch2 淡入 0.9 s），再往前淌到最远（patch3 淡入 1.1 s），停在最远，不倒回去。
+ * 对白：停顿 → 气泡以外的画面轻微降饱和、降对比（作用于底图和补丁）；泡本身用泡形遮罩（bubble.webp，alpha）叠一份不加滤镜的底图，保持奶油白；
+ * 对白字层（text.webp，旧字层按新泡外框缩放）整句约半秒内从浅墨渐浓。进入稳定前泡里是空的。
+ * 离场落到终态（降饱和 + 文字全显 + 蛋黄流到最远），复位回到原样。减少动态效果 / ?perf=0：直接显示终态静图（static.webp）。不加发光、投影、抖动。
  */
-const P3 = "/assets/comic-v3/";
+const P5 = "/assets/comic-v5/p6e/";
 const P6E_TEXT = "没事，是我拉肚子了。";
 const DIM = { saturate: 0.68, contrast: 0.9, brightness: 1.02 };
 export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  const base = useRef<HTMLImageElement>(null);
-  const text = useRef<HTMLImageElement>(null);
+  const art = useRef<HTMLDivElement>(null);
+  const els = useRef<Record<string, HTMLImageElement | null>>({});
   const tl = useRef<gsap.core.Timeline | null>(null);
-  const look = useRef({ dim: 0, ink: 0, show: 0 });
+  const look = useRef({ dim: 0, ink: 0, show: 0, f2: 0, f3: 0 });
   const apply = () => {
-    const { dim, ink, show } = look.current;
-    if (base.current) base.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
-    if (text.current) text.current.style.opacity = String(show * (0.22 + 0.78 * ink)); // 字是图层（tools/replace_bubble_text.py --text-layer），淡入就是透明度
+    const { dim, ink, show, f2, f3 } = look.current;
+    if (art.current) art.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
+    if (els.current.text) els.current.text.style.opacity = String(show * (0.22 + 0.78 * ink));
+    if (els.current.patch2) els.current.patch2.style.opacity = String(f2);
+    if (els.current.patch3) els.current.patch3.style.opacity = String(f3);
   };
-  const setLook = (v: { dim: number; ink: number; show: number }) => { look.current = { ...v }; apply(); };
-  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0 }); };
-  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1 }); };
+  const setLook = (v: { dim: number; ink: number; show: number; f2: number; f3: number }) => { look.current = { ...v }; apply(); };
+  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0, f2: 0, f3: 0 }); };
+  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1, f2: 1, f3: 1 }); };
   const play = () => {
     reset();
     const st = look.current;
@@ -408,22 +407,32 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
     t.to(st, { dim: 1, duration: 0.6, ease: "power1.inOut" }, 0); // 泡以外轻微降饱和、降对比
     t.to(st, { show: 1, duration: 0.12, ease: "none" }, 0.3); // 对白出现（浅墨）
     t.to(st, { ink: 1, duration: 0.5, ease: "power1.out" }, 0.3); // 从浅墨渐浓
+    t.to(st, { f2: 1, duration: 0.9, ease: "sine.inOut" }, 1.2); // 蛋黄往外淌
+    t.to(st, { f3: 1, duration: 1.1, ease: "sine.inOut" }, 2.6); // 再淌到最远，停住
     tl.current = t;
+    debugTl("p6e", t);
   };
   useStage(q, stage, animate, play, stop, reset);
-  if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
-  const img = "absolute inset-0 block h-full w-full select-none";
+  if (!animate) return <StaticImg src={`${P5}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
+  const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
+  const layer = (n: string, o: number) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P5}${n}.webp`} alt="" draggable={false} className={img} style={{ opacity: o }} />
+  );
   return (
-    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
+    <div className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
+      {/* 会被降饱和的部分：底图 + 蛋黄流出处的两块补丁 */}
+      <div ref={art} className="absolute inset-0">
+        {layer("base", 1)}
+        {layer("patch2", 0)}
+        {layer("patch3", 0)}
+      </div>
+      {/* 泡本身：同一张底图、不加滤镜，只露出泡形遮罩里的部分 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={base} src={`${P3}p6e-clean-c.webp`} alt="" draggable={false} className={img} />
-      {/* 泡本身：同一张图、不加滤镜，只露出泡形遮罩里的部分 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${P3}p6e-clean-c.webp`} alt="" draggable={false} className={img}
-        style={{ maskImage: `url(${P3}p6e-bubble.webp)`, WebkitMaskImage: `url(${P3}p6e-bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
-      {/* 新对白：和图里其它对白同一套字形（Lantinghei SC Heavy 排好的透明层），不依赖浏览器有没有这个字体 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={text} src={`${P3}p6e-text-c.webp`} alt={P6E_TEXT} draggable={false} className={`${img} pointer-events-none`} style={{ opacity: 0 }} />
+      <img src={`${P5}base.webp`} alt="" draggable={false} className={img}
+        style={{ maskImage: `url(${P5}bubble.webp)`, WebkitMaskImage: `url(${P5}bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
+      {layer("text", 0)}
+      <span className="sr-only">{P6E_TEXT}</span>
     </div>
   );
 }
