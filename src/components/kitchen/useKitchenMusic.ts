@@ -233,6 +233,7 @@ class MusicEngine {
     src.onended = () => { src.disconnect(); g.disconnect(); panner?.disconnect(); };
     src.start();
     if (voice) this.onDuck(buf.duration * 1000 + 150, 0.55); // 人声说话时配乐退到后面
+    if (name === "boy-shh") this.lastShh = performance.now(); // 滚动触发和事件触发共用 5 s 间隔，不会嘘两次
     this.fired += 1;
     this.root.dataset.fired = String(this.fired);
     this.root.dataset.last = name;
@@ -253,7 +254,7 @@ class MusicEngine {
       if (this.scene === "closeup") this.stinger("cricket", 0.55, [1.04, 1, 0.95][n - 1]);
       // 酱油瓶"嘘"：和画面里酱油瓶受惊的动画同一件事触发（Backdrops 听 hopTap → 120 ms 后酱油瓶一惊）：蛋起跳那一帧的 hopTap1、结尾第一个点的 hopTap1；
       // 比瓶子的动画晚一点点（150 ms），一次起跳 / 一轮三个点只嘘一声（5 s 内不重复）
-      if (n === 1 && ["hear", "listen", "closeup"].includes(this.scene)) {
+      if (n === 1 && this.scene === "closeup") {
         const now = performance.now();
         if (now - this.lastShh > 5000) {
           this.lastShh = now;
