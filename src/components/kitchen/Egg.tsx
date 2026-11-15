@@ -143,7 +143,7 @@ function stationPose(st: Station, a: EggAnchors): Pose {
 }
 
 /** 弧线：起点、终点、最高点抬升 lift；缩放线性插值，中途略放大表示靠近镜头 */
-function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number, spin: number): Pose {
+function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number, spin: number, drop = false): Pose {
   const A = stationPose(from, a), B = stationPose(to, a);
   const k = clamp01(t);
   const cx = (A.x + B.x) / 2, cy = Math.min(A.y, B.y) - lift;
@@ -151,7 +151,10 @@ function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number,
     x: bez(A.x, cx, B.x, k),
     y: bez(A.y, cy, B.y, k),
     // 中途略放大（靠近镜头）：按起落两站中较小的缩放取相对量，窄屏缩小的蛋不会在半空突然变大一半
-    scale: A.scale + (B.scale - A.scale) * k + 0.24 * Math.min(A.scale, B.scale) * Math.sin(Math.PI * k),
+    // drop（锅 → 桌面）：缩得更早（ease-out）、不在半空放大，蛋很快回到桌面该有的大小，不再又大又飘在墙前
+    scale: drop
+      ? A.scale + (B.scale - A.scale) * (1 - (1 - k) ** 2.6)
+      : A.scale + (B.scale - A.scale) * k + 0.24 * Math.min(A.scale, B.scale) * Math.sin(Math.PI * k),
     rotation: spin * Math.sin(Math.PI * k),
   };
 }
@@ -241,7 +244,7 @@ function plan(t: Timeline, beats: Beat[], a0: EggAnchors): Plan {
     }
     case "toTable": {
       if (before) return { ...base("pan", "pan", Z.eggInPan), settle: true, rest: stationPose("table", a) };
-      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 260, 12), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest: stationPose("table", a) };
+      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 130, 12, true), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest: stationPose("table", a) };
       const P = base("table", "table", Z.eggOnTable);
       P.landing = "table";
       P.rest = P.pose;
