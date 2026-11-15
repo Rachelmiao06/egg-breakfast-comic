@@ -68,7 +68,7 @@
    "id": "bag",
    "n": 2,
    "title": "进门放下买菜袋：\"呼……\"",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": "prep",
    "phases": {
     "enter": 0.34,
@@ -96,7 +96,7 @@
    "id": "idea",
    "n": 3,
    "title": "\"今天给宝宝做点什么呢？\" \"先炒个配菜饭吧。\"",
-   "lengthVh": 120,
+   "lengthVh": 174,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -124,7 +124,7 @@
    "id": "chop",
    "n": 4,
    "title": "切菜：\"哒、哒、哒\"",
-   "lengthVh": 130,
+   "lengthVh": 188,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -153,7 +153,7 @@
    "id": "stirfry",
    "n": 5,
    "title": "下锅：\"滋啦——\"、翻炒",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -182,7 +182,7 @@
    "id": "sauce",
    "n": 6,
    "title": "调汁、盛饭",
-   "lengthVh": 110,
+   "lengthVh": 160,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -211,7 +211,7 @@
    "id": "missing",
    "n": 7,
    "title": "\"是不是还少点什么……\"",
-   "lengthVh": 110,
+   "lengthVh": 160,
    "pin": "prep",
    "kitchenDim": [
     0,
@@ -387,7 +387,7 @@
    "id": "handoff",
    "n": 12,
    "title": "\"正好，就差你了！\"（蛋交给漫画）",
-   "lengthVh": 110,
+   "lengthVh": 160,
    "pin": "catch",
    "phases": {
     "enter": 0.34,
@@ -421,7 +421,7 @@
    "id": "bowl",
    "n": 13,
    "title": "放进碗、淋汁",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": "bowl",
    "kitchenDim": [
     0,
@@ -457,7 +457,7 @@
    "id": "yolk",
    "n": 14,
    "title": "划开流黄",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": "bowl",
    "kitchenDim": [
     0,
@@ -484,7 +484,7 @@
    "id": "call",
    "n": 15,
    "title": "\"宝宝，来吃饭啦！\" \"我在这儿……\"",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": "bowl",
    "kitchenDim": [
     0,
@@ -520,7 +520,7 @@
    "id": "search",
    "n": 16,
    "title": "妈妈离开厨房（只有“离开、饭留在桌上”这一格）→ 门口探头喊“宝宝？” → 空房间",
-   "lengthVh": 160,
+   "lengthVh": 232,
    "pin": "search",
    "kitchenDim": [
     0,
@@ -552,7 +552,7 @@
    "id": "eggcall",
    "n": 17,
    "title": "蛋喊“妈！这里！”，妈妈在走廊回头",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": "search",
    "kitchenDim": [
     0,
@@ -584,7 +584,7 @@
    "id": "return",
    "n": 18,
    "title": "回到碗前",
-   "lengthVh": 110,
+   "lengthVh": 160,
    "pin": "reunion",
    "kitchenDim": [
     0,
@@ -618,7 +618,7 @@
    "id": "recognize",
    "n": 19,
    "title": "\"……宝宝？\" \"嗯！\"",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": "reunion",
    "kitchenDim": [
     0,
@@ -645,7 +645,7 @@
    "id": "worry",
    "n": 20,
    "title": "\"那刚才把你戳破了怎么办？\" \"蛋黄都流出来了！\"（只有妈妈担心的一格，完整停留；回答格此时完全隐藏）",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": null,
    "phases": {
     "enter": 0.3,
@@ -672,7 +672,7 @@
    "id": "punchline",
    "n": 21,
    "title": "\"没事，是我拉肚子了。\"（担心格离开后，饭碗近景单独进入阅读位置）",
-   "lengthVh": 115,
+   "lengthVh": 167,
    "pin": null,
    "phases": {
     "enter": 0.3,

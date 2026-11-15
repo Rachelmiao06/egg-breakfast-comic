@@ -63,7 +63,7 @@ export default function ScrollDriver({ smooth = false }: { smooth?: boolean }) {
     let lenis: Lenis | null = null;
     let lenisRaf = 0;
     if (smooth) {
-      lenis = new Lenis({ lerp: 0.12, wheelMultiplier: 0.9, smoothWheel: true, syncTouch: false });
+      lenis = new Lenis({ lerp: 0.075, wheelMultiplier: 0.75, smoothWheel: true, syncTouch: false });
       lenis.on("scroll", () => {
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
