@@ -8,7 +8,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { ChopPanel, DialoguePanel, HearPanel, TurnPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
+import { ChopPanel, DialoguePanel, HearPanel, SeqPanel, TurnPanel, type SeqText, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer } from "./Blink";
 import ReactionFace from "./ReactionFace";
 import FrameReact from "./FrameReact";
@@ -19,6 +19,19 @@ import { replayStory } from "@/lib/replay";
 import { getScrollVelocity } from "@/lib/scroll-velocity";
 import { ENTER_SCALE, PAPER_PARALLAX, PAPER_SHADOW } from "./paper";
 
+// 用户 2026-11-15 送来的序列图（时间线取自各自的 timeline.txt）：p4d 勺子戳蛋黄（8 张，1.58 s 后停在第 8 张）、p6d 妈妈反应（6 张 + 对白逐字，约 3 s）
+const seqFrames = (dir: string, n: number) => Array.from({ length: n }, (_, i) => `/assets/comic-v6/${dir}/frame-0${i + 1}.webp`);
+const P4D_FRAMES = seqFrames("p4d", 8);
+const P4D_SCHEDULE: [number, number][] = [[0, 0], [1, 0.4], [2, 0.56], [3, 0.72], [4, 0.92], [5, 1.08], [6, 1.28], [7, 1.58]];
+const P6D_FRAMES = seqFrames("p6d", 6);
+const P6D_SCHEDULE: [number, number][] = [[0, 0], [1, 1.0], [2, 1.7], [3, 2.5], [4, 2.7], [5, 2.95]];
+const P6D_TEXT: SeqText = {
+  src: "/assets/comic-v6/p6d/text.webp",
+  size: [988, 360],
+  rows: [{ x0: 168, x1: 352, y0: 26, y1: 68, n: 5 }, { x0: 151, x1: 377, y0: 74, y1: 120, n: 7 }, { x0: 192, x1: 293, y0: 165, y1: 200, n: 3 }, { x0: 168, x1: 332, y0: 205, y1: 248, n: 5 }],
+  // 第一个泡在第 1 张里一口气打完；第二个泡在第 2、3 张之间打
+  plan: [{ row: 0, at: 0.1, per: 0.09 }, { row: 1, at: 0.6, per: 0.08 }, { row: 2, at: 1.4, per: 0.12 }, { row: 3, at: 1.8, per: 0.1 }],
+};
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
 
@@ -439,6 +452,8 @@ function FlowLayer() {
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          : p.key === "p4d" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P4D_FRAMES} schedule={P4D_SCHEDULE} gateS={2.2} staticSrc={P4D_FRAMES[7]} />
+          : p.key === "p6d" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P6D_FRAMES} schedule={P6D_SCHEDULE} gateS={3.4} text={P6D_TEXT} staticSrc="/assets/comic-v3/p6d.webp" />
           : p.key === "p5e" ? <TurnPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : <FlowPanel push={false ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;

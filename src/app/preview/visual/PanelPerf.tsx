@@ -155,6 +155,57 @@ export function TurnPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   );
 }
 
+/**
+ * 通用"姿势序列"格（用户 2026-11-15 送来的 p4d 勺子戳蛋黄、p6d 妈妈反应）：一组同画布整格图，按时间线硬切，停在最后一张。
+ * schedule：[图序号, 开始秒]；text（可选）：对白字层（透明，字是从原格里减出来的）按行逐字打出，行框 / 字数在 text.json。
+ * 规则同 TurnPanel：读格到位才播一次、离场落到终态（最后一张 + 字全显）、回滚到进入前复位、走读格门（gateS）。减少动态效果时显示 staticSrc。
+ */
+export type SeqText = { src: string; size: [number, number]; rows: { x0: number; x1: number; y0: number; y1: number; n: number }[]; plan: { row: number; at: number; per: number }[] };
+export function SeqPanel({ p, pos, dy, q, stage, animate, frames, schedule, gateS, text, staticSrc }: {
+  p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean;
+  frames: string[]; schedule: [number, number][]; gateS: number; text?: SeqText; staticSrc: string;
+}) {
+  const els = useRef<(HTMLImageElement | null)[]>([]);
+  const rowEls = useRef<(HTMLImageElement | null)[]>([]);
+  const timers = useRef<number[]>([]);
+  const last = schedule[schedule.length - 1][0];
+  const show = (n: number) => els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
+  const rowClip = (r: number, k: number) => {
+    const row = text?.rows[r], el = rowEls.current[r];
+    if (!row || !text || !el) return;
+    const [W, H] = text.size;
+    const right = row.x0 + ((row.x1 - row.x0) * k) / row.n;
+    el.style.clipPath = `inset(${((row.y0 / H) * 100).toFixed(2)}% ${(100 - (right / W) * 100).toFixed(2)}% ${(100 - (row.y1 / H) * 100).toFixed(2)}% ${((row.x0 / W) * 100).toFixed(2)}%)`;
+  };
+  const allText = (full: boolean) => text?.rows.forEach((r, i) => rowClip(i, full ? r.n : 0));
+  const clear = () => { timers.current.forEach((id) => window.clearTimeout(id)); timers.current = []; flag(false); };
+  const play = () => {
+    clear(); show(0); allText(false); flag(true);
+    const t: number[] = [];
+    for (const [n, at] of schedule.slice(1)) t.push(window.setTimeout(() => show(n), at * 1000));
+    for (const { row, at, per } of text?.plan ?? []) for (let k = 1; k <= (text?.rows[row].n ?? 0); k++) t.push(window.setTimeout(() => rowClip(row, k), (at + (k - 1) * per) * 1000));
+    t.push(window.setTimeout(() => { timers.current = []; flag(false); }, (gateS - 0.2) * 1000));
+    timers.current = t;
+  };
+  const stop = () => { if (timers.current.length) { clear(); show(last); allText(true); } };
+  const reset = () => { clear(); show(0); allText(false); };
+  useStage(q, stage, animate, play, stop, reset, animate ? gateS : 0);
+  useEffect(() => { allText(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!animate) return <StaticImg src={staticSrc} pos={pos} aspect={p.aspect} dy={dy} />;
+  return (
+    <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+      {frames.map((src, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={src} ref={(el) => { els.current[i] = el; }} src={src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={{ opacity: i === 0 ? 1 : 0 }} />
+      ))}
+      {text?.rows.map((_, r) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={r} ref={(el) => { rowEls.current[r] = el; }} src={text.src} alt="" draggable={false} className="pointer-events-none absolute inset-0 block h-full w-full select-none" style={{ clipPath: "inset(0 100% 0 0)" }} />
+      ))}
+    </div>
+  );
+}
+
 const L4 = "/assets/comic-v4/layers/";
 const F4 = "/assets/comic-v4/frames/";
 /** 声音事件（混音器在 kitchen-audio 分支接收；没收到就静音）。时刻都挂在 useStage 的真实时间轴上 */

@@ -219,13 +219,13 @@
   {
    "key": "p4d",
    "beat": "yolk",
-   "src": "/assets/comic-v3/p4d.webp",
+   "src": "/assets/comic-v6/p4d/frame-08.webp",
    "source": "04-catch-and-call.png D 格",
    "dialogueInImage": false,
    "x": 10,
    "y": 26,
    "w": 80,
-   "aspect": 3.5254,
+   "aspect": 3.5143,
    "from": "bottom",
    "order": 0,
    "role": "hero"
@@ -414,7 +414,7 @@
    "x": 10,
    "y": 6,
    "w": 44,
-   "aspect": 2.7417,
+   "aspect": 2.7444,
    "from": "top",
    "order": 0,
    "role": "support"
