@@ -4,7 +4,7 @@
  * 看起来是"烟 / 蒸汽"而不是一团团光斑：用一张程序生成的、可平铺的分形噪声（有丝缕、有空隙）当雾的纹理，
  * 叠三层不同大小、不同速度的纹理，各自往上、往旁边慢慢漂；上面比下面稀，再盖一层均匀的薄雾，所以整屏都有雾感。
  * 强度（0–1）= max(位置包络, √翻炒声音量 / full)：位置包络在进入炒菜段之前就开始升（不等声音爬到一半才看得见），
- * 声音包络保证声音在哪里，雾就在哪里；强度本身再被平滑（升得快、退得慢），滚动抖动不会让雾闪。
+ * 声音包络保证声音在哪里，雾就在哪里；强度本身再被平滑（升得快、退得也快：滚到下一页雾就散），滚动抖动不会让雾闪。
  * 一个全屏 Canvas（半分辨率，本来就是软的），不接收指针。减少动态效果或 ?perf=0 时不渲染。所有数字都在 STEAM 里。
  */
 import gsap from "gsap";
@@ -17,10 +17,10 @@ export const STEAM = {
   /** 翻炒声满量程（节拍表里 0.5） */
   full: 0.5,
   /** 位置包络（以炒菜段起点为 0，单位：段）：[开始升, 升满, 开始退, 退完] */
-  env: [-0.3, 0.12, 0.75, 1.15] as [number, number, number, number],
+  env: [-0.3, 0.12, 0.55, 0.9] as [number, number, number, number],
   /** 强度平滑：升 / 退的速度（每秒） */
   up: 1.6,
-  down: 0.55,
+  down: 2.2,
   /** 三层雾：纹理边长（取屏幕长边的倍数）、漂移速度（纹理边长 / 秒，负 y = 往上）、透明度 */
   layers: [
     { size: 1.7, vx: 0.006, vy: -0.012, a: 0.5 },
@@ -58,6 +58,12 @@ export const STEAM = {
     w0: 0.03,
     w1: 0.2,
     wiggle: 0.09,
+    /** 几缕烟：各自的最宽半宽（屏幕宽比例）、左右摆幅、一路上的弯数、摆动速度（弯往上走的圈/秒）、相位、浓度。行波：弯是顺着烟往上"传"的，像烟真的在飘 */
+    ribbons: [
+      { w1: 0.1, amp: 0.15, cycles: 1.3, speed: 0.2, phase: 0, a: 1 },
+      { w1: 0.065, amp: 0.1, cycles: 2.1, speed: 0.28, phase: 2.2, a: 0.85 },
+      { w1: 0.05, amp: 0.2, cycles: 0.9, speed: 0.15, phase: 4.1, a: 0.7 },
+    ],
     reach: 0.9,
     alpha: 1,
   },
@@ -107,7 +113,8 @@ export default function StirSteam() {
   const pos = idx < 0 ? -9 : timeline.index + timeline.p - idx;
   const posEnv = ramp(pos, e0, e1) * (1 - ramp(pos, e2, e3));
   const soundEnv = Math.sqrt(Math.min(1, Math.max(0, loopLevels(timeline, beats).stirfry / STEAM.full)));
-  const level = Math.max(posEnv, soundEnv);
+  // 离开炒菜段就散：声音还没退完也不能让雾留着（滚到下一页应当没有雾，桌面上也不剩）
+  const level = Math.min(Math.max(posEnv, soundEnv), 1 - ramp(pos, e2, e3));
   useEffect(() => { target.current = level; }, [level]);
 
   useEffect(() => {
@@ -183,20 +190,23 @@ export default function StirSteam() {
       });
       // 2) 形状遮罩：出口窄、越高越宽、左右蜿蜒、越高越淡；每 2 像素一行
       mctx.clearRect(0, 0, W, H);
-      for (let y = 0; y < sy; y += 2) {
-        const u = Math.min(1, (sy - y) / reach);
-        if (u >= 1) continue;
-        const cx = sx + Math.sin(t * 0.8 + u * 5.2) * PL.wiggle * W * u * u + Math.sin(t * 1.7 + u * 11) * 0.012 * W * u;
-        const w = (PL.w0 + (PL.w1 - PL.w0) * Math.pow(u, 0.75)) * W;
-        const a = Math.min(1, u * 45) * (1 - u) ** 0.8; // 出口处从 0 起，很快浓起来，往上渐淡
-        const gr = mctx.createLinearGradient(cx - w, 0, cx + w, 0);
-        gr.addColorStop(0, "rgba(0,0,0,0)");
-        gr.addColorStop(0.3, `rgba(0,0,0,${a * 0.45})`);
-        gr.addColorStop(0.5, `rgba(0,0,0,${a})`);
-        gr.addColorStop(0.7, `rgba(0,0,0,${a * 0.45})`);
-        gr.addColorStop(1, "rgba(0,0,0,0)");
-        mctx.fillStyle = gr;
-        mctx.fillRect(Math.max(0, cx - w), y, Math.min(W, cx + w) - Math.max(0, cx - w), 2);
+      for (const R of PL.ribbons) {
+        for (let y = 0; y < sy; y += 2) {
+          const u = Math.min(1, (sy - y) / reach);
+          if (u >= 1) continue;
+          // 行波：弯随时间沿烟往上传；越高摆得越大（出口处几乎不动，像从锅口稳稳冒出来）
+          const cx = sx + Math.sin((u * R.cycles - t * R.speed) * 6.283 + R.phase) * R.amp * W * Math.pow(u, 0.8);
+          const w = (PL.w0 * 0.6 + (R.w1 - PL.w0 * 0.6) * Math.pow(u, 0.8)) * W * (1 + u * u);
+          const a = R.a * Math.min(1, u * 45) * (1 - u) ** 0.9;
+          const gr = mctx.createLinearGradient(cx - w, 0, cx + w, 0);
+          gr.addColorStop(0, "rgba(0,0,0,0)");
+          gr.addColorStop(0.3, `rgba(0,0,0,${a * 0.5})`);
+          gr.addColorStop(0.5, `rgba(0,0,0,${a})`);
+          gr.addColorStop(0.7, `rgba(0,0,0,${a * 0.5})`);
+          gr.addColorStop(1, "rgba(0,0,0,0)");
+          mctx.fillStyle = gr;
+          mctx.fillRect(Math.max(0, cx - w), y, Math.min(W, cx + w) - Math.max(0, cx - w), 2);
+        }
       }
       pctx.globalAlpha = 1;
       pctx.globalCompositeOperation = "destination-in";
