@@ -3,7 +3,7 @@
 目录里按修改时间排序的 10 张图依次是：
  base（不透明底图）、faceA（睁眼看正前）、yolkL（最长的流）、yolkS（中）、faceB（眼神略偏）、yolkM（最短）、
  bubble（黑白遮罩：白 = 对白泡）、faceClosed（闭眼）、steam（热气）、text（对白文字层）。
-全部同尺寸 1463×1075。输出：base / faceA / faceB / faceClosed / yolk1(短)/yolk2(中)/yolk3(长) / steam / text / bubble(白→alpha) / static（静态终态合成）。
+全部同尺寸 1463×1075，统一裁掉四周 44px 的深色框线后为 1375×987。输出：base / faceA / faceB / faceClosed / yolk1(短)/yolk2(中)/yolk3(长) / steam / text / bubble(白→alpha) / static（静态终态合成）。
 """
 import glob, os, sys
 from PIL import Image
@@ -14,7 +14,13 @@ os.makedirs(out, exist_ok=True)
 fs = sorted(glob.glob(os.path.join(src, "*.png")), key=os.path.getmtime)
 names = ["base", "faceA", "yolk3", "yolk2", "faceB", "yolk1", "bubble", "faceClosed", "steam", "text"]
 assert len(fs) == len(names), len(fs)
-im = {n: Image.open(f) for n, f in zip(names, fs)}
+# 生成图自带一圈约 40px 的深色框线，放进纸色格子里会出现"白格里有黑框"：所有层统一裁掉 CROP px（比例随之变成 1375×987 ≈ 1.393）
+CROP = 44
+def crop(i):
+    i = i.convert("RGBA") if i.mode != "RGB" else i
+    w, h = i.size
+    return i.crop((CROP, CROP, w - CROP, h - CROP))
+im = {n: crop(Image.open(f)) for n, f in zip(names, fs)}
 # 流的长度：yolkM 最短、yolkS 中、yolkL 最长（按像素范围确认）
 base = im["base"].convert("RGBA")
 for n in ["faceA", "yolk3", "steam", "text"]:
