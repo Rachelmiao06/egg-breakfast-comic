@@ -20,6 +20,7 @@ import ComicLayer from "./ComicLayer";
 import { HEAR_EVENT, usePerfEnabled } from "./PanelPerf";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, tableWaitFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
+import EggPoke from "./EggPoke";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
 import { useViewport } from "./viewport";
 
@@ -142,6 +143,7 @@ function StageV2() {
       <SearchBackdrop />
       <ComicLayer flow />
       <ScrollDriver smooth />
+      <EggPoke />
       <SoundToggle />
       <ScrollHint />
       {!clean && <MotionToggle v2 />}
@@ -169,6 +171,7 @@ function Stage() {
       </div>
       <ComicLayer />
       <ScrollDriver />
+      <EggPoke />
       <SoundToggle />
       <ScrollHint />
       {debug && <Debug />}
