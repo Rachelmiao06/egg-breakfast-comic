@@ -293,6 +293,11 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
           <div data-plane="near" className="absolute inset-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={PL.near.src} alt="" draggable={false} className="absolute select-none" style={pct(PL.near.img)} />
+            {/* 道具切片（层板架、葱身子、菜篮）：蛋的支点，独立图片 */}
+            {PL.props.items.map((it) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={it.id} data-prop={it.id} src={it.src} alt="" draggable={false} className="absolute select-none" style={pct(it.img)} />
+            ))}
             {actorEls}
             {occluderEls}
           </div>

@@ -29,7 +29,8 @@ import { KITCHEN_ONESHOT_EVENT } from "./useKitchenAudio";
 
 const { eggRest: REST, eggSize: SIZE } = ANCHORS;
 
-export type Pt = { x: number; y: number };
+/** d：景深缩放系数（桌面站点才有；1 = 桌沿，越靠后越小），乘在 eggAtTable 上 */
+export type Pt = { x: number; y: number; d?: number };
 
 /** 蛋落地（真实时间的小跳落回桌面 / 锅里的那一下）：页面里的画框读它做"被震到"的小抖动。detail: { kind: "pan" | "table" } */
 export const EGG_LAND_EVENT = "egg:land";
@@ -49,6 +50,10 @@ export type EggAnchors = {
   spatulaLand: Pt;
   bowlLand: Pt;
   eggAtTable: number;
+  /** 可选：这一段（beat id）桌上的蛋让位给漫画格上的趴蛋（ComicLayer PerchEgg）：进入阶段淡出、停留隐藏、退出阶段淡回 */
+  hideDuring?: string;
+  /** 可选：深色墨线描边（蛋图自己的轮廓是金色细线，和背景里胡萝卜、葱的深棕黑描边不是一个画风）；px 是蛋图原始像素（随蛋缩放） */
+  ink?: { color: string; px: number };
   eggOnSpatula: number;
   eggInBowl: number;
   /** 可选：接蛋飞行的最高点（脚底的场景 y）。给了就越过接蛋格上框再落到铲面；不给用旧的固定抬升 */
@@ -92,9 +97,17 @@ export const HANDOFF = { straighten: [0, 0.35], panelIn: [0.47, 0.5], swap: 0.5,
  * box：表情图在蛋的布局框（eggSize，脚底 = 底边中点）里的位置和大小（场景像素）。表情图的身体姿态和透明边距
  * 与原图不同时用它把图里的接触点放到脚底、外轮廓宽度对齐原图；不给就和原图一样铺满布局框。
  */
-export type EggFaces = { fly?: string | null; rest?: string | null; box?: { left: number; top: number; width: number; height: number } };
-type Face = "base" | "fly" | "rest";
-export type EggTraj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number };
+export type EggFaces = {
+  fly?: string | null;
+  rest?: string | null;
+  box?: { left: number; top: number; width: number; height: number };
+  /** 超人飞行姿势（朝右上；水平镜像后用于 L → M → E 的抛物线）：图、摆放框（蛋布局框像素）、镜像轴（质心，图内百分比） */
+  soar?: string | null;
+  soarBox?: { left: number; top: number; width: number; height: number };
+  soarPivot?: [number, number];
+};
+type Face = "base" | "fly" | "rest" | "soar";
+export type EggTraj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number; camSM?: number; camSC?: number };
 const span = (v: number, [a, b]: readonly [number, number]) => clamp01((v - a) / (b - a));
 export const DEFAULT_EGG_ANCHORS: EggAnchors = {
   panLaunch: ANCHORS.panLaunch,
@@ -127,6 +140,11 @@ type Plan = {
   /** 阅读停留阶段：站点小跳更少、更小 */
   calm?: boolean;
 };
+function inkFilter(ink?: { color: string; px: number }) {
+  if (!ink) return undefined;
+  const { color: c, px: p } = ink;
+  return { filter: `drop-shadow(${p}px 0 0 ${c}) drop-shadow(${-p}px 0 0 ${c}) drop-shadow(0 ${p}px 0 ${c}) drop-shadow(0 ${-p}px 0 ${c})` };
+}
 const TABLE_LIKE = new Set(["toTable", "table", "ready", "leap"]);
 
 const b_isFlight = (b: Beat) => b.egg === "flight";
@@ -137,12 +155,12 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 function stationPose(st: Station, a: EggAnchors): Pose {
   const air = a.traj?.R ?? { x: a.tableWait.x, y: -400 };
   const p = st === "pan" ? a.panLaunch : st === "table" ? a.tableWait : st === "spatula" ? a.spatulaLand : st === "air" ? air : a.bowlLand;
-  const scale = st === "pan" ? 1 : st === "table" || st === "air" ? a.eggAtTable : st === "spatula" ? a.eggOnSpatula : a.eggInBowl;
+  const scale = st === "pan" ? 1 : st === "table" ? a.eggAtTable * (a.tableWait.d ?? 1) : st === "air" ? a.eggAtTable : st === "spatula" ? a.eggOnSpatula : a.eggInBowl;
   return { x: p.x - REST.x, y: p.y - REST.y, scale, rotation: st === "spatula" ? (a.spatulaTilt ?? 0) : 0 };
 }
 
 /** 弧线：起点、终点、最高点抬升 lift；缩放线性插值，中途略放大表示靠近镜头 */
-function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number, spin: number): Pose {
+function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number, spin: number, drop = false): Pose {
   const A = stationPose(from, a), B = stationPose(to, a);
   const k = clamp01(t);
   const cx = (A.x + B.x) / 2, cy = Math.min(A.y, B.y) - lift;
@@ -150,7 +168,10 @@ function arc(from: Station, to: Station, t: number, a: EggAnchors, lift: number,
     x: bez(A.x, cx, B.x, k),
     y: bez(A.y, cy, B.y, k),
     // 中途略放大（靠近镜头）：按起落两站中较小的缩放取相对量，窄屏缩小的蛋不会在半空突然变大一半
-    scale: A.scale + (B.scale - A.scale) * k + 0.24 * Math.min(A.scale, B.scale) * Math.sin(Math.PI * k),
+    // drop（锅 → 桌面）：缩得更早（ease-out）、不在半空放大，蛋很快回到桌面该有的大小，不再又大又飘在墙前
+    scale: drop
+      ? A.scale + (B.scale - A.scale) * (1 - (1 - k) ** 2.6)
+      : A.scale + (B.scale - A.scale) * k + 0.24 * Math.min(A.scale, B.scale) * Math.sin(Math.PI * k),
     rotation: spin * Math.sin(Math.PI * k),
   };
 }
@@ -175,36 +196,57 @@ export function flightPoint(A: Pt, B: Pt, apexY: number, t: number, apexAt = 0.6
  * 桌面上换站（两站之间按滚动走）：贴着桌面连跳几下（每 ~180 场景像素一下，至少两下），抬得低，
  * 不会升进上方漫画格的范围被格子挡住；每一下身体往前进方向轻轻一歪，缩放不变。
  */
-function hopBetween(A: Pt, B: Pt, t: number, scale: number, lift: number, spin: number): Pose {
+function hopBetween(A: Pt, B: Pt, t: number, scaleA: number, scaleB: number, lift: number, spin: number): Pose {
   const k = clamp01(t);
-  const n = Math.max(2, Math.round(Math.abs(B.x - A.x) / 180));
+  // 跳上 / 跳下道具（两站纵向差大）：只跳一下，弧顶抬得高（不在空中连跳，也不贴着墙滑过去）
+  const climb = Math.abs(B.y - A.y) > 100;
+  const n = climb ? 1 : Math.max(2, Math.round(Math.abs(B.x - A.x) / 180));
+  if (climb) lift = Math.max(lift, 150);
   const ph = (k * n) % 1, hop = k >= 1 ? 0 : Math.sin(Math.PI * ph);
-  return { x: A.x + (B.x - A.x) * k - REST.x, y: A.y + (B.y - A.y) * k - lift * hop - REST.y, scale, rotation: spin * hop };
+  return { x: A.x + (B.x - A.x) * k - REST.x, y: A.y + (B.y - A.y) * k - lift * hop - REST.y, scale: scaleA + (scaleB - scaleA) * smooth(k), rotation: spin * hop };
 }
-/** 三次贝塞尔（一个坐标） */
-const cub = (a: number, b: number, c: number, d: number, t: number) => (1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t * t * c + t ** 3 * d;
 /**
  * 高跳轨迹上参数 s 处的脚底点（场景像素）：
- *   L → M：三次贝塞尔，从桌面向上起跳、朝她的视线方向，最后竖直到达 M（与下一段同方向，速度方向连续）；
- *   M → E：竖直向上越过画面上缘；E → R：画布上沿之外的直线（全程在画外）；
- *   R → C：横向匀速、纵向加速（ease-in）落到铲面，从铲面右上方斜着下来。
+ *   L → M：抛物线（篮沿 → 妈妈视线点）；M → Ap：继续弹到最高点（listen 镜头抬高后画面内）；Ap 悬停；Ap → C：自由落体落到铲面。
  */
 export function trajFoot(T: EggTraj, s: number): Pt {
   const k = clamp01(s);
-  const { L, M, E, R, C } = T;
-  if (k <= T.sM) {
-    const u = k / T.sM, dy = L.y - M.y;
-    return { x: cub(L.x, L.x + (M.x - L.x) * 0.25, M.x, M.x, u), y: cub(L.y, L.y - 0.55 * dy, M.y + 0.45 * dy, M.y, u) };
-  }
-  if (k <= T.sE) { const u = (k - T.sM) / (T.sE - T.sM); return { x: M.x + (E.x - M.x) * u, y: M.y + (E.y - M.y) * u }; }
-  if (k <= T.sR) { const u = (k - T.sE) / (T.sR - T.sE); return { x: E.x + (R.x - E.x) * u, y: E.y + (R.y - E.y) * u }; }
+  const { L, R, C } = T; // R = 最高点 Ap
+  // 一条抛物线（篮沿 L → 最高点 Ap → 铲面 C），镜头同时编排（backgrounds.json camera）：
+  //   横向：L.x → C.x 几乎匀速（35% 缓入缓出），整条路径横向速度连续；
+  //   纵向：上升（0 → sE）按 ease-out 到最高点（最高点纵向速度为 0），悬停（sE → sR）轻微浮动，下落（sR → 1）u² 自由落体。
+  const x = L.x + (C.x - L.x) * (0.35 * smooth(k) + 0.65 * k);
+  if (k <= T.sE) { const u = k / T.sE; return { x, y: L.y + (R.y - L.y) * (1 - (1 - u) * (1 - u)) }; }
+  if (k <= T.sR) { const u = (k - T.sE) / (T.sR - T.sE); return { x, y: R.y + 6 * Math.sin(2 * Math.PI * u) }; }
   const u = (k - T.sR) / (1 - T.sR);
-  return { x: R.x + (C.x - R.x) * u, y: R.y + (C.y - R.y) * u * u };
+  return { x, y: R.y + (C.y - R.y) * u * u };
 }
+/** 弧线在 s 处的水平速度方向（>0 向右）：给超人姿势选镜像 */
+function trajVx(T: EggTraj, s: number) {
+  const a = trajFoot(T, Math.max(0, s - 0.01)), b = trajFoot(T, Math.min(1, s + 0.01));
+  return b.x - a.x;
+}
+/** 平飞段的参数：匀速为主，起步和收尾各缓一点 */
+/** 抛物线飞行时身体倾斜的倍数：超人姿势图本身已朝飞行方向倾斜，切线只再叠加一部分 */
+const LEAN = 0.35;
 function trajPose(T: EggTraj, s: number): Pose {
   const f = trajFoot(T, s);
-  const u = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
-  return { x: f.x - REST.x, y: f.y - REST.y, scale: T.scaleL + (T.scaleC - T.scaleL) * u, rotation: T.tiltC * u };
+  const sm = (q: number) => { const c = clamp01(q); return c * c * (3 - 2 * c); };
+  // 缩放：让蛋在“屏幕上”的大小从起跳到落铲平滑过渡（镜头缩放在 hear → catch 间只有一点变化，按 s 线性插值当时的镜头缩放再除掉）
+  let scale = T.scaleL + (T.scaleC - T.scaleL) * sm(s);
+  if (T.camSM && T.camSC) {
+    const cam = T.camSM + (T.camSC - T.camSM) * sm(s / T.sR);
+    scale = (T.scaleL * T.camSM + (T.scaleC * T.camSC - T.scaleL * T.camSM) * sm(s)) / cam;
+  }
+  // 倾斜：上升段顺着轨迹切线（超人姿势），到最高点渐退为 0；下落段（fly 图朝左下）只叠加铲面倾角
+  let lean = 0;
+  if (s < T.sE) {
+    const a = trajFoot(T, Math.max(0, s - 0.01)), b = trajFoot(T, s + 0.01);
+    const ang = Math.max(-80, Math.min(80, (Math.atan2(b.x - a.x, -(b.y - a.y)) * 180) / Math.PI));
+    lean = LEAN * ang * sm(s / 0.06) * (1 - sm(s / T.sE));
+  }
+  const u2 = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
+  return { x: f.x - REST.x, y: f.y - REST.y, scale, rotation: T.tiltC * u2 + lean };
 }
 
 /** 本段之前，蛋最后停在哪一站（决定 flight 从哪起飞） */
@@ -240,7 +282,7 @@ function plan(t: Timeline, beats: Beat[], a0: EggAnchors): Plan {
     }
     case "toTable": {
       if (before) return { ...base("pan", "pan", Z.eggInPan), settle: true, rest: stationPose("table", a) };
-      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 260, 12), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest: stationPose("table", a) };
+      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 60, 12, true), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest: stationPose("table", a) };
       const P = base("table", "table", Z.eggOnTable);
       P.landing = "table";
       P.rest = P.pose;
@@ -257,9 +299,10 @@ function plan(t: Timeline, beats: Beat[], a0: EggAnchors): Plan {
       const rest = stationPose("table", a);
       if (from && (from.x !== to.x || from.y !== to.y) && t.phase === "enter") {
         const k = smooth(t.phaseP);
-        return { pose: hopBetween(from, to, k, a.eggAtTable, 42, to.x > from.x ? 7 : -7), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest };
+        return { pose: hopBetween(from, to, k, a.eggAtTable * (from.d ?? 1), a.eggAtTable * (to.d ?? 1), 42 * Math.min(from.d ?? 1, to.d ?? 1), to.x > from.x ? 7 : -7), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest };
       }
       const P = base("table", b.egg === "ready" ? "ready" : "table", Z.eggOnTable);
+      if (a.hideDuring && b.id === a.hideDuring) P.opacity = t.phase === "enter" ? 1 - clamp01(t.phaseP / 0.5) : t.phase === "exit" ? clamp01((t.phaseP - 0.4) / 0.6) : 0;
       P.rest = rest;
       P.landing = "table"; // 换站后第一次停下：一次落地回弹（同一站上来回滚动不重播）
       if (b.egg === "ready") P.settle = exiting; // 环境段：桌沿蓄力（真实时间：压低、左右扭、准备跳），离开前收住
@@ -321,7 +364,7 @@ function plan(t: Timeline, beats: Beat[], a0: EggAnchors): Plan {
   }
 }
 
-type JumpLive = { T?: EggTraj; jump?: EggAnchors["jump"]; reduced: boolean; P: Plan; setFace: (f: Face) => void };
+type JumpLive = { T?: EggTraj; jump?: EggAnchors["jump"]; reduced: boolean; P: Plan; setFace: (f: Face) => void; setSoarFlip: (f: boolean) => void };
 type Ref<T> = { current: T };
 type JumpEnv = {
   wrap: Ref<HTMLDivElement | null>; egg: Ref<HTMLDivElement | null>; shadow: Ref<HTMLDivElement | null>; dot: Ref<SVGCircleElement | null>;
@@ -350,6 +393,10 @@ function createJumpController(env: JumpEnv) {
       st.stepT = now;
     }
     const p = trajPose(T, x);
+    // 腾空：L → M → E（出画前）用超人飞行姿势，之后（R → C，朝妈妈下落）换回 fly 图
+    // 超人姿势：L → M 朝左上（镜像），M 之后朝弧线的水平方向（向右不镜像、向左镜像）；快到铲面（R 之后）换回朝左下的 fly 图
+    const lv0 = env.live.current;
+    if (x < T.sR && !lv0.reduced) { lv0.setFace("soar"); lv0.setSoarFlip(trajVx(T, x) <= 0); } else lv0.setFace("fly");
     gsap.set(w, { x: p.x, y: p.y, scale: p.scale, rotation: p.rotation, transformOrigin: "50% 100%", overwrite: true });
     dotAt(p.x + REST.x, p.y + REST.y);
   };
@@ -490,16 +537,20 @@ function scrollParam(t: Timeline, beats: Beat[], T: EggTraj, mToE: [number, numb
   const ci = beats.findIndex((b, i) => i > ai && b.egg === "flight");
   if (hi < 0 || ai < 0 || ci < 0) return 0;
   const cur = vhAt(beats, t.index, t.p);
-  const l0 = vhAt(beats, hi, lToM), a0 = vhAt(beats, hi, mToE[0]), a1 = vhAt(beats, ai, mToE[1]);
+  const l0 = vhAt(beats, hi, lToM), a1 = vhAt(beats, ai, mToE[1]);
   const tr = eggTravel(beats[ci]);
   const b1 = vhAt(beats, ci, tr?.start ?? 0.22), c1 = vhAt(beats, ci, tr?.land ?? 0.8);
-  if (cur < l0) return 0;
-  if (cur < a0) return (T.sM * (cur - l0)) / (a0 - l0);
-  if (cur < a1) return T.sM + ((T.sE - T.sM) * (cur - a0)) / (a1 - a0);
-  if (cur < b1) return T.sE + ((T.sR - T.sE) * (cur - a1)) / (b1 - a1);
-  if (cur < c1) return T.sR + ((1 - T.sR) * (cur - b1)) / (c1 - b1);
-  return 1;
+  // 分段线性：上升（hear q0.5 → listen q0.12）→ 悬停（→ catch 动作开始）→ 下落（catch 动作）。
+  // 分段处斜率不同，速度会突变，所以再用 ±SMOOTH_VH 的三角窗平滑一次（模拟里把屏幕轨迹的最大折点降到 1/2）
+  const lin = (v: number) => (v < l0 ? 0 : v < a1 ? (T.sE * (v - l0)) / (a1 - l0) : v < b1 ? T.sE + ((T.sR - T.sE) * (v - a1)) / (b1 - a1) : v < c1 ? T.sR + ((1 - T.sR) * (v - b1)) / (c1 - b1) : 1);
+  if (cur <= l0) return 0;
+  if (cur >= c1) return 1; // 落铲点之后蛋已经在铲面上（站点逻辑接手），不能被窗口拖回 < 1
+  const n = 10;
+  let sum = 0, wsum = 0;
+  for (let i = -n; i <= n; i++) { const w = 1 - Math.abs(i) / (n + 1); sum += w * lin(cur + (SMOOTH_VH * i) / n); wsum += w; }
+  return sum / wsum;
 }
+const SMOOTH_VH = 40;
 const trailOn = () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("trail") === "1";
 
 export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = false, faces }: { src?: string; anchors?: Partial<EggAnchors>; direct?: boolean; faces?: EggFaces }) {
@@ -521,12 +572,17 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   // ---- 表情：直接切换（不做交叉淡化，任何时刻只显示一张脸） ----
   // fly：接蛋飞行途中（滚动控制）；rest：由落铲那一次真实时间事件在压缩到底时切换，不跟滚动快慢走；其余用原图
   const faceNow = useRef<Face>("base");
+  const soarImgRef = useRef<HTMLImageElement>(null);
   const restArmed = useRef(false); // 本次落铲事件已切到 rest
   const setFace = (f: Face) => {
     const want: Face = f !== "base" && !faces?.[f] ? "base" : f;
     faceNow.current = want;
-    const els: [Face, HTMLImageElement | null][] = [["base", baseImgRef.current], ["fly", flyImgRef.current], ["rest", restImgRef.current]];
+    const els: [Face, HTMLImageElement | null][] = [["base", baseImgRef.current], ["fly", flyImgRef.current], ["rest", restImgRef.current], ["soar", soarImgRef.current]];
     for (const [k, el] of els) if (el) el.style.visibility = k === want ? "visible" : "hidden";
+  };
+  const setSoarFlip = (flip: boolean) => {
+    const el = soarImgRef.current;
+    if (el) el.style.transform = flip ? "scaleX(-1)" : "scaleX(1)";
   };
   const onSpatula = P.station === "spatula";
   const flying = b_isFlight(timeline.beat) && P.station === null;
@@ -545,7 +601,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   const lastLanding = useRef<Station | null>(null);
   // ---- 高跳轨迹控制器（createJumpController）：显示参数用临界阻尼弹簧跟随 max(s_滚动, s_表演)；蛋离开 L、还没到 C 时由它移动蛋 ----
   const trailDot = useRef<SVGCircleElement>(null);
-  const live = useRef<JumpLive>({ T: a.traj, jump: a.jump, reduced: reducedMotion, P, setFace });
+  const live = useRef<JumpLive>({ T: a.traj, jump: a.jump, reduced: reducedMotion, P, setFace, setSoarFlip });
   const ctl = useRef<JumpController | null>(null);
   const trajActive = useRef(false); // 控制器写，组件读
   const landSpatula = (s: HTMLDivElement) => {
@@ -565,7 +621,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     return () => { c.dispose(); ctl.current = null; };
   }, []);
   useEffect(() => {
-    live.current = { T: a.traj, jump: a.jump, reduced: reducedMotion, P, setFace };
+    live.current = { T: a.traj, jump: a.jump, reduced: reducedMotion, P, setFace, setSoarFlip };
     landRef.current = landSpatula;
     ctl.current?.sync(a.traj && a.jump ? sScroll : null);
   });
@@ -767,13 +823,17 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
             transition: showShadow ? "opacity 0.2s" : "none",
           }}
         />
-        <div ref={eggRef} className="absolute inset-0 will-change-transform">
+        <div ref={eggRef} className="absolute inset-0 will-change-transform" style={inkFilter(anchors?.ink)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={baseImgRef} data-active-egg src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
           {/* 表情图预先加载、默认隐藏；切换只改 visibility，同一帧内只有一张脸 */}
           {faces?.fly && (
             // eslint-disable-next-line @next/next/no-img-element
             <img ref={flyImgRef} src={faces.fly} alt="" draggable={false} className={`absolute select-none ${faces.box ? "" : "inset-0 h-full w-full"}`} style={{ visibility: "hidden", maxWidth: "none", ...faces.box }} />
+          )}
+          {faces?.soar && faces.soarBox && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img ref={soarImgRef} src={faces.soar} alt="" draggable={false} className="absolute select-none" style={{ visibility: "hidden", maxWidth: "none", ...faces.soarBox, transform: "scaleX(-1)", transformOrigin: `${faces.soarPivot?.[0] ?? 50}% ${faces.soarPivot?.[1] ?? 50}%` }} />
           )}
           {faces?.rest && (
             // eslint-disable-next-line @next/next/no-img-element
