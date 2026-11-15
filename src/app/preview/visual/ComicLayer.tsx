@@ -4,7 +4,7 @@
  * 进入阶段减速入场（power3.out），停留完全静止，退出加速离场（power2.in）。
  * 第 1 段用接缝遮罩小样（CSS mask），其他格按各自方向滑入，不统一淡入。
  */
-import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
@@ -284,6 +284,16 @@ function avoidEgg(list: PanelSpec[], places: Record<string, Place>, egg: Rect, v
   }
 }
 
+/**
+ * 停留时间锁（2026-11-15 用户：一划而过格子和动画就没了，读者一直在滑也要留得久一点）：
+ * 逐格出现模式下，一格第一次真正出现后，至少在画面上留这么久（毫秒）——滚动已经把它推出去也不消失、格内动画不被打断；
+ * 之后的格子排队，等前面的放完再出现（不会叠在一起）。按各格动画的长度定；没写的用 default。
+ */
+const STICK_MS: Record<string, number> = { default: 2000, p2b: 4000, p2d: 3200, p3a: 3600, p3d: 1800, p6e: 3200 };
+/** 停留时间锁：格子 → 最早可以离开的时刻（clockMs）。模块级，不放在渲染里读写的 ref 上 */
+const LATCH = new Map<string, { until: number }>();
+const clockMs = () => Date.now();
+
 /** 入场方式（URL ?reveal=flow 切回条漫式整列上移；默认逐格出现） */
 function revealMode() {
   if (typeof window === "undefined") return "step";
@@ -300,8 +310,12 @@ function FlowLayer() {
   // 入场方式：默认"逐格出现"（用户 2026-11-14 偏好旧版：每段的格子在原位一张一张出现，停稳阅读，整段一起离开，
   // 下一段的格子不会从屏幕下沿提前露出）；?reveal=flow 是之前的整列随滚动上移（条漫式），留作对比
   const step = revealMode() !== "flow";
+  const latch = LATCH;
+  const [, wake] = useReducer((x: number) => x + 1, 0);
+  const now = clockMs();
   const visible = PANELS.filter((p) => {
     if (p.hideInFlow || index[p.beat] === undefined) return false;
+    if (step && (latch.get(p.key)?.until ?? 0) > now) return true; // 还在"停"着：滚动推出去了也继续挂着
     const q = g - index[p.beat];
     // 没有退出阶段的段（结尾特写 closeup）读完后一直留在画面上：页面滚到底时 q 正好是 1，也不能消失
     const holdsToEnd = (beats[index[p.beat]].phases?.exit ?? 1) === 0;
@@ -332,6 +346,14 @@ function FlowLayer() {
       if (eggHere) avoidEgg(list, places, eggHere, vp.w, vp.h);
     }
   }
+  // 时间锁到期时重新渲染一次（格子才会真的离开 / 排队的格子才会出现）
+  useEffect(() => {
+    const t0 = clockMs();
+    const due = [...latch.values()].map((e) => e.until - t0).filter((d) => d > 0);
+    if (!due.length) return;
+    const id = window.setTimeout(wake, Math.min(...due) + 30);
+    return () => window.clearTimeout(id);
+  });
   return (
     // 画格是最近的一层：整层随鼠标做比厨房桌面更大的视差（KitchenLayers 发布在 <html> 上的 --kl-mouse-*，触屏和减少动态效果时为 0）
     <div data-comic-flow className="pointer-events-none fixed inset-0 z-10" style={{ translate: `calc(var(--kl-mouse-x, 0) * ${-PAPER_PARALLAX.x}vw) calc(var(--kl-mouse-y, 0) * ${-PAPER_PARALLAX.y}vh)` }}>
@@ -362,11 +384,26 @@ function FlowLayer() {
           const holds = (ph.exit ?? 1) === 0;
           const tIn = s0 + 0.35 * (s1 - s0);
           const tOut = holds ? Infinity : e0 + 0.12 * (e1 - e0);
-          const on = q >= tIn && q < tOut;
+          const natural = q >= tIn && q < tOut;
+          let on = natural;
+          if (!holds) {
+            const lk = latch.get(p.key);
+            if (natural) {
+              if (!lk) {
+                // 其他段的格子还在"停"着：排队等它放完，不叠在一起
+                const waiting = [...latch].some(([k, e]) => e.until > now && PANELS.find((o) => o.key === k)?.beat !== p.beat);
+                if (waiting) on = false;
+                else latch.set(p.key, { until: now + (STICK_MS[p.key] ?? STICK_MS.default) });
+              }
+            } else if (lk) {
+              if (lk.until > now) on = true; // 滚动已经推出去了，时间没到，继续留着
+              else latch.delete(p.key); // 放完了，才算离开（再次进入可以重播）
+            }
+          }
           const panNow = pan * clamp01((q - s1) / Math.max(1e-6, e0 - s1));
           dy = -panNow;
           const topVh = pos.y + dy;
-          stage = { vis: on ? clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh) : 0, entered: on, leaving: q >= tOut };
+          stage = { vis: on ? clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh) : 0, entered: on, leaving: !on && q >= tOut };
           reveal = { on, off: q >= tOut ? [0, -8] : p.from === "seam" ? [0, 0] : offsetFor(p.from, 0), scale: q >= tOut ? 1 : 1 + ENTER_SCALE, origin: `${(pos.x + pos.w / 2).toFixed(2)}vw ${(pos.y + dy + hVh / 2).toFixed(2)}vh` };
         } else {
           const [s0, s1] = p.enterAt ?? [-0.14 + i * 0.05, 0.34];

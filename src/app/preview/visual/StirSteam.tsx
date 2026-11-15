@@ -198,7 +198,11 @@ export default function StirSteam() {
         ctx.globalCompositeOperation = "source-over";
       }
       ctx.globalAlpha = 1;
-      if (r && (r.bottom < 0 || r.top > window.innerHeight)) return; // 这一格不在画面里，没有源头就不冒
+      // 烟只从锅口冒：没有这一格（没挂载 / 不在画面里）就不冒——不再退回到"画面下方中部"（那是桌面）；
+      // 格子淡入淡出时带着滑动和缩放，位置不准：烟的浓度跟着格子的实际不透明度走，淡入完成（≥ 0.95）才全量，淡出一开始就收
+      if (!el || !r || r.width <= 10 || r.bottom < 0 || r.top > window.innerHeight) return;
+      const shown = ramp(parseFloat(getComputedStyle(el.parentElement ?? el).opacity), 0.8, 0.98);
+      if (shown <= 0.01) return;
 
       const reach = Math.max(10, Math.min(sy, PL.reach * H));
       const t = gsap.ticker.time;
@@ -237,7 +241,7 @@ export default function StirSteam() {
       pctx.globalAlpha = 1;
       pctx.globalCompositeOperation = "destination-in";
       pctx.drawImage(M, 0, 0);
-      ctx.globalAlpha = Math.min(1, PL.alpha * Math.min(1, I * 1.4));
+      ctx.globalAlpha = Math.min(1, PL.alpha * Math.min(1, I * 1.4)) * shown;
       ctx.drawImage(P, 0, 0);
       ctx.drawImage(P, 0, 0); // 叠两次，浓一倍（出口处能清楚看到烟）
       ctx.globalAlpha = 1;

@@ -64,6 +64,7 @@ const flag = (on: boolean) => {
  */
 function useStage(q: number, stage: Stage, enabled: boolean, play: () => void, stop: () => void, reset: () => void) {
   const played = useRef(false);
+  const resetTimer = useRef(0);
   const wasEnabled = useRef(enabled);
   useEffect(() => {
     if (!enabled) {
@@ -71,13 +72,18 @@ function useStage(q: number, stage: Stage, enabled: boolean, play: () => void, s
       return;
     }
     wasEnabled.current = true;
-    if (stage.vis < GONE_VIS || (q < BEFORE_Q && !stage.entered)) { if (played.current) { played.current = false; reset(); } return; }
+    if (stage.vis < GONE_VIS || (q < BEFORE_Q && !stage.entered)) {
+      // 格子淡出的 0.45 s 里先别复位（否则格内动画在淡出时倒带回第一帧）
+      if (played.current && !resetTimer.current) resetTimer.current = window.setTimeout(() => { resetTimer.current = 0; played.current = false; reset(); }, 450);
+      return;
+    }
+    if (resetTimer.current) { window.clearTimeout(resetTimer.current); resetTimer.current = 0; }
     if (stage.leaving || stage.vis < LEAVE_VIS) { stop(); return; }
     if (stage.entered && stage.vis >= READY_VIS && !played.current) { played.current = true; play(); }
   });
   // 卸载时复位，并清掉"播过"标记：格子离开视口被卸载、再次进入重新挂载时能再播；
   // 开发模式 StrictMode 的"挂载 → 模拟卸载 → 再挂载"也一样（否则刚开始就被复位，而 played 还是 true，整段不播）
-  useEffect(() => () => { played.current = false; reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { window.clearTimeout(resetTimer.current); resetTimer.current = 0; played.current = false; reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
@@ -412,30 +418,38 @@ export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; po
 const P5 = "/assets/comic-v5/p6e/";
 const P6E_TEXT = "没事，是我拉肚子了。";
 const DIM = { saturate: 0.68, contrast: 0.9, brightness: 1.02 };
+/**
+ * 对白逐字打出（2026-11-15 用户）：一个字一个字、匀速、一口气打完整句（不是几个字一起出，也不分段），蛋黄从第一个字开始就往下流。
+ * text.webp 是整句一张图（1400 宽），按每个字的右边缘做 clip-path 步进裁切；每字的右边缘（原图像素）量自 text.webp 的列投影。
+ */
+const P6E_EDGES = [300, 400, 485, 530, 655, 740, 824, 908, 994, 1076, 1120]; // [0] = 一个字都没有；之后依次是 没 事 ， 是 我 拉 肚 子 了 。
+const P6E_TYPE = { start: 0.3, perChar: 0.19 }; // 开始时刻（时间轴秒）、每字秒数（10 字 ≈ 1.9 s）
+const typed = (n: number) => `inset(0 ${(((1400 - P6E_EDGES[Math.max(0, Math.min(P6E_EDGES.length - 1, Math.round(n)))]) / 1400) * 100).toFixed(2)}% 0 0)`;
+
 export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const art = useRef<HTMLDivElement>(null);
   const els = useRef<Record<string, HTMLImageElement | null>>({});
   const tl = useRef<gsap.core.Timeline | null>(null);
-  const look = useRef({ dim: 0, ink: 0, show: 0, f2: 0, f3: 0 });
+  const look = useRef({ dim: 0, n: 0, f2: 0, f3: 0 });
   const apply = () => {
-    const { dim, ink, show, f2, f3 } = look.current;
+    const { dim, n, f2, f3 } = look.current;
     if (art.current) art.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
-    if (els.current.text) els.current.text.style.opacity = String(show * (0.22 + 0.78 * ink));
+    if (els.current.text) { els.current.text.style.opacity = n >= 0.5 ? "1" : "0"; els.current.text.style.clipPath = typed(n); }
     if (els.current.patch2) els.current.patch2.style.opacity = String(f2);
     if (els.current.patch3) els.current.patch3.style.opacity = String(f3);
   };
-  const setLook = (v: { dim: number; ink: number; show: number; f2: number; f3: number }) => { look.current = { ...v }; apply(); };
-  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0, f2: 0, f3: 0 }); };
-  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1, f2: 1, f3: 1 }); };
+  const setLook = (v: { dim: number; n: number; f2: number; f3: number }) => { look.current = { ...v }; apply(); };
+  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, n: 0, f2: 0, f3: 0 }); };
+  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, n: P6E_TEXT.length, f2: 1, f3: 1 }); };
   const play = () => {
     reset();
     const st = look.current;
     const t = gsap.timeline({ delay: 0.35, onUpdate: apply, onComplete: () => { tl.current = null; } });
+    const typeS = P6E_TEXT.length * P6E_TYPE.perChar;
     t.to(st, { dim: 1, duration: 0.6, ease: "power1.inOut" }, 0); // 泡以外轻微降饱和、降对比
-    t.to(st, { show: 1, duration: 0.12, ease: "none" }, 0.3); // 对白出现（浅墨）
-    t.to(st, { ink: 1, duration: 0.5, ease: "power1.out" }, 0.3); // 从浅墨渐浓
-    t.to(st, { f2: 1, duration: 1.0, ease: "sine.inOut" }, 1.2); // 蛋黄接着往外淌
-    t.to(st, { f3: 1, duration: 1.2, ease: "sine.inOut" }, 2.4); // 淌成一滩，停住
+    t.to(st, { n: P6E_TEXT.length, duration: typeS, ease: `steps(${P6E_TEXT.length})` }, P6E_TYPE.start); // 逐字打出：一口气、匀速、一次一个字
+    t.to(st, { f2: 1, duration: 1.3, ease: "sine.inOut" }, P6E_TYPE.start + 0.1); // 蛋黄随着第一个字就开始往外淌
+    t.to(st, { f3: 1, duration: 1.7, ease: "sine.inOut" }, P6E_TYPE.start + 0.9); // 边打边淌成一滩，打完字时已基本流开、随后停住
     tl.current = t;
     debugTl("p6e", t);
   };
