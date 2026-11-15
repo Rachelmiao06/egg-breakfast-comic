@@ -25,7 +25,7 @@ type MusicRamp = { sound: string; from: number; to: number; start: At; end: At }
 type MusicStinger = { sound: string; at: At; gain?: number; rate?: number };
 type MusicScene = { stems: Partial<Record<Stem, number>>; ramps?: MusicRamp[]; stingers?: MusicStinger[]; bloop?: boolean };
 const SCENES = (musicMap as unknown as { scenes: Record<string, MusicScene> }).scenes;
-const STINGER_SOUNDS = ["idea-ding", "missing-q", "catch-chord", "handoff-bell", "yolk-cascade", "mom-call", "egg-small", "egg-call", "punch-dum", "end-hold", "egg-bloop"] as const;
+const STINGER_SOUNDS = ["idea-ding", "missing-q", "catch-chord", "handoff-bell", "yolk-cascade", "mom-call", "egg-small", "egg-call", "punch-dum", "end-hold", "egg-bloop", "cricket"] as const;
 
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
 const LEVEL_TC = 0.35;
@@ -228,6 +228,11 @@ class MusicEngine {
       const now = performance.now();
       if (!this.bloop || (d.surface !== undefined && d.surface !== "pan") || now - this.lastBloop < 1800) return;
       if (this.stinger("egg-bloop", 0.3, BLOOP_RATES[Math.floor(Math.random() * BLOOP_RATES.length)])) this.lastBloop = now;
+      return;
+    }
+    // 结尾三个点（前景派发 hopTap1/2/3）：不再是"嗒"，换成蟋蟀的一声，三个点逐个略降调（2026-11-15 用户：嗒嗒嗒表达无语太局限、不明显）
+    if (typeof d?.sound === "string" && /^hopTap[123]$/.test(d.sound)) {
+      this.stinger("cricket", 0.55, [1.04, 1, 0.95][Number(d.sound.slice(-1)) - 1]);
       return;
     }
     this.onDuck();

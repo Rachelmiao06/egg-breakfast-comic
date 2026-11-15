@@ -454,6 +454,16 @@ def stinger_end():
     return render_once(ev, 0.35, 2.0, 6.5)
 
 
+def stinger_cricket():
+    """无语的三个点：一声蟋蟀（4 个短脉冲）。尴尬冷场的通用声音，比"嗒"干净、一听就懂"""
+    f = 4300.0
+    pulse_t = tt(0.024)
+    win = np.hanning(len(pulse_t))
+    pulse = (np.sin(2 * np.pi * f * pulse_t) + 0.3 * np.sin(2 * np.pi * 2 * f * pulse_t)) * win
+    ev = [(i * 0.046, pulse, 0.0, 0.7 + 0.1 * i) for i in range(4)]
+    return render_once(ev, 0.12, 0.6, 0.6)
+
+
 def stinger_bloop():
     return render_once([(0.0, marimba(72, 1.0, 0.9), 0.0, 1.0)], 0.12, 0.7, 1.2)
 
@@ -461,7 +471,7 @@ def stinger_bloop():
 STINGERS = {
     "idea-ding": stinger_idea, "missing-q": stinger_missing, "catch-chord": stinger_catch, "handoff-bell": stinger_handoff,
     "yolk-cascade": stinger_yolk, "mom-call": stinger_mom_call, "egg-small": stinger_egg_small, "egg-call": stinger_egg_call,
-    "punch-dum": stinger_punch, "end-hold": stinger_end, "egg-bloop": stinger_bloop,
+    "punch-dum": stinger_punch, "cricket": stinger_cricket, "end-hold": stinger_end, "egg-bloop": stinger_bloop,
 }
 
 

@@ -54,7 +54,7 @@
 | 19 | recognize | 卡林巴主题回来；★ egg-small 升高一点 = "嗯！" | 认出来了 |
 | 20 | worry | `curious` + `empty` 小调 | 担心 |
 | 21 | punchline | 音乐在笑点前一拍淡出；★ punch-dum（一个往下滑的闷声"噗"） | 尴尬的笑点 |
-| 22 | closeup | **没有音乐**；★ end-hold 一个很低、很轻的长音垫在三个点下面，然后安静 | 僵住 |
+| 22 | closeup | **没有音乐**；三个点各一声**蟋蟀**（cricket，逐个略降调；原来的「嗒」被换掉，2026-11-15 用户：不够明显）；★ end-hold 一个很低、很轻的长音垫在三个点下面，然后安静 | 僵住 |
 
 首页旧节拍（9 段）也有对应：`chop` `stirfry` `sauce` 同上；`notice` / `spatula` 用 `curious`；`catch` 同上；`serve` / `ending` 用 `tender` + 事件。
 
