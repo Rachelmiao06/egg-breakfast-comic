@@ -2,7 +2,7 @@
 """新蛋姿势（用户 2026-11-15 交付，pose-set-v2，白底）抠成透明 PNG/WebP，并算出和原蛋对齐的摆放框。
 
   soar  超人飞行（03-super-flight/variant-02）：画面朝右上，页面里水平镜像后用于篮沿 → 妈妈视线点的抛物线（Egg faces.soar）
-  peek  探头（05-peeking/variant-01）：水平裁口，只用上 88%（底部小手被裁掉），在漫画格后面升起（ComicLayer PerchEgg）
+  sit   坐姿（04-sitting/variant-02）：坐在漫画格上沿，腿垂在格子前面（ComicLayer PerchEgg）
 
 抠图：白底（近白且与边界相连）去掉，边缘 5×5 羽化；不重画。
 摆放框：和 public/assets/scene/egg.webp 对齐——按“透明度面积”的平方根取缩放（含手脚的整体大小一致），再让两者的质心重合；
@@ -60,13 +60,15 @@ def main() -> None:
     Image.fromarray(soar).resize((800, round(800 * soar.shape[0] / soar.shape[1])), Image.LANCZOS).save(OUT / "egg-soar.webp", "WEBP", quality=90, method=6)
     print(f"egg-soar.webp  box={box}  mirror pivot={pivot}% (质心)")
 
-    peek = cutout(SRC / "05-peeking/variant-01.png")
-    ys, xs = np.where(peek[..., 3] > 5)
+    # 坐姿（04-sitting/variant-02）：坐在漫画格上沿。蛋身底边（“屁股”）所在行 = 往下宽度骤降的那一行，其下是垂下来的腿
+    sit = cutout(SRC / "04-sitting/variant-02.png")
+    ys, xs = np.where(sit[..., 3] > 5)
     x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
-    h = round((y1 - y0) * 0.88)  # 去掉底部小手
-    crop = peek[y0 : y0 + h, x0:x1]
-    Image.fromarray(crop).resize((900, round(900 * crop.shape[0] / crop.shape[1])), Image.LANCZOS).save(OUT / "egg-peek.webp", "WEBP", quality=92, method=6)
-    print(f"egg-peek.webp  aspect={crop.shape[1] / crop.shape[0]:.4f}")
+    crop = sit[y0:y1, x0:x1]
+    widths = (crop[..., 3] > 128).sum(1)
+    seat = int(np.max(np.where(widths > 0.5 * widths.max())[0]))  # 宽度还超过最宽一行一半的最后一行
+    Image.fromarray(crop).resize((800, round(800 * crop.shape[0] / crop.shape[1])), Image.LANCZOS).save(OUT / "egg-sit.webp", "WEBP", quality=92, method=6)
+    print(f"egg-sit.webp  aspect={crop.shape[1] / crop.shape[0]:.4f}  seat={seat / crop.shape[0]:.4f}")
 
 
 if __name__ == "__main__":

@@ -108,7 +108,7 @@ def fill_rows(img: np.ndarray, hole: np.ndarray, usable: np.ndarray, feather: in
 
 # 蛋是金棕色细线描边，胡萝卜和葱原来是深棕黑的粗墨线，不是一个画风（2026-11-15 用户：蛋的边不动；蔬菜的描边要和各自本来的颜色相近、粗细和蛋差不多）。
 # 做法：大块的墨线（轮廓，面积 ≥ min_area；眼睛、嘴是小块，保持深色）加粗 1 像素，每个轮廓像素取最近的“非墨线”像素的颜色，
-# 压暗、略加饱和——绿叶的轮廓是深绿，白的葱身是暖棕，橙色胡萝卜是深橙。区域是图片像素 (x0, y0, x1, y1)。
+# 压暗、略加饱和；线收细（INK_THIN）——绿叶的轮廓是深绿，白的葱身是暖棕，橙色胡萝卜是深橙。区域是图片像素 (x0, y0, x1, y1)。
 INK_BOXES = [
     (1445, 320, 1565, 505),  # 胡萝卜（叶子 + 身子 + 手）
     (1296, 519, 1400, 710),  # 葱身子
@@ -116,6 +116,7 @@ INK_BOXES = [
 LEAVES_SRC = ROOT / "source/bg-v3/friends-scallion-leaves.orig.png"  # 葱叶角色层原图（tools/prepare_friends.py 的输出备份）
 LEAVES_PNG = ROOT / "public/assets/bg/friends-scallion-leaves.png"
 INK_DARKEN, INK_SAT = 0.5, 1.4
+INK_THIN = 1  # 线芯比原墨线内缩几像素（越大越细；原线约 3–4 像素宽）
 
 
 def tinted_ink(rgb: np.ndarray, alpha: np.ndarray | None = None, min_area: int = 800) -> np.ndarray:
@@ -129,17 +130,23 @@ def tinted_ink(rgb: np.ndarray, alpha: np.ndarray | None = None, min_area: int =
     lab, n = ndimage.label(ink)
     sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
     keep = np.isin(lab, [i + 1 for i, a in enumerate(sizes) if a >= min_area])
-    outer = ndimage.binary_dilation(keep, iterations=2)
+    # 区域 R = 墨线外扩 1 像素；线芯 core = 墨线内缩 1 像素（比原线细 2 像素，和蛋利落的细描边接近）。
+    # R 里先整体补回旁边的底色（抹掉原来的黑线），再在 core 上画本色的深色线
+    region = ndimage.binary_dilation(keep, iterations=1)
+    core = ndimage.binary_erosion(keep, iterations=INK_THIN)
     if alpha is not None:
-        outer &= alpha > 0
-    iy, ix = ndimage.distance_transform_edt(outer | (lum <= INK), return_distances=False, return_indices=True)
-    fill = cv2.GaussianBlur(rgb[iy, ix], (7, 7), 0).astype(np.float32)
+        region &= alpha > 0
+        core &= alpha > 0
+    iy, ix = ndimage.distance_transform_edt(region, return_distances=False, return_indices=True)
+    fill = cv2.GaussianBlur(rgb[iy, ix], (5, 5), 0).astype(np.float32)
     hsv = cv2.cvtColor(fill.astype(np.uint8), cv2.COLOR_RGB2HSV).astype(np.float32)
     hsv[..., 1] = np.clip(hsv[..., 1] * INK_SAT + 25, 0, 255)
     hsv[..., 2] = hsv[..., 2] * INK_DARKEN
     tint = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
-    w = cv2.GaussianBlur(outer.astype(np.float32), (3, 3), 0)[..., None]
-    return np.clip(rgb.astype(np.float32) * (1 - w) + tint * w, 0, 255).astype(np.uint8)
+    wr = cv2.GaussianBlur(region.astype(np.float32), (3, 3), 0)[..., None]
+    wc = cv2.GaussianBlur(core.astype(np.float32), (3, 3), 0)[..., None]
+    painted = fill * (1 - wc) + tint * wc
+    return np.clip(rgb.astype(np.float32) * (1 - wr) + painted * wr, 0, 255).astype(np.uint8)
 
 
 def soften_ink(rgb: np.ndarray) -> np.ndarray:

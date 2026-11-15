@@ -144,49 +144,36 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
 }
 
 /**
- * 蛋从漫画格右上角后面偷偷、慢慢探出头（egg-peek.webp = pose-set-v2 05-peeking/variant-01（偷看、眼睛朝右；tools/prepare_poses.py 抠图并去掉底部小手），底边是平切的，
- * 所以必须一直藏在格子后面：最高探到蛋图底边刚好在格子上沿以下）。画格有 overflow: hidden，所以蛋是格子旁边的独立元素
- * （DOM 里排在格子前面 = 画在格子后面），位置按格子的 pos / dy 算（vw / vh）。
- * 纵深：① 蛋在墙上的投影（drop-shadow，蛋离开墙面一点）；② 格子在蛋身上的投影（同一张图压暗、按高度渐隐，
- *   贴着格子上沿最深）——两层一起，蛋和后面的背景就分开了。
- * 探头：向右倾 PEEK.tilt 度（身体朝角外探），0 → 探出 1.4 s 缓出（格子可见 55% 就开始，不等入场结束），离场 0.3 s 缩回；探出后轻微起伏。
+ * 蛋坐在漫画格上沿（egg-sit.webp = pose-set-v2 04-sitting/variant-02，tools/prepare_poses.py 抠图；
+ * 用户 2026-11-15：从格子后面探头太不明显，改成坐在格子上）。画格有 overflow: hidden，所以蛋是格子旁边的独立元素
+ * （DOM 里排在格子后面 = 画在格子前面，腿垂在格子画面上），位置按格子的 pos / dy 算（vw / vh）：
+ * 蛋身底边（图高 SEAT 处）对齐格子上沿。格子可见过半后蛋从上方落下来坐稳（带一点过冲），离场前淡出。
+ * 蛋在格子上的投影用 drop-shadow（落在格子画面上）。
  */
 const PERCH_PANEL = "p1b"; // bag 段右侧小格：上方没有别的格子，蛋有地方；也就是“袋子”那格
-const PEEK = { cx: 0.64, width: 0.5, aspect: 1.5651, tilt: 6, sink: 0.045 };
+const SIT = { cx: 0.6, width: 0.46, aspect: 0.9383, seat: 0.8423, sink: 0.02 };
 function PerchEgg({ pos, dy, show }: { pos: Place; dy: number; show: boolean }) {
-  const eggH = (pos.w * PEEK.width) / PEEK.aspect; // 蛋高（vw）
-  const rest = 100 - (PEEK.sink * pos.w * 100) / eggH; // 探出后的 translateY 百分比（蛋底边下沉 sink·格宽）
-  const base: CSSProperties = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", userSelect: "none", pointerEvents: "none" };
+  const seat = SIT.seat * 100 - SIT.sink * 100; // 蛋身底边略沉进格子的纸边
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/assets/scene/egg-sit.webp"
+      alt=""
+      draggable={false}
+      className="pointer-events-none absolute select-none"
       style={{
-        left: `${pos.x + pos.w * (PEEK.cx - PEEK.width / 2)}vw`,
+        left: `${pos.x + pos.w * (SIT.cx - SIT.width / 2)}vw`,
         top: `${pos.y + dy}vh`,
-        width: `${pos.w * PEEK.width}vw`,
-        aspectRatio: `${PEEK.aspect}`,
-        // 先把蛋底边放到格子上沿，再按探出程度下沉：没出来 = 整个蛋在格子后面（translateY 0），探出后留 sink
-        transform: `translateY(${show ? -rest : 0}%) rotate(${show ? PEEK.tilt : 0}deg)`,
-        transformOrigin: "50% 100%",
+        width: `${pos.w * SIT.width}vw`,
+        aspectRatio: `${SIT.aspect}`,
+        // 没出现：在上方 35% 处、透明；出现：坐稳
+        transform: `translateY(${show ? -seat : -seat - 35}%)`,
         opacity: show ? 1 : 0,
-        transition: show
-          ? "transform 1.4s cubic-bezier(0.22, 0.8, 0.28, 1), opacity 0.4s ease-out"
-          : "transform 0.3s ease-in, opacity 0.25s ease-in 0.1s",
+        filter: "drop-shadow(0 0.25vw 0.3vw rgba(60,35,15,0.4)) drop-shadow(0 0.05vw 0.08vw rgba(60,35,15,0.35))",
+        transition: show ? "transform 0.7s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.3s ease-out" : "transform 0.25s ease-in, opacity 0.2s ease-in",
+        zIndex: 1,
       }}
-    >
-      {/* 墙上的投影 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/assets/scene/egg-peek.webp" alt="" draggable={false} style={{ ...base, filter: "drop-shadow(0 0.5vw 0.55vw rgba(70,42,18,0.42)) drop-shadow(0 0.1vw 0.15vw rgba(70,42,18,0.35))" }} />
-      {/* 格子投在蛋身上的影：同一张图压暗，贴格子上沿最深、往上渐隐 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/assets/scene/egg-peek.webp"
-        alt=""
-        draggable={false}
-        style={{ ...base, filter: "brightness(0.38) sepia(0.7) saturate(1.4)", opacity: 0.8, maskImage: "linear-gradient(to top, #000 0%, rgba(0,0,0,0.55) 22%, transparent 55%)", WebkitMaskImage: "linear-gradient(to top, #000 0%, rgba(0,0,0,0.55) 22%, transparent 55%)" }}
-      />
-    </div>
+    />
   );
 }
 
@@ -403,8 +390,8 @@ function FlowLayer() {
         const perch = p.key === PERCH_PANEL && !vp.portrait;
         return (
           <Fragment key={p.key}>
-            {perch && <PerchEgg pos={pos} dy={dy} show={stage.vis > 0.55 && !stage.leaving} />}
             {wrap ? <div style={wrap}>{panel}</div> : panel}
+            {perch && <PerchEgg pos={pos} dy={dy} show={stage.vis > 0.55 && !stage.leaving} />}
             <PanelSignal k={p.key} q={q} stage={stage} />
           </Fragment>
         );
