@@ -24,7 +24,8 @@
     "2026-11-15：配乐太轻、几乎听不到（用户：音乐还是要有）——总线 BUS 0.4 → 0.7（+4.9 dB）；配乐床约 -26 ~ -34 LUFS，仍低于持续效果声和房间声，前景动作声一响还会压 6 dB。",
     "2026-11-15：配乐改成温暖悠闲的爵士（用户：音乐几乎没有，要温暖、滴滴答、悠闲的爵士）：home-pluck = 电钢琴查尔斯顿伴奏，home-bass = 直立贝斯行走低音，新增 home-drums = 叮叮镲 + 脚踩镲 + 刷子的摇摆节奏（滴——滴答）；和弦 Cmaj7 Am7 Fmaj7 G7 / Cmaj7 Em7 Fmaj7 G7，根音与旧 stem 一致；总线 BUS 0.7 → 1.0，各段爵士层电平提高。",
     "BUS 1.0 → 0.8；stirfry / sauce 爵士层再收一点，免得压过翻炒 / 搅拌声。",
-    "2026-11-15：配乐改用真正的咖啡店爵士（用户：不要自己生成，要咖啡店的音乐，网上找）——Kevin MacLeod《Jazz Brunch》（incompetech.com，CC BY 3.0，要署名，见 SoundToggle 的音效致谢），取 120 s 做成 117 s 的无缝循环（music/jazz-brunch.mp3，1.4 MB），stem 名 jazz；它取代所有 home-* 合成 stem（文件保留但不再被任何场景用）和家的场景里的 tender；悬疑 / 空旷 / 担心 / 笑点的段落仍用 curious / empty。"
+    "2026-11-15：配乐改用真正的咖啡店爵士（用户：不要自己生成，要咖啡店的音乐，网上找）——Kevin MacLeod《Jazz Brunch》（incompetech.com，CC BY 3.0，要署名，见 SoundToggle 的音效致谢），取 120 s 做成 117 s 的无缝循环（music/jazz-brunch.mp3，1.4 MB），stem 名 jazz；它取代所有 home-* 合成 stem（文件保留但不再被任何场景用）和家的场景里的 tender；悬疑 / 空旷 / 担心 / 笑点的段落仍用 curious / empty。",
+    "2026-11-15：蛋黄「咕嘟」跟滚动契合（用户）：yolk-ooze 加 settleMs 450——越过触发点后要在这一页停住 0.45 s（期间滚动位移不超过 12 vh、没离开这一页）才响；很快滑过就不响；响了之后一离开这一页 0.15 s 内淡出。另修一个 bug：jazz stem 的文件名是 jazz-brunch.mp3，之前按 jazz.mp3 去取，404，爵士一直没出声。"
   ],
   "voiceAvailable": [
     "mom-sigh",
@@ -196,12 +197,14 @@
         {
           "sound": "yolk-ooze",
           "at": "enterEnd+0.03",
-          "gain": 1.2
+          "gain": 1.2,
+          "settleMs": 450
         },
         {
           "sound": "sauce-stir",
           "at": "enterEnd+0.16",
-          "gain": 0.8
+          "gain": 0.8,
+          "settleMs": 450
         }
       ],
       "props": true

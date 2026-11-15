@@ -20,9 +20,21 @@ import musicMap from "./music-map.json";
 const DIR = "/assets/audio/music/";
 export const STEM_NAMES = ["jazz", "home-pad", "home-pluck", "home-bass", "home-drums", "home-melody", "home-sparkle", "tender", "curious", "empty"] as const;
 type Stem = (typeof STEM_NAMES)[number];
+/** stem 名 → 文件名（没写的 = 同名）。jazz 是真的咖啡店爵士：music/jazz-brunch.mp3 */
+const STEM_FILES: Partial<Record<Stem, string>> = { jazz: "jazz-brunch" };
+/** 只加载 music-map 里有场景真的用到的 stem（旧的合成爵士 home-* 不再用，不下载） */
+function usedStems(scenes: Record<string, MusicScene>): Set<Stem> {
+  const out = new Set<Stem>();
+  for (const sc of Object.values(scenes)) {
+    for (const [k, v] of Object.entries(sc.stems)) if ((v ?? 0) > 0 && (STEM_NAMES as readonly string[]).includes(k)) out.add(k as Stem);
+    for (const r of sc.ramps ?? []) if (r.to > 0 && (STEM_NAMES as readonly string[]).includes(r.sound)) out.add(r.sound as Stem);
+  }
+  return out;
+}
 type At = number | string;
 type MusicRamp = { sound: string; from: number; to: number; start: At; end: At };
-type MusicStinger = { sound: string; at: At; gain?: number; rate?: number; pan?: number };
+/** settleMs：跟滚动契合的事件——越过触发点后要在这一页"停住"这么久才响（途中如果又滚走 / 滚得很快就不响），响了之后离开这一页会很快淡出 */
+type MusicStinger = { sound: string; at: At; gain?: number; rate?: number; pan?: number; settleMs?: number };
 type MusicScene = { stems: Partial<Record<Stem, number>>; ramps?: MusicRamp[]; stingers?: MusicStinger[]; bloop?: boolean; props?: boolean };
 const SCENES = (musicMap as unknown as { scenes: Record<string, MusicScene> }).scenes;
 /** 妈妈的语气词（真人录音，见 docs/VOICE.md）：music-map.json 的 voiceAvailable 里列出的才加载，没列的保持静音、不发请求 */
@@ -34,6 +46,7 @@ const PROP_DIR = "/assets/audio/";
 const PROP_MIN_S = 2.5, PROP_MAX_S = 6, PROP_GAIN = 0.5;
 /** 只给 music-map 的 stinger 点名用、不进随机池的道具声（勺子碰碗的"当当"、碗放桌上） */
 const PROP_CUE_ONLY = ["sauce-stir", "bowl-down"] as const;
+const USED = usedStems(SCENES);
 const STINGER_SOUNDS = ["missing-q", "catch-chord", "yolk-ooze", "punch-dum", "end-hold", "cricket"] as const;
 
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
@@ -49,6 +62,8 @@ const DUCK_TO = 0.5, DUCK_HOLD_S = 0.3, DUCK_RELEASE_TC = 0.25;
 /** 蛋的五声音阶（相对 C5 的变速）：C D E G A */
 const BLOOP_RATES = [1, 1.122, 1.26, 1.498, 1.682];
 const MAX_CROSS_VH = 40;
+/** settle 事件：等待期间滚动位置动了超过这么多 vh 就算"滚走了"，不响 */
+const SETTLE_MOVE_VH = 12;
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /** 整体音乐音量倍数：网址 ?music= 优先，其次 localStorage kitchen.musicGain，默认 1；非法值当 1 */
@@ -139,6 +154,8 @@ class MusicEngine {
   private shhTimer = 0;
   private props = false;
   private propTimer = 0;
+  private meter: AnalyserNode | null = null;
+  private meterTimer = 0;
   private lastProp = "";
   private fired = 0;
   private userGain = 1;
@@ -156,6 +173,22 @@ class MusicEngine {
     this.bus = ctx.createGain();
     this.bus.gain.value = 1;
     this.bus.connect(this.master).connect(ctx.destination);
+    // 验收用：配乐总输出的电平（dBFS，RMS）写在 data-rms-db 上，data-ctx 是 AudioContext 状态
+    try {
+      this.meter = ctx.createAnalyser(); this.meter.fftSize = 512;
+      this.master.connect(this.meter);
+      const buf = new Float32Array(this.meter.fftSize);
+      this.meterTimer = window.setInterval(() => {
+        if (!this.meter) return;
+        this.meter.getFloatTimeDomainData(buf);
+        let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+        this.root.dataset.rmsDb = (10 * Math.log10(sum / buf.length + 1e-12)).toFixed(1);
+        this.root.dataset.ctx = ctx.state;
+        this.root.dataset.masterGain = this.master.gain.value.toFixed(3);
+        this.root.dataset.stemsStarted = String(Object.keys(this.stems).length);
+        this.root.dataset.jazzGain = (this.stems.jazz?.gain.gain.value ?? -1).toFixed(3);
+      }, 300);
+    } catch { /* 没有 Analyser：不影响出声 */ }
     this.hidden = document.visibilityState === "hidden";
     document.addEventListener("visibilitychange", this.onVisibility);
     window.addEventListener("kitchen:oneshot", this.onShot);
@@ -180,7 +213,7 @@ class MusicEngine {
   }
 
   private async load() {
-    const names = [...STEM_NAMES, ...STINGER_SOUNDS.map((n) => "st-" + n), ...VOICE_AVAILABLE.map((n) => "v-" + n), ...PROP_SOUNDS.map((n) => "p-" + n), ...PROP_CUE_ONLY.map((n) => "p-" + n)];
+    const names = [...STEM_NAMES.filter((n) => USED.has(n)).map((n) => STEM_FILES[n] ?? n), ...STINGER_SOUNDS.map((n) => "st-" + n), ...VOICE_AVAILABLE.map((n) => "v-" + n), ...PROP_SOUNDS.map((n) => "p-" + n), ...PROP_CUE_ONLY.map((n) => "p-" + n)];
     await Promise.all(names.map(async (n) => {
       try {
         const r = await fetch((n.startsWith("v-") ? VOICE_DIR + n.slice(2) : n.startsWith("p-") ? PROP_DIR + n.slice(2) : DIR + n) + ".mp3");
@@ -198,7 +231,8 @@ class MusicEngine {
     if (this.started) return;
     const t0 = this.ctx.currentTime + 0.1;
     for (const s of STEM_NAMES) {
-      const buf = this.buffers[s];
+      if (!USED.has(s)) continue;
+      const buf = this.buffers[STEM_FILES[s] ?? s];
       if (!buf) continue;
       const src = this.ctx.createBufferSource();
       src.buffer = buf; src.loop = true;
@@ -262,7 +296,19 @@ class MusicEngine {
   /** 当前场景编号（写在 data-scene 上，useKitchenAudio 据此在结尾特写里不播"嗒"） */
   setScene(id: string) { this.scene = id; this.root.dataset.scene = id; }
 
-  stinger(name: string, gain = 0.5, rate = 1, pan = 0) {
+  /** 跟场景绑定的、离开场景要淡出的声音（settleMs 事件） */
+  private live = new Map<string, { src: AudioBufferSourceNode; g: GainNode }[]>();
+
+  /** 离开 sceneId 这一页：它的 settle 事件还在响的话 0.15 s 内淡出（快速滑过时不拖着尾巴） */
+  fadeLive(sceneId: string) {
+    const list = this.live.get(sceneId);
+    if (!list) return;
+    this.live.delete(sceneId);
+    const now = this.ctx.currentTime;
+    for (const v of list) { try { v.g.gain.cancelScheduledValues(now); v.g.gain.setTargetAtTime(0, now, 0.05); v.src.stop(now + 0.3); } catch { /* 已结束 */ } }
+  }
+
+  stinger(name: string, gain = 0.5, rate = 1, pan = 0, liveTag?: string) {
     const voice = this.buffers["v-" + name];
     const buf = this.buffers["st-" + name] ?? voice ?? this.buffers["p-" + name];
     if (!buf || !this.audible || this.ctx.state !== "running") return false;
@@ -274,6 +320,7 @@ class MusicEngine {
     else src.connect(g).connect(this.ctx.destination);
     src.onended = () => { src.disconnect(); g.disconnect(); panner?.disconnect(); };
     src.start();
+    if (liveTag) { const l = this.live.get(liveTag) ?? []; l.push({ src, g }); this.live.set(liveTag, l); }
     if (voice) this.onDuck(buf.duration * 1000 + 150, 0.55); // 人声说话时配乐退到后面
     if (name === "boy-shh") this.lastShh = performance.now(); // 滚动触发和事件触发共用 5 s 间隔，不会嘘两次
     this.fired += 1;
@@ -327,6 +374,7 @@ class MusicEngine {
     window.clearTimeout(this.duckTimer);
     window.clearTimeout(this.shhTimer);
     window.clearTimeout(this.propTimer);
+    window.clearInterval(this.meterTimer);
     document.removeEventListener("visibilitychange", this.onVisibility);
     window.removeEventListener("kitchen:oneshot", this.onShot);
     window.removeEventListener("kitchen:action", this.onDuck);
@@ -365,16 +413,21 @@ export function useKitchenMusic({ getCtx, soundOn, timeline, beats, resolveAt }:
 
   useEffect(() => { engine.current?.setOn(soundOn); }, [soundOn]);
 
+  const sceneRef = useRef("");
   // 电平：完全由节拍表 + music-map 推导
   useEffect(() => {
     engine.current?.setLevels(musicLevels(timeline, beats, resolveAt));
     engine.current?.setBloop(SCENES[timeline.beat.id]?.bloop === true);
+    if (sceneRef.current && sceneRef.current !== timeline.beat.id) engine.current?.fadeLive(sceneRef.current);
+    sceneRef.current = timeline.beat.id;
     engine.current?.setScene(timeline.beat.id);
     engine.current?.setProps(SCENES[timeline.beat.id]?.props === true);
   }, [timeline, beats, resolveAt]);
 
   // stinger：向下越过触发点时播一次
   const prevT = useRef<Timeline | null>(null);
+  const latest = useRef(timeline);
+  useEffect(() => { latest.current = timeline; }, [timeline]);
   useEffect(() => {
     if (document.visibilityState === "hidden") { prevT.current = timeline; return; }
     const prev = prevT.current;
@@ -384,6 +437,16 @@ export function useKitchenMusic({ getCtx, soundOn, timeline, beats, resolveAt }:
     if (crossed.length === 0) return;
     if (prev && Math.abs(posVh(timeline, beats) - posVh(prev, beats)) > MAX_CROSS_VH) return; // 拖滚动条 / 跳转：全部跳过
     const s = crossed[crossed.length - 1];
+    if (s.settleMs) {
+      // 跟滚动契合：很快滑过这一页就不响；停在这一页（或慢慢进来）settleMs 之后才响
+      const id = timeline.beat.id, startVh = posVh(timeline, beats);
+      window.setTimeout(() => {
+        const t = latest.current;
+        if (t.beat.id !== id || Math.abs(posVh(t, beats) - startVh) > SETTLE_MOVE_VH) return;
+        engine.current?.stinger(s.sound, s.gain, s.rate, s.pan, id);
+      }, s.settleMs);
+      return;
+    }
     engine.current?.stinger(s.sound, s.gain, s.rate, s.pan);
   }, [timeline, soundOn, beats, resolveAt]);
 
