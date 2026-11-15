@@ -11,6 +11,8 @@ import { useViewport } from "./viewport";
 import { ChopPanel, DialoguePanel, HearPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer, ClosingBlink } from "./Blink";
 import FrameReact from "./FrameReact";
+import { IdleStack } from "./IdleLayers";
+import { IDLE } from "./idle";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import { replayStory } from "@/lib/replay";
 import { ENTER_SCALE, PAPER_PARALLAX, PAPER_SHADOW } from "./paper";
@@ -351,7 +353,7 @@ function FlowLayer() {
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} />;
+          : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? reading : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
         return <Fragment key={p.key}>{wrap ? <div style={wrap}>{panel}</div> : panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
       })}
@@ -467,11 +469,13 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
   );
 }
 
-function FlowPanel({ p, pos, dy, blink = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null }) {
+function FlowPanel({ p, pos, dy, blink = null, idle = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null; idle?: boolean | null }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
     <div className="panel-frame absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
-      {p.src ? (
+      {p.src && idle !== null ? (
+        <IdleStack k={p.key} src={p.src} active={idle} />
+      ) : p.src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
       ) : (
