@@ -80,7 +80,7 @@
    "x": 28,
    "y": 44,
    "w": 28,
-   "aspect": 1.512,
+   "aspect": 1.5329,
    "from": "left",
    "order": 1,
    "role": "hero"
@@ -108,7 +108,7 @@
    "x": 22,
    "y": 8,
    "w": 52,
-   "aspect": 3.034,
+   "aspect": 3.1332,
    "from": "top",
    "order": 0,
    "role": "hero"
@@ -136,7 +136,7 @@
    "x": 28,
    "y": 8,
    "w": 26,
-   "aspect": 1.004,
+   "aspect": 1.0061,
    "from": "left",
    "order": 0,
    "role": "hero"

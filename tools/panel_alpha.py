@@ -94,6 +94,9 @@ def trim_frame(im: Image.Image, keep: int = 6) -> Image.Image:
     box = (x0 + max(0, l - keep), y0 + max(0, t - keep), x1 - max(0, r - keep), y1 - max(0, b - keep))
     out = im.crop(box)
     arr = np.asarray(out).copy(); arr[..., 3] = 255   # 裁完后整格不透明
+    # 最外 keep 像素统一涂成同一种墨色：框线外缘残留的浅色毛边、没有画框的边（画面被页面裁掉处）都变成一圈干净黑边
+    ink = np.array([30, 20, 14], np.uint8)
+    arr[:keep, :, :3] = ink; arr[-keep:, :, :3] = ink; arr[:, :keep, :3] = ink; arr[:, -keep:, :3] = ink
     return Image.fromarray(arr, "RGBA")
 
 
