@@ -30,7 +30,9 @@ const STINGER_SOUNDS = ["idea-ding", "missing-q", "catch-chord", "handoff-bell",
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
 const LEVEL_TC = 0.35;
 /** 配乐总线整体电平（相对 stem 的 -20 LUFS；各场景电平再乘它） */
-const BUS = 0.7;
+const BUS = 0.6;
+/** 音乐事件整体再轻一点（2026-11-15 用户：乐器声太明显） */
+const STINGER_TRIM = 0.8;
 /** 前景动作声响起时配乐的避让：压到 0.5（约 -6 dB），0.3 s 后以 0.25 s 的时间常数回来 */
 const DUCK_TO = 0.5, DUCK_HOLD_S = 0.3, DUCK_RELEASE_TC = 0.25;
 /** 蛋的五声音阶（相对 C5 的变速）：C D E G A */
@@ -212,7 +214,7 @@ class MusicEngine {
     if (!buf || !this.audible || this.ctx.state !== "running") return false;
     const src = this.ctx.createBufferSource();
     src.buffer = buf; src.playbackRate.value = rate;
-    const g = this.ctx.createGain(); g.gain.value = gain;
+    const g = this.ctx.createGain(); g.gain.value = gain * STINGER_TRIM;
     src.connect(g).connect(this.bus);
     src.onended = () => { src.disconnect(); g.disconnect(); };
     src.start();

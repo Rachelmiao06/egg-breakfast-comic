@@ -107,6 +107,23 @@ def nylon(m, vel=1.0, dur=2.0):
     return vel * 1.3 * (y + 0.05 * pick)
 
 
+def soft_nylon(m, vel=1.0, dur=1.0):
+    """2026-11-15 用户：乐器声太明显、像钢琴。统一用的圆润柔和的指弹：去掉高频、衰减短，听起来是"垫在下面的暖"而不是"一个乐器在弹" """
+    y = nylon(m, vel, dur)
+    return lowpass(y, 1700, 2) * 0.8
+
+
+def shaker(vel=1.0, dur=0.12):
+    """轻刷沙锤：没有音高，只给律动一点暖的沙沙声"""
+    t = tt(dur)
+    n = bandpass(RNG.standard_normal(len(t)), 4500, 9000)
+    return vel * n * np.exp(-t / 0.03) * (1 - np.exp(-t / 0.006)) * 0.25
+
+
+def bandpass(x, lo, hi):
+    return signal.sosfilt(signal.butter(2, [lo / (SR / 2), hi / (SR / 2)], "band", output="sos"), x)
+
+
 def pad_note(m, dur, att=0.45, rel=0.9, vel=1.0):
     f = hz(m); t = tt(dur + rel)
     env = (1 - np.exp(-t / (att / 3.0))) * np.where(t < dur, 1.0, np.exp(-(t - dur) / (rel / 3.0)))
@@ -114,7 +131,7 @@ def pad_note(m, dur, att=0.45, rel=0.9, vel=1.0):
     for det in (-0.0035, 0.0, 0.0035):
         for k, a in ((1, 1.0), (2, 0.32), (3, 0.14), (4, 0.06)):
             y += a * np.sin(2 * np.pi * f * (1 + det) * k * t + RNG.uniform(0, 6.28))
-    return vel * lowpass(y * env, 1800) * 0.33
+    return vel * lowpass(y * env, 1300) * 0.33
 
 
 def bass_pluck(m, vel=1.0, dur=0.9):
@@ -199,7 +216,7 @@ def make_ir(rt60=1.7, pre=0.018, damp=4500, seed=1):
     return ir / np.sqrt((ir ** 2).sum() / 2)
 
 
-def reverb(L, R, wet, rt60=1.7, damp=4500):
+def reverb(L, R, wet, rt60=1.7, damp=3200):
     ir = make_ir(rt60=rt60, damp=damp)
     wl = signal.fftconvolve(L, ir[0])[: len(L)]
     wr = signal.fftconvolve(R, ir[1])[: len(R)]
@@ -225,7 +242,7 @@ def write_wav(path, L, R):
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())
 
 
-def finish(name, L, R, loop, target_lufs=-20.0, peak_db=-3.0, kbps=112):
+def finish(name, L, R, loop, target_lufs=-20.0, peak_db=-3.0, kbps=112, warm=3000):
     """循环：切中间一圈（长度 = LOOP）；单次：裁掉尾部静音。归一化 → 软限幅 → mp3"""
     if loop:
         a, b = int(LOOP * SR), int(2 * LOOP * SR)
@@ -238,6 +255,8 @@ def finish(name, L, R, loop, target_lufs=-20.0, peak_db=-3.0, kbps=112):
         f = int(0.04 * SR)
         L = L.copy(); R = R.copy()
         L[-f:] *= np.linspace(1, 0, f); R[-f:] *= np.linspace(1, 0, f)
+    if warm:  # 整体变暖：高频收掉（2026-11-15 用户：乐器声太明显）
+        L, R = lowpass(L, warm, 2), lowpass(R, warm, 2)
     base = np.abs(np.stack([L, R])).max() + 1e-9
     L, R = L / base * 0.5, R / base * 0.5
     with tempfile.TemporaryDirectory() as tmp:
@@ -272,7 +291,9 @@ def stem_home_pluck():
         for beat, d, vel in hits:
             order = v if d == "d" else v[::-1]
             for i, m in enumerate(order):
-                tr.add(nylon(m, vel * RNG.uniform(0.85, 1.0), 1.1), T(b, beat) + i * 0.014, pan=-0.25 + 0.5 * i / max(1, len(v) - 1))
+                tr.add(soft_nylon(m, vel * RNG.uniform(0.85, 1.0), 1.1), T(b, beat) + i * 0.014, pan=-0.25 + 0.5 * i / max(1, len(v) - 1))
+        for k in range(8):  # 轻刷沙锤：八分音符，反拍略重
+            tr.add(shaker(0.8 if k % 2 else 0.45), T(b, 1 + k * 0.5), pan=0.2)
     return tr, 0.16
 
 
@@ -300,25 +321,22 @@ THEME = [  # (小节, 拍, midi, 时值（拍）, 力度)  妈妈的主题（卡
 def stem_home_melody():
     tr = Track()
     for b, beat, m, d, vel in THEME:
-        tr.add(kalimba(m, vel), T(b, beat), pan=0.12)
+        tr.add(soft_nylon(m - 12, vel * 0.9, 1.6), T(b, beat), pan=0.12)
     return tr, 0.30
 
 
 def stem_home_sparkle():
-    """蛋的动机：马林巴三个上行的小音 + 钟琴点缀，蹦蹦跳跳"""
+    """蛋的动机：三个上行的短音，改成圆润的指弹（不再是马林巴 / 钟琴），蹦但不亮"""
     tr = Track()
     for b, (n, q) in enumerate(HOME):
         v = voicing(n, q, lift=12)
-        tones = [v[0] + 12, v[1] + 12, v[2] + 12]
+        tones = [v[0], v[1], v[2]]
         if b % 2 == 0:
             for i, beat in enumerate((1.0, 1.5, 2.0)):
-                tr.add(marimba(tones[i], 0.85, 0.5), T(b, beat), pan=0.3)
-            tr.add(glock(tones[2] + 12, 0.45), T(b, 2.0), pan=0.45)
-            tr.add(glock(tones[1] + 12, 0.35), T(b, 3.5), pan=0.5)
+                tr.add(soft_nylon(tones[i], 0.85, 0.5), T(b, beat), pan=0.3)
         else:
-            tr.add(marimba(tones[1], 0.7, 0.5), T(b, 2.5), pan=0.3)
-            tr.add(marimba(tones[2], 0.8, 0.5), T(b, 3.0), pan=0.3)
-            tr.add(glock(tones[0] + 24, 0.4), T(b, 4.5), pan=0.45)
+            tr.add(soft_nylon(tones[1], 0.7, 0.5), T(b, 2.5), pan=0.3)
+            tr.add(soft_nylon(tones[2], 0.8, 0.5), T(b, 3.0), pan=0.3)
     return tr, 0.18
 
 
@@ -331,9 +349,7 @@ def stem_tender():
         third = 4 if q == "M" else 3
         tones = [r, r + 7, r + 12 + third, r + 19]
         for i, k in enumerate(pat):
-            tr.add(nylon(tones[k], (0.85 if i % 2 == 0 else 0.6) * RNG.uniform(0.9, 1.0), 1.4), T(b, 1 + i * 0.5), pan=-0.1)
-        if b % 2 == 0:
-            tr.add(glock(tones[2] + 12, 0.3), T(b, 1.0), pan=0.3)
+            tr.add(soft_nylon(tones[k], (0.85 if i % 2 == 0 else 0.6) * RNG.uniform(0.9, 1.0), 1.4), T(b, 1 + i * 0.5), pan=-0.1)
     for m in voicing("C", "M", lift=12):
         pass
     return tr, 0.22
@@ -347,10 +363,10 @@ def stem_curious():
             tr.add(pad_note(m, BAR - 0.05, att=0.7, rel=1.0, vel=0.55), T(b), pan=RNG.uniform(-0.4, 0.4))
         v = voicing(n, q, lift=24, top=90)
         for i, beat in enumerate((1.0, 2.5, 3.0, 4.5)):
-            tr.add(marimba(v[(i * 2) % len(v)], 0.55 if i % 2 == 0 else 0.4, 0.3), T(b, beat), pan=-0.35 if i % 2 == 0 else 0.35)
+            tr.add(soft_nylon(v[(i * 2) % len(v)] - 12, 0.7 if i % 2 == 0 else 0.5, 0.3), T(b, beat), pan=-0.35 if i % 2 == 0 else 0.35)
         if b in (3, 7):  # 句尾上扬，不落地："嗯？"
-            tr.add(glock(81, 0.45), T(b, 3.0), pan=0.3)
-            tr.add(glock(86, 0.55), T(b, 4.0), pan=0.35)
+            tr.add(soft_nylon(69, 0.6, 0.6), T(b, 3.0), pan=0.3)
+            tr.add(soft_nylon(74, 0.7, 1.0), T(b, 4.0), pan=0.35)
     return tr, 0.18
 
 
@@ -362,9 +378,9 @@ def stem_empty():
         for m in voicing(n, q, lift=0):
             tr.add(pad_note(m, 2 * BAR - 0.05, att=1.2, rel=1.6, vel=0.8), T(c * 2), pan=RNG.uniform(-0.5, 0.5))
     for bar, beat, m, vel in [(0, 1.0, 81, .45), (2, 3.0, 84, .4), (4, 4.0, 81, .35), (6, 2.0, 83, .4)]:
-        tr.add(glock(m, vel), T(bar, beat), pan=RNG.uniform(-0.5, 0.5))
+        tr.add(pad_note(m - 12, 1.4, att=0.25, rel=1.2, vel=vel * 1.6), T(bar, beat), pan=RNG.uniform(-0.5, 0.5))
     for beat, m in [(2.0, 67), (3.0, 72), (4.0, 76)]:  # 主题的头三个音，孤零零
-        tr.add(kalimba(m, 0.4), T(5, beat), pan=0.2)
+        tr.add(soft_nylon(m - 12, 0.5, 1.5), T(5, beat), pan=0.2)
     return tr, 0.40
 
 
@@ -489,7 +505,7 @@ def main():
         if want and name not in want:
             continue
         L, R = fn()
-        finish("st-" + name, L, R, loop=False, peak_db=-3.0, kbps=96)
+        finish("st-" + name, L, R, loop=False, peak_db=-3.0, kbps=96, warm=None if name == "cricket" else 4200)
 
 
 if __name__ == "__main__":
