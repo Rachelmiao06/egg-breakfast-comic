@@ -87,12 +87,7 @@
           "stirfry": 0.5
         },
         "fades": [],
-        "oneshots": [
-          {
-            "sound": "stirfryIn",
-            "at": 0.2
-          }
-        ]
+        "oneshots": []
       },
       "seconds": {}
     },
