@@ -97,7 +97,7 @@ open_ = lum > 80
 lab, _ = ndimage.label(open_)
 seeds = [(142, 202), (52, 72), (100, 120), (232, 254), (260, 262), (170, 240)]  # 面板坐标 (y, x)：手、袖、勺
 arm = np.isin(lab, [lab[y, x] for y, x in seeds if lab[y, x] > 0])
-arm = arm | (ndimage.binary_dilation(arm, iterations=4) & ~open_)  # 带上手臂自己的描边
+arm = arm | (ndimage.binary_dilation(arm, iterations=7) & ~open_)  # 带上手臂自己的描边（描边约 5–7px，取够，免得留一圈深色在底图里）
 arm = ndimage.binary_fill_holes(arm)
 save(layer(O3, arm), "p3a-arm")
 
@@ -125,8 +125,22 @@ save(mask_img, "p3a-saucemask")
 # 底图：酱面去掉旋纹；手臂区域用外面最近的颜色填
 b3 = O3.astype(float).copy()
 b3[hi_soft] = smooth[hi_soft]  # 只去掉被搬走的高光，酱面其余保留原样
-idx = ndimage.distance_transform_edt(arm, return_distances=False, return_indices=True)
-b3[arm] = b3[idx[0][arm], idx[1][arm]]
+# 只从"手臂外、而且不是深色描边"的像素取色，用归一化卷积平滑地填（由小到大几个尺度），
+# 不用最近邻：最近邻会在围裙和瓷砖上拉出一道道放射状毛刺，搅动时很显眼。
+invalid = arm | (~open_ & ndimage.binary_dilation(arm, iterations=12))
+valid = (~invalid).astype(float)
+filled = np.zeros_like(b3)
+todo = arm.copy()
+for sigma in (3, 6, 12, 24):
+    wsum = ndimage.gaussian_filter(valid, sigma)
+    for c in range(3):
+        num = ndimage.gaussian_filter(b3[..., c] * valid, sigma)
+        filled[..., c] = np.where(todo & (wsum > 0.02), num / np.maximum(wsum, 1e-6), filled[..., c])
+    todo = todo & ~(wsum > 0.02)
+if todo.any():  # 手臂正中很深的地方（动作再大也露不出来）：最近的已填像素
+    ii = ndimage.distance_transform_edt(todo, return_distances=False, return_indices=True)
+    filled[todo] = filled[ii[0][todo], ii[1][todo]]
+b3[arm] = filled[arm]
 base[..., :3] = b3.clip(0, 255)
 save(base, "p3a-base")
 print("p3a arm px", int(arm.sum()), "sauce px", int(sauce.sum()), "highlight px", int(hi_soft.sum()))

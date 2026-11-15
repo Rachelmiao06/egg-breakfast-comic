@@ -288,10 +288,13 @@ function FlowLayer() {
         let dy = -panNow;
         if (q < s1) dy = enterOff * (1 - outCubic((q - s0) / (s1 - s0)));
         else if (q > e0) dy = -pan - exitOff * inQuad((q - e0) / (e1 - e0));
-        if (p.key === "p2b") return <ChopPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
-        if (p.key === "p3d") return <HearPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
-        if (p.key === "p2d") return <StirfryPanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
-        if (p.key === "p3a") return <SaucePanel key={p.key} p={p} pos={pos} dy={dy} q={q} animate={perf} />;
+        // 格内表演的触发看格子在屏幕上的真实状态：入场结束、可见比例、是否开始离场（竖屏整列上移时也成立）
+        const topVh = pos.y + dy;
+        const stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh), entered: q >= s1 - 0.02, leaving: q > e0 };
+        if (p.key === "p2b") return <ChopPanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
+        if (p.key === "p3d") return <HearPanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
+        if (p.key === "p2d") return <StirfryPanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
+        if (p.key === "p3a") return <SaucePanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
         return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
       })}
       <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} aspect={vp.w / vp.h} />
