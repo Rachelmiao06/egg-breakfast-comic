@@ -355,3 +355,40 @@ A、B 到位后可以去掉近景的裁切复用和主格的色块背景；C 不
 1. 入锅：木铲往右上探时，铲头下面露出的一窄条（案板左角、前侧面、锅后沿）是推断补画的，近看略糊；最小补图需求见素材文档。
 2. 切菜原图在框线外右侧和下沿有一窄条画面（生成图本身越出框线），三帧版就有；没有改裁切（会改格子尺寸，归 ComicLayer）。
 3. 每次滚过一个格子会被重新挂载（ComicLayer 按段渲染）；现在重新挂载会复位并可重播，可见时被重新挂载会从头再播一遍。
+
+### 第十轮：完整任务版（局部动作定稿 + 对白分层样板 p6e，2026-11-15）
+
+起点：合入 origin/main e0f2225（含 a5da101、replay.ts、HEAR_CUE.beforeQ）。
+
+素材核对（桌面 `new pics/`，逐张打开；原件不动，副本逐字节一致）：
+
+| 源文件 | 实际内容 | 项目路径 | 组件 | 剧情段落 | 状态 |
+|---|---|---|---|---|---|
+| `A-chopping/frame-01..03.png` | 完整不透明连续帧（抬刀 / 接近 / 落刀） | `source/comic-v4-frames/A-chopping/` → `public/assets/comic-v4/layers/p2b-*`（静态格用 `comic-v4/frames/p2b-f1`） | `ChopPanel` | chop | 已渲染（分层） |
+| `B-pouring/frame-01..03.png` | 完整不透明连续帧（滑落 / 推动 / 入锅） | `source/comic-v4-frames/B-pouring/` → `layers/p2d-*` | `StirfryPanel` | stirfry | 已渲染（分层） |
+| `C-sauce/frame-01..03.png` | 完整不透明连续帧（勺在左 / 后 / 右） | `source/comic-v4-frames/C-sauce/` → `layers/p3a-*` | `SaucePanel` | sauce | 已渲染（分层） |
+| `06-recognition-and-punchline.png` E 格 | 完整漫画格（对白已在图里） | `source/comic-v3-edits/p6e-original.webp` → `public/assets/comic-v3/p6e-clean.webp`（只清泡内字）+ `p6e-bubble.webp`（泡形遮罩） | `DialoguePanel` | punchline | 已渲染（对白分层） |
+| `01-chopping-clean-plate.png`、`02-knife-arm-overlay-draft.png` | 旧版 v3 构图的切菜底图 / 手臂草图（竖版 1024×1536） | `source/comic-v3-perf/` | — | — | 和现在的 new pics 三帧不是同一幅画，不能复用 |
+| `03-mom-eyes-up.png`、`04-mom-puzzled.png` | 听见格两张表情 | `public/assets/comic-v3/perf/p3d-*` | `HearPanel` | hear | 已渲染（未改） |
+| `*/CHECK-overlay-first-last.png`、`CHECK-NOTES.txt` | 首尾帧叠合检查图、说明 | — | — | — | 只用于检查 |
+| 其余整页、BG-*、hallway-*、table-band | 整页 / 后景 | 其他会话 | — | — | 不归本分支 |
+
+没有透明部件、也没有"无部件底图"，所以底图都是从第 1 帧拆出来补的。没有加载 SAM 2 / IOPaint：这三组部件轮廓都有清楚的深色描边，GrabCut + 精确多边形 + 描边吸附已经边缘干净（检查图里没有白边、残手、重复工具）；补底主要靠其他帧露出的真实背景，大模型补底对这种平涂水彩没有明显好处，反而要引入独立环境。
+
+本轮改动：
+- 配菜入锅改成"只播一次、最后菜已入锅"：木铲推两下，案板上的菜堆整堆顺着案板往下沿滑，过了案板下沿就看不见（菜堆层固定裁在第 1 帧的案板面里），同时铲边的菜循环落进锅里；终态（播完 / 离场）案板空、菜不再出现，复位（离开到看不见再回来）才回到第 1 帧。
+  为此补了铲头尖（原来被菜堆盖着，菜推走后会露出；按露出的上沿、右下沿补形状和轮廓，木纹借铲头本身）、把铲头底面那条浅色厚度边并回木铲层（之前留在底图里，木铲一动就是"残工具"）、菜堆层离框线 16 px 以内不取（框线描边不能跟着菜走）。
+- 对白分层样板 p6e（见 `DialoguePanel` 注释）：原图只清掉泡内旧字（`tools/replace_bubble_text.py --clean-only`，inpaint 后再用周围纸面平均色抹掉淡影），泡形遮罩 `tools/dialogue_layers.py`；网页文字照原排字的字号、字距、墨色、位置（Lantinghei 浏览器拿不到时回退苹方 / 冬青黑，同色 0.05em 描边加粗）。格子稳定 → 0.35 s 停顿 → 泡外 0.6 s 内轻微降饱和（0.68）降对比（0.9）→ 对白 0.5 s 内从浅墨渐浓。泡保持原样、奶油白不透明；进入稳定前泡里是空的。减少动态效果直接显示原图（字在图里）。
+- ComicLayer 只加了按 key 选组件的一行（p6e → DialoguePanel）。
+
+验证（无头 Chrome 1440×900；进入 → 停 5 秒 → 离开 → 重新进入）：
+- 切菜 chopHit 3 + 3；入锅 stirfryIn 1 + 1（第一颗菜落进锅里）、stirfry start / stop；调汁 sauceStir start / stop 各两次；p6e 没有声音事件，两次进入都完整播放。
+- 快速滚过整个故事再滚回：前景 0 个声音事件（只有接蛋段的三下 hopTap，归接蛋会话）。
+- 减少动态效果：切菜静态原图，chopHit 3 + 3 时刻相同。
+- 录屏里声音时刻比画面接触帧早约 0.1 s：是录制工具的计时偏移（帧时间戳和 performance.now 的起点不同），代码里 chopHit 挂在落刀补间结束的同一时刻。
+对比图和录屏：共享笔记 `scroll-motion-demo/layers-v2/`（compare-chop / compare-stirfry / compare-p6e，clips/）。
+
+没完成 / 素材缺陷：
+1. p4c 淋酱汁、p4d 划开流黄：缺素材（素材文档），没做。
+2. 入锅：木铲下面那一窄条（案板左角、前侧面）是推断补画；菜堆滑动时，菜块周围带的一圈木纹（阴影跟着菜走）在案板上能看出淡淡的移动边。最小补图：B-pouring 第 1 帧去掉手和木铲的底图、以及去掉菜堆的空案板底图。
+3. 对白效果目前只做了 p6e 一格样板；其余对白格（对白画在图里）要推广时，每格需要同样的"清字底图 + 泡形遮罩 + 文字参数"，工具已经通用到只换输入。
