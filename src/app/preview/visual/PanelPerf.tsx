@@ -174,30 +174,31 @@ export function TurnPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
  * schedule：[图序号, 开始秒]；text（可选）：对白字层（透明，字是从原格里减出来的）按行逐字打出，行框 / 字数在 text.json。
  * 规则同 TurnPanel：读格到位才播一次、离场落到终态（最后一张 + 字全显）、回滚到进入前复位、走读格门（gateS）。减少动态效果时显示 staticSrc。
  */
-export type SeqText = { src: string; size: [number, number]; rows: { x0: number; x1: number; y0: number; y1: number; n: number }[]; plan: { row: number; at: number; per: number }[] };
+export type SeqText = { size: [number, number]; rows: { str: string; x0: number; x1: number; y0: number; y1: number }[]; plan: { row: number; at: number; per: number }[] };
+/** 对白用真字体渲染（2026-11-15 用户：从图里减出来的字层又糊又锯齿、字体也不一致）：黑体粗字，墨色，逐字显示；字号按原格里每个字的宽度（cqw = 格宽的 1%） */
+const SEQ_FONT = '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif';
 export function SeqPanel({ p, pos, dy, q, stage, animate, frames, schedule, gateS, text, staticSrc }: {
   p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean;
   frames: string[]; schedule: [number, number][]; gateS: number; text?: SeqText; staticSrc: string;
 }) {
   const els = useRef<(HTMLImageElement | null)[]>([]);
-  const rowEls = useRef<(HTMLImageElement | null)[]>([]);
+  const rowEls = useRef<(HTMLDivElement | null)[]>([]);
   const timers = useRef<number[]>([]);
   const last = schedule[schedule.length - 1][0];
   const show = (n: number) => els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
+  // 第 r 行显示前 k 个字（其余不透明度 0）
   const rowClip = (r: number, k: number) => {
-    const row = text?.rows[r], el = rowEls.current[r];
-    if (!row || !text || !el) return;
-    const [W, H] = text.size;
-    const right = row.x0 + ((row.x1 - row.x0) * k) / row.n;
-    el.style.clipPath = `inset(${((row.y0 / H) * 100).toFixed(2)}% ${(100 - (right / W) * 100).toFixed(2)}% ${(100 - (row.y1 / H) * 100).toFixed(2)}% ${((row.x0 / W) * 100).toFixed(2)}%)`;
+    const el = rowEls.current[r];
+    if (!el) return;
+    Array.from(el.children).forEach((c, i) => { (c as HTMLElement).style.opacity = i < k ? "1" : "0"; });
   };
-  const allText = (full: boolean) => text?.rows.forEach((r, i) => rowClip(i, full ? r.n : 0));
+  const allText = (full: boolean) => text?.rows.forEach((r, i) => rowClip(i, full ? [...r.str].length : 0));
   const clear = () => { timers.current.forEach((id) => window.clearTimeout(id)); timers.current = []; flag(false); };
   const play = () => {
     clear(); show(0); allText(false); flag(true);
     const t: number[] = [];
     for (const [n, at] of schedule.slice(1)) t.push(window.setTimeout(() => show(n), at * 1000));
-    for (const { row, at, per } of text?.plan ?? []) for (let k = 1; k <= (text?.rows[row].n ?? 0); k++) t.push(window.setTimeout(() => rowClip(row, k), (at + (k - 1) * per) * 1000));
+    for (const { row, at, per } of text?.plan ?? []) for (let k = 1; k <= [...(text?.rows[row].str ?? "")].length; k++) t.push(window.setTimeout(() => rowClip(row, k), (at + (k - 1) * per) * 1000));
     t.push(window.setTimeout(() => { timers.current = []; flag(false); }, (gateS - 0.2) * 1000));
     timers.current = t;
   };
@@ -207,15 +208,22 @@ export function SeqPanel({ p, pos, dy, q, stage, animate, frames, schedule, gate
   useEffect(() => { allText(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!animate) return <StaticImg src={staticSrc} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
-    <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
       {frames.map((src, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={src} ref={(el) => { els.current[i] = el; }} src={src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={{ opacity: i === 0 ? 1 : 0 }} />
       ))}
-      {text?.rows.map((_, r) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={r} ref={(el) => { rowEls.current[r] = el; }} src={text.src} alt="" draggable={false} className="pointer-events-none absolute inset-0 block h-full w-full select-none" style={{ clipPath: "inset(0 100% 0 0)" }} />
-      ))}
+      {text?.rows.map((row, r) => {
+        const chars = [...row.str];
+        const fs = ((row.x1 - row.x0) / chars.length / text.size[0]) * 100; // cqw
+        return (
+          <div key={r} ref={(el) => { rowEls.current[r] = el; }} aria-hidden className="pointer-events-none absolute whitespace-nowrap"
+            style={{ left: `${(row.x0 / text.size[0]) * 100}%`, top: `${(row.y0 / text.size[1]) * 100}%`, height: `${((row.y1 - row.y0) / text.size[1]) * 100}%`, display: "flex", alignItems: "center", fontFamily: SEQ_FONT, fontWeight: 900, fontSize: `${fs.toFixed(3)}cqw`, lineHeight: 1, color: "#2b2118", WebkitTextStroke: "0.035em #2b2118" }}>
+            {chars.map((c, i) => <span key={i} style={{ opacity: 0 }}>{c}</span>)}
+          </div>
+        );
+      })}
+      <span className="sr-only">{text?.rows.map((r) => r.str).join("")}</span>
     </div>
   );
 }

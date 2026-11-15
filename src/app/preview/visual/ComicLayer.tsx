@@ -26,15 +26,28 @@ const P4D_SCHEDULE: [number, number][] = [[0, 0], [1, 0.4], [2, 0.56], [3, 0.72]
 const P6D_FRAMES = seqFrames("p6d", 6);
 const P6D_SCHEDULE: [number, number][] = [[0, 0], [1, 1.0], [2, 1.7], [3, 2.5], [4, 2.7], [5, 2.95]];
 const P6D_TEXT: SeqText = {
-  src: "/assets/comic-v6/p6d/text.webp",
   size: [988, 360],
-  rows: [{ x0: 168, x1: 352, y0: 26, y1: 68, n: 5 }, { x0: 151, x1: 377, y0: 74, y1: 120, n: 7 }, { x0: 192, x1: 293, y0: 165, y1: 200, n: 3 }, { x0: 168, x1: 332, y0: 205, y1: 248, n: 5 }],
+  rows: [
+    { str: "那刚才把你", x0: 168, x1: 352, y0: 26, y1: 68 },
+    { str: "戳破了怎么办？", x0: 151, x1: 377, y0: 74, y1: 120 },
+    { str: "蛋黄都", x0: 192, x1: 293, y0: 165, y1: 200 },
+    { str: "流出来了！", x0: 168, x1: 332, y0: 205, y1: 248 },
+  ],
   // 第一个泡在第 1 张里一口气打完；第二个泡在第 2、3 张之间打
   plan: [{ row: 0, at: 0.1, per: 0.09 }, { row: 1, at: 0.6, per: 0.08 }, { row: 2, at: 1.4, per: 0.12 }, { row: 3, at: 1.8, per: 0.1 }],
 };
 // p5f 妈妈趴在桌边看碗里的蛋（用户 2026-11-15 送图，6 张，timeline：f1 0.65 s → (f2 f3 f4 f5 各 0.24 s) × 2 → f6 停住，共 2.57 s 后停在第 6 张）
 const P5F_FRAMES = seqFrames("p5f", 6);
 const P5F_SCHEDULE: [number, number][] = [[0, 0], [1, 0.65], [2, 0.89], [3, 1.13], [4, 1.37], [1, 1.61], [2, 1.85], [3, 2.09], [4, 2.33], [5, 2.57]];
+// p5b 妈妈在门边喊"宝宝？"（用户 2026-11-15 送图，6 张，泡是空的，字层从原格减出）：timeline f1 0.6 → f2 0.4 → f3 0.56（张嘴喊）→ f4 0.8 → f5 0.24（眨眼）→ f6 1.12 → f2 0.32 → f3 0.4（再喊）→ 回到 f1，共 4.44 s
+const P5B_FRAMES = seqFrames("p5b", 6);
+const P5B_SCHEDULE: [number, number][] = [[0, 0], [1, 0.6], [2, 1.0], [3, 1.56], [4, 2.36], [5, 2.6], [1, 3.72], [2, 4.04], [0, 4.44]];
+const P5B_TEXT: SeqText = {
+  size: [512, 512],
+  rows: [{ str: "宝宝？", x0: 329, x1: 451, y0: 45, y1: 90 }],
+  // "宝宝？" 在第一次张嘴喊（f3）时打出，之后一直留着
+  plan: [{ row: 0, at: 0.95, per: 0.18 }],
+};
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
 
@@ -458,6 +471,7 @@ function FlowLayer() {
           : p.key === "p4d" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P4D_FRAMES} schedule={P4D_SCHEDULE} gateS={2.2} staticSrc={P4D_FRAMES[7]} />
           : p.key === "p6d" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P6D_FRAMES} schedule={P6D_SCHEDULE} gateS={3.4} text={P6D_TEXT} staticSrc="/assets/comic-v3/p6d.webp" />
           : p.key === "p5f" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P5F_FRAMES} schedule={P5F_SCHEDULE} gateS={3.0} staticSrc={P5F_FRAMES[5]} />
+          : p.key === "p5b" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P5B_FRAMES} schedule={P5B_SCHEDULE} gateS={4.7} text={P5B_TEXT} staticSrc="/assets/comic-v3/p5b.webp" />
           : p.key === "p5e" ? <TurnPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : <FlowPanel push={false ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;

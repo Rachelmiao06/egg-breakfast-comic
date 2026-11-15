@@ -550,7 +550,8 @@
    "events": {
     "leave": 0.1,
     "peek": 0.5
-   }
+   },
+   "readS": 4.7
   },
   {
    "id": "eggcall",
