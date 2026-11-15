@@ -77,13 +77,17 @@ GROUPS = {
         "lines": [{"pts": P("799,388 1205,24"), "width": 6, "color": [70, 35, 12], "alpha": 0.9}],
         "part": {
             1: {"outer": Pd("205,12 615,12 725,85 915,125 1025,185 1085,255 1085,400 1010,425 900,375 760,325 650,205 560,155 500,170 400,155 300,105 205,45", KB),
-                "core": Pd("300,25 560,25 700,100 880,165 1000,230 1010,330 950,375 900,350 780,280 680,175 560,120 470,125 330,70", KB)},
+                "core": Pd("300,25 560,25 700,100 880,165 1000,230 1010,330 950,375 900,350 780,280 680,175 560,120 470,125 330,70", KB),
+                "force": P("868,356 940,380 1002,402 1014,422 996,428 930,404 866,380")},  # 铲头底面的浅色厚度边
             2: {"outer": Pd("240,12 650,12 750,150 900,200 1060,240 1200,300 1220,470 1100,470 950,400 800,300 650,250 560,250 450,200 330,120 240,40", KB),
                 "core": Pd("330,25 620,25 700,160 900,215 1050,260 1100,330 1060,360 900,330 750,250 600,230 470,180 380,100", KB)},
             3: {"outer": Pd("185,12 610,12 690,200 830,255 960,265 1110,320 1160,400 1150,460 1030,460 890,425 780,380 650,320 560,305 470,280 370,225 280,135 185,45", KB),
                 "core": Pd("300,25 560,25 620,170 640,250 900,295 1060,350 1060,400 990,415 850,390 700,325 560,285 470,245 380,190 310,100", KB)},
         },
         "motion": {"part": [0, 0, -5.0], "pile": [-7, 3, 0], "drop": [0, 170, 0]},
+        # 铲头尖被菜堆盖着：菜推下锅后会露出来，按露出的上沿和右下沿把铲头补完整
+        "part_fill": [{"poly": P("1000,215 1060,235 1100,252 1115,262 1124,290 1126,330 1122,365 1112,425 1040,447 1000,432 990,330"),
+                       "outline": P("1110,257 1120,276 1125,305 1125,336 1120,368"), "width": 8, "color": [52, 28, 10]}],
         "pivot": [456, 16],  # 手腕在框上沿：推菜的木铲绕这里摆，手的上沿始终贴着框
         # 案板上的菜（在木铲前面，被推着往下沿挪）和三颗正在掉的菜（各自一层）
         "extras": [
@@ -355,6 +359,8 @@ def build(group):
         fr = frames[i - 1].astype(int)
         wallish = (fr[..., 1] > fr[..., 0] + 10) & (fr[..., 1] > 195) & (fr[..., 2] > 150)  # 浅绿墙砖：不会是手或工具
         g &= ~ndimage.binary_opening(wallish, iterations=2)
+        if pc.get("force"):  # 抠图漏掉、但确定属于部件的一小块（例如铲头底面那条浅色厚度边）
+            g |= poly_mask((H, W), pc["force"])
         parts[i] = with_outline(g, frames[i - 1])
     # 稳定前景
     front = np.zeros((H, W), bool)
@@ -367,7 +373,7 @@ def build(group):
     # 另外的运动层（案板上的菜、掉落的菜）：第 1 帧里的本体 + 描边，从底图里去掉
     extras = []  # (name, mask)
     for ex in cfg.get("extras", []):
-        region = poly_mask((H, W), ex["poly"]) & interior
+        region = poly_mask((H, W), ex["poly"]) & interior & (dist > bw + 16)  # 离框线远一点，框线的描边不能跟着菜走
         fm = food_mask(f0, region)
         if ex["rule"] == "food":
             SOLID_CORE.append(fm)
@@ -425,6 +431,30 @@ def build(group):
     add &= np.isin(lab, list(keep))
     part_mask = m1 | add
     part_rgb = np.where(m1[..., None], f0, farw)
+    # 部件被前景挡住、动起来会露出的一块（例如铲头尖被菜堆盖着）：按轮廓补一块，木色从部件本身扩散 + 借部件自己的纹理，补画轮廓线
+    for pf in cfg.get("part_fill", []):
+        reg = poly_mask((H, W), pf["poly"]) & ~part_mask
+        src_ok = part_mask & (part_rgb.mean(2) > 120) & ~ndimage.binary_dilation(~part_mask, iterations=4)
+        filled_ = nconv_fill(part_rgb.astype(float), src_ok, reg)
+        hpp = np.clip(part_rgb.astype(float) - np.dstack([ndimage.gaussian_filter(part_rgb[..., c].astype(float), 3) for c in range(3)]), -25, 25)
+        dx, dy = pf.get("tex_shift", (-140, -20))
+        tex_ = np.roll(hpp, (-dy, -dx), (0, 1))
+        okt = np.roll(src_ok, (-dy, -dx), (0, 1))
+        filled_ = filled_ + np.where(okt[..., None], tex_, 0)
+        part_rgb = np.where(reg[..., None], np.clip(filled_, 0, 255), part_rgb).astype(part_rgb.dtype)
+        part_mask = part_mask | reg
+        if pf.get("outline"):
+            lm = Image.new("L", (W * 2, H * 2), 0)
+            ImageDraw.Draw(lm).line([(x * 2, y * 2) for x, y in pf["outline"]], fill=255, width=pf["width"] * 2, joint="curve")
+            la = np.asarray(lm.resize((W, H), Image.LANCZOS)).astype(float) / 255
+            part_rgb = (part_rgb * (1 - la[..., None]) + np.array(pf["color"], float) * la[..., None]).astype(part_rgb.dtype)
+            part_mask = part_mask | (la > 0.3)
+        holes = ndimage.binary_fill_holes(part_mask) & ~part_mask
+        if holes.any():
+            hf = nconv_fill(part_rgb.astype(float), part_mask & ~ndimage.binary_dilation(holes, iterations=1), holes)
+            part_rgb = np.where(holes[..., None], np.clip(hf, 0, 255), part_rgb).astype(part_rgb.dtype)
+            part_mask = part_mask | holes
+        print(f"  part fill: {int(reg.sum())} px, holes {int(holes.sum())}")
     # 伸进框线下：靠框边的部件像素沿最近方向延伸到画布边缘（框线在遮挡层里，平时看不到）
     edge_touch = part_mask & (dist <= bw + 6) & inside
     if edge_touch.any():
