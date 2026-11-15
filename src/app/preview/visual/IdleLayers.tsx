@@ -2,7 +2,7 @@
 /**
  * 格内小循环的画面与运动（数字全在 idle.ts）。把原格换成：补好的底图 + 若干透明运动层（+ 热气团），
  * 静止时叠起来和原格一致；`active`（格子在阅读位）为真时才有事做，离开就落回静止姿态。
- * - wave：GSAP 时间轴，每轮 sine 来回摆几下，弹簧缓动收回，停一阵再来（间隔随机）；挥动线只在挥的时候淡入。
+ * - wave：GSAP 时间轴，每轮 sine 来回摆几下，弹簧缓动收回，停一阵再来（间隔随机）；
  * - sway：gsap.ticker 每帧算 常驻正弦 + 滚动速度倾斜 + 鼠标弹簧（只设目标，位置由弹簧追，带摩擦）。
  * - puffs：每团一条无限循环时间轴（周期各不相同），整团另外被鼠标轻推。
  * 不加滚动监听（读 scroll-velocity 的外部存储），不加鼠标监听（读 pointer，由 PanelHover 的那一个写入）。
@@ -26,20 +26,17 @@ function pushFrom(cx: number, cy: number, radius: number) {
   return (1 - clamp(d / radius, 0, 1)) * Math.sign(dx);
 }
 
-function runWave(L: Wave, arm: HTMLElement, lines: HTMLElement | null) {
+function runWave(L: Wave, arm: HTMLElement) {
   let call: gsap.core.Tween | null = null;
   let tl: gsap.core.Timeline | null = null;
   const cycle = () => {
     const t = gsap.timeline({ onComplete: () => { call = gsap.delayedCall(rand(...L.rest), cycle); } });
     tl = t;
-    if (lines) t.to(lines, { opacity: 1, duration: 0.12 }, 0);
     for (let i = 0; i < L.swings; i++) {
       const a = L.amp * (1 - (i / L.swings) * 0.45) * (i % 2 ? -1 : 1);
       t.to(arm, { rotation: a, duration: L.swing, ease: "sine.inOut" });
     }
-    const settle = t.duration();
     t.to(arm, { rotation: 0, duration: 0.7, ease: "elastic.out(1, 0.4)" }); // 弹簧收回
-    if (lines) t.to(lines, { opacity: 0, duration: 0.25 }, settle);
   };
   call = gsap.delayedCall(L.first, cycle);
   return () => { call?.kill(); tl?.kill(); };
@@ -66,7 +63,7 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
       touched.push(el);
       if (L.kind === "wave") {
         gsap.set(el, { transformOrigin: origin(L.pivot) });
-        stops.push(runWave(L, el, L.lines ? refs[L.lines] ?? null : null));
+        stops.push(runWave(L, el));
       } else if (L.kind === "sway") {
         gsap.set(el, { transformOrigin: origin(L.pivot) });
         sways.push({ L, el, x: 0, v: 0 });
@@ -116,21 +113,15 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
         if (el.dataset.kind === "puffs") { el.querySelectorAll("[data-puff]").forEach((p) => gsap.set(p, { opacity: 0 })); gsap.set(el, { x: 0 }); }
         else gsap.to(el, { rotation: 0, duration: 0.35, ease: "power2.out", overwrite: true });
       }
-      for (const L of spec.layers) if (L.kind === "wave" && L.lines) { const l = refs[L.lines]; if (l) gsap.set(l, { opacity: 0 }); }
     };
   }, [active, spec, k]);
 
   const refFor = (id: string) => (el: HTMLElement | null) => { els.current[id] = el; };
-  const lineIds = new Set(spec.layers.flatMap((L) => (L.kind === "wave" && L.lines ? [L.lines] : [])));
   const [cw, ch] = spec.canvas;
   return (
     <div ref={root} className="absolute inset-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={spec.base ? layerSrc(k, "base") : src} alt="" draggable={false} className={`${imgCls} object-contain`} />
-      {[...lineIds].map((id) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={id} ref={refFor(id)} src={layerSrc(k, id)} alt="" draggable={false} className={imgCls} style={{ opacity: 0 }} />
-      ))}
       {spec.layers.map((L) => {
         if (L.kind === "puffs") {
           const [x0, y0, x1, y1] = L.box;

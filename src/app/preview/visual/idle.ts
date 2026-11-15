@@ -4,7 +4,7 @@
  * <格>-<层> 是和原格同尺寸的透明部件层，静止姿态盖回去和原格逐像素一致。坐标全部用原格像素（canvas），运行时换算成百分比。
  *
  * 三种运动：
- * - wave：挥手。绕支点来回转几下（sine），最后用弹簧缓动弹回；配套的 lines（挥动线）只在挥的时候出现；挥完停几秒再来一轮（间隔随机）。
+ * - wave：挥手。绕支点来回转几下（sine），最后用弹簧缓动弹回；挥动线留在底图里不动；挥完停几秒再来一轮（间隔随机）。
  * - sway：常驻轻摆（窗帘、植物）。正弦摆动 + 滚动速度带来的倾斜（重量感）+ 鼠标靠近时的弹簧（让开，再弹回，带摩擦所以会停）。
  * - puffs：热气团（径向渐变，同厨房蒸汽），往上飘、变大、淡出，每团周期不同；整体也会被鼠标轻轻推开。
  * 触发：全部由"格子在阅读位"（reading）开关，不另起触发；离开阅读位时落回静止姿态。
@@ -24,8 +24,6 @@ export type Wave = {
   rest: [number, number];
   /** 进入阅读位后第一轮的延迟（秒） */
   first: number;
-  /** 只在挥的时候出现的挥动线层 */
-  lines?: string;
 };
 export type Sway = {
   kind: "sway";
@@ -64,7 +62,7 @@ export type IdleSpec = {
   canvas: [number, number];
   /** 有补好的底图（<格>-base.webp）就用它；只有热气这种叠加层的格不换底图 */
   base: boolean;
-  /** 运动层，按顺序画在底图之上（wave 的 lines 层由 wave 自己带出来，画在运动层之下） */
+  /** 运动层，按顺序画在底图之上 */
   layers: IdleLayer[];
 };
 
@@ -76,17 +74,17 @@ export const IDLE: Record<string, IdleSpec> = {
   p4f: {
     canvas: [445, 455],
     base: true,
-    layers: [{ kind: "wave", id: "arm", lines: "lines", pivot: [257, 245], amp: 9, swings: 3, swing: 0.34, rest: [2.6, 3.8], first: 0.9 }],
+    layers: [{ kind: "wave", id: "arm", pivot: [257, 245], amp: 9, swings: 3, swing: 0.34, rest: [2.6, 3.8], first: 0.9 }],
   },
   p5d: {
     canvas: [483, 456],
     base: true,
-    layers: [{ kind: "wave", id: "arm", lines: "lines", pivot: [303, 233], amp: 12, swings: 5, swing: 0.24, rest: [1.4, 2.2], first: 0.6 }],
+    layers: [{ kind: "wave", id: "arm", pivot: [303, 233], amp: 12, swings: 5, swing: 0.24, rest: [1.4, 2.2], first: 0.6 }],
   },
   p6c: {
     canvas: [479, 349],
     base: true,
-    layers: [{ kind: "wave", id: "arm", lines: "lines", pivot: [296, 184], amp: 12, swings: 4, swing: 0.27, rest: [1.8, 2.8], first: 0.5 }],
+    layers: [{ kind: "wave", id: "arm", pivot: [296, 184], amp: 12, swings: 4, swing: 0.27, rest: [1.8, 2.8], first: 0.5 }],
   },
   // 卧室：窗帘轻摆（上端钉在窗帘杆上）、两盆植物更小的摆。周期互不相同（6.3 / 5.2 / 4.4 / 3.7 秒）
   p5c: {
