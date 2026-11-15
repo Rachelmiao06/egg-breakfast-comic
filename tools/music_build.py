@@ -520,7 +520,7 @@ def stinger_bloop():
 STINGERS = {
     # 2026-11-15 用户：突然很多"叮叮叮"的游戏音效很奇怪。去掉钟琴 / 马林巴的小事件（idea-ding、handoff-bell、yolk-cascade、
     # mom-call、egg-small、egg-call、egg-bloop）；它们的函数留在上面，需要时再加回这张表。人声语气词（voice/）接管这些位置。
-    "missing-q": stinger_missing, "catch-chord": stinger_catch, "yolk-ooze": stinger_ooze, "bottle-shh": stinger_shh,
+    "missing-q": stinger_missing, "catch-chord": stinger_catch, "yolk-ooze": stinger_ooze,
     "punch-dum": stinger_punch, "cricket": stinger_cricket, "end-hold": stinger_end,
 }
 
