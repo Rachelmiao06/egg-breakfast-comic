@@ -130,13 +130,13 @@
   {
    "key": "p3a",
    "beat": "sauce",
-   "src": "/assets/comic-v4/frames/p3a-f1.webp",
+   "src": "/assets/comic-v5/p3a/static.webp",
    "source": "new pics/C-sauce frame-01（静态格用原图；动画用分层 comic-v4/layers/p3a-base、part、front，tools/split_layers.py）",
    "dialogueInImage": false,
    "x": 28,
    "y": 8,
    "w": 26,
-   "aspect": 1.0062,
+   "aspect": 1,
    "from": "left",
    "order": 0,
    "role": "hero"
