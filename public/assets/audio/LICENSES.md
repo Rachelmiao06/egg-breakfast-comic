@@ -22,6 +22,7 @@
 | sauce-stir.mp3 | stirring bowl.wav | https://freesound.org/people/dynamique/sounds/554557/ | dynamique | CC0 1.0 | 2026-11-14 新增（调汁，替代整段循环 sauce-stir-loop）。Freesound HQ 预览 mp3（单声道，标签：木勺、玻璃碗、液体、搅拌）。原档很轻（-34 LUFS，底噪约 -62 dB）。取 [9.95, 12.55]：0.15 / 0.75 / 1.65 s 前两下碰碗落在前景两圈（约 1.25 s）里；afftdn 降噪 10 dB、高通 120 Hz，0.08 s 淡入、0.4 s 淡出 → 2.6 s；+18.3 dB（受峰值限制）。成品 -24.1 LUFS，-2.2 dBTP。由前景 kitchen:action sauceStir 开始 / 停止。液体搅动的成分较弱，以木勺碰碗为主 |
 | pour.mp3 | Pouring oil (SoundAction 072) | https://freesound.org/people/alexarje/sounds/721754/ | alexarje（Alexander Refsum Jensenius） | CC BY 4.0（需署名） | 2026-11-14 新增（淋汁）。Freesound HQ 预览 mp3。原档 44 s：0.95 s 起是细细一股油流（宽带、柔和），3.2 s 后变成一下一下的咕嘟（大流量，不用）。取 [0.85, 2.05]，高通 150 Hz，0.08 s 淡入、0.35 s 淡出 → 1.2 s；+23.5 dB，限幅。成品 -18.5 LUFS，-1.8 dBTP，播放电平 0.25。在 p4c（勺子淋汁格）进入阅读位置后 0.9 s 播 |
 | egg-hop.mp3 | Wet Splat 2.mp3 | https://freesound.org/people/nebulasnails/sounds/495117/ | nebulasnails | CC0 1.0 | 2026-11-14 新增（开场蛋落回锅面）。Freesound HQ 预览 mp3。原档 0.55 s，起音 0.025 s。取 [0.02, 0.20]，两次 2 kHz 低通把"啪"压成很软的"噗"，2 ms 淡入、0.08 s 淡出 → 0.18 s；按峰值 +5.5 dB。播放电平 0.16，每次音高 ±6%、电平 ±1.5 dB，两次至少隔 1.8 s |
+| egg-rice.mp3 | soft plop（与 catch.mp3 同一原档） | https://pixabay.com/sound-effects/film-special-effects-soft-plop-97691/ | freesound_community | Pixabay Content License | 2026-11-14 晚新增（蛋被铲子放到饭上，p4b）。原档第二声 plop（2.04 s 起音）：取 [2.035, 2.45]，2.5 kHz 低通，2 ms 淡入、0.15 s 淡出 → 0.415 s；+5.6 dB，限幅。"碗放到桌上"另用 bowl-down（只在 p4e） |
 
 ## 尚无素材
 
@@ -38,4 +39,4 @@ Freesound 原文件（wav / flac）需要登录，本轮用的是公开 HQ 预�
 - "Stir fry 07.wav" by LG — https://freesound.org/people/LG/sounds/77923/ — CC BY 4.0 — 裁切、淡入淡出、响度处理（stirfry-in.mp3）
 - "Pouring oil (SoundAction 072)" by alexarje (Alexander Refsum Jensenius) — https://freesound.org/people/alexarje/sounds/721754/ — CC BY 4.0 — 裁切、高通、淡入淡出、响度处理（pour.mp3）
 
-许可原文：https://creativecommons.org/licenses/by/4.0/ 。署名需要出现在网页上用户看得到的地方（例如页脚"音效致谢"），由集成会话加；这里只是记录。
+许可原文：https://creativecommons.org/licenses/by/4.0/ 。网页上的署名：声音按钮左边的「音效致谢」按钮，点开列出标题、作者、来源链接、许可链接和"已裁剪并调整响度"（SoundToggle.tsx，2026-11-14 晚）。

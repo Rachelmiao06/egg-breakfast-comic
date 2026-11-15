@@ -86,6 +86,19 @@
 - 我没有音频输出，没有真正试听。录屏里的声音是页面混音器的真实输出（AudioContext 旁路录音），能听、能看对齐，但"自然不自然"需要用户判断。
 - 带声录屏（8 段 + 完整两条）和逐事件对照在主仓库 `notes/delivery-action-audio/`（未纳入 git）。实测：stirfry 段每次进入 stirfryIn 只响 1 次；切菜三刀三声；调汁声 1.25 s 随两圈开始 / 结束；中途离开时翻炒在 2.5 s、调汁在 1.1 s 收住；放碗峰值 -14.6 dB。
 
+## 第二轮声画修正（2026-11-14 晚，用户要求）
+
+| 要求 | 做法 | 检查（录制输出 + 时间检查，**不是人耳试听**） |
+|---|---|---|
+| 切菜对齐可见接触点，排查 75–110 ms | 录音器加 3 kHz 校准音对齐时钟后实测：75–110 ms 里约 75 ms 是录音器偏移，其余是 chop-hit 文件里刀碰案板在第 42 ms。接触声改为从文件中段开始播（skip 0.030 s，3 ms 淡入） | 刀碰案板落在接触帧绘制前 1–4 ms（3 刀） |
+| 配菜入锅：一次落锅 + 短滋啦；静态镜头不放连续刮锅声 | stirfry-in 不变；kitchen:action stirfry 进 cues.muted，stirfry-stir 文件保留，翻炒动画到位后移回 | 合集录制里 stirfryIn 1 次，stirfry-stir 0 次 |
+| 区分蛋落到饭上 / 碗放到桌上 | p4b（铲子把蛋放到饭上）→ 新 egg-rice（软的 plop）；bowl-down 只给 p4e（妈妈把碗放到桌上） | egg-rice 撞击在事件后 9 ms，bowl-down 13 ms |
+| 淋汁跟液流开始 / 结束 | pour 改为只跟 kitchen:action pour start / stop；p4c 现在是静态图、没有液流动画，所以暂时不出声（不再用固定延迟）。已告诉 scroll-motion-demo：p4c 动画做好后在液流出现 / 消失的帧派发 | — |
+| 保留单次触发、离场停止、防重复 | 代码路径未改（上一轮离场测试：翻炒 2.5 s、调汁 1.1 s 收住；stirfryIn 每次进入 1 次） | 合集里每个动作各响一次 |
+| CC BY 署名 | 声音按钮左边加「音效致谢」，点开显示两条 CC BY 4.0 的标题、作者、来源、许可、已修改 | 浏览器里点开核对过文字和链接 |
+
+合并说明：集成会话的 668b598 同时改了 useKitchenAudio.ts / audio-map.json（动作期间抬高 sizzle / sauce 循环）。合并时保留了声音分支的版本（短句式动作声），节拍表删除 stirfryIn 和 PanelPerf 注释来自 668b598。
+
 ## 需要集成会话改：
 
 - 无需改 beats 数据：音量和触发点都在 audio-map.json。若试听后要调 sauce（0.4）/ chop（0.5）/ 炒菜段 sizzle（0.45），改 audio-map.json 即可。

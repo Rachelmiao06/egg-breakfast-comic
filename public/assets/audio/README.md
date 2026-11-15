@@ -30,13 +30,14 @@
 | chop | chop-loop.mp3（6.5 s 循环） | 循环 | 2026-11-14 起不再使用：切菜格改为逐刀触发 chopHit | 文件保留，不加载 |
 | chopHit | chop-hit.mp3（0.26 s） | 单次，**由前景动画逐刀触发**（window 事件 `kitchen:oneshot`，detail.sound = "chopHit"） | chop 段落刀接触的那一帧，每刀一次（前景三刀）；电平 0.5 = 原来循环里每一刀 | 已接入（未试听） |
 | stirfryIn | stirfry-in.mp3（1.6 s，2026-11-14 换成"食材落锅 + 短暂滋啦"） | 单次，**由前景事件触发**（kitchen:oneshot stirfryIn） | p2d 第 2 帧（木铲把菜推下、落进锅；格子进入阅读位置后约 0.68 s）；去掉了 stirfry @0.22 的滚动触发 | 已接入（未试听） |
-| stirfryStir | stirfry-stir.mp3（3.2 s） | 一段动作，**由前景事件开始 / 停止**（kitchen:action stirfry） | p2d 第 3 帧（菜已入锅，约 1.20 s）开始（木铲推菜、轻刮锅），自然播完；格子离开 / 复位时 0.2 s 淡出；电平 0.3 | 已接入（未试听；p2e 翻炒格本身是静态图，木铲没有动画） |
+| stirfryStir | stirfry-stir.mp3（3.2 s） | 一段动作，kitchen:action stirfry | **暂时静音**（2026-11-14 晚第二轮：p2e 翻炒格是静态图，没有可见的翻炒动作，不放连续刮锅声；audio-map cues.muted）。翻炒动画到位后从 muted 移回 cues.action | 文件保留，未接入 |
 | sauceStir | sauce-stir.mp3（2.6 s；旧的 sauce-stir-loop.mp3 循环不再加载） | 一段动作，**由前景事件开始 / 停止**（kitchen:action sauceStir） | p3a 两圈开始时响（约 0.31 s）、两圈转完（约 1.56 s）收住；离开时 0.2 s 淡出；电平 0.3 | 已接入（未试听） |
 | pop | pop.mp3（0.28 s） | 单次 | hear @ p=0.35（"啵！"，播放电平 0.5） | 已接入（2026-11-14，未试听） |
 | catch | catch.mp3（0.6 s） | 单次 | catch @ actionEnd（动作阶段结束 = 蛋落到空锅铲；v1 节拍 p=0.78，v2 p=0.80） | 已接入 |
 | eggHop | egg-hop.mp3（0.18 s） | 单次，**由 Egg 落回锅面那一帧触发**（kitchen:oneshot eggHop，surface = "pan"） | 开场蛋在锅里跳：每次落地一声很软的"噗"，两次至少隔 1.8 s，音高 ±6%、电平 ±1.5 dB 轻微变化；桌面上的跳不出声；电平 0.16 | 已接入（2026-11-14，未试听） |
-| bowlDown | bowl-down.mp3（1.1 s） | 单次，**由前景格子信号触发**（comic:panel p4b start） | p4b（铲子把蛋放到饭上）进入阅读位置后 0.1 s；去掉了 bowl @0.25 的滚动触发；电平 0.6 → 0.3 | 已接入（未试听） |
-| pour | pour.mp3（1.2 s，细细一股油流） | 单次，**由前景格子信号触发**（comic:panel p4c start） | p4c（勺子淋汁）进入阅读位置后 0.9 s；格子离开时 0.25 s 淡出；电平 0.25 | 已接入（2026-11-14，未试听；CC BY 4.0 需署名） |
+| eggRice | egg-rice.mp3（0.415 s） | 单次，comic:panel **p4b** start（铲子把蛋放到饭上） | p4b 到位后 0.05 s；比落铲更闷的一声 plop（与 catch 同一原档的第二声，2.5 kHz 低通）；从 20 ms 处开始播；电平 0.4 | 已接入（2026-11-14 晚，未经人耳试听） |
+| bowlDown | bowl-down.mp3（1.1 s） | 单次，comic:panel **p4e** start（妈妈把碗放到桌上，"宝宝，来吃饭啦！"） | p4e 到位后 0.2 s；从文件 55 ms 处开始播，碗碰桌落在事件后约 13 ms；电平 0.3。**只用于真正放碗的这一格** | 已接入（未经人耳试听） |
+| pour | pour.mp3（1.2 s，细细一股油流） | 一段动作，kitchen:action pour start / stop | 要求前景在液流出现 / 消失的帧派发；p4c 现在是静态图，没有这两个事件，**暂时不出声**（不再用固定延迟） | 文件就绪，等 p4c 动画（CC BY 4.0 需署名） |
 | momCall | mom-call.mp3 | 单次 | call @ p=0.25（"宝宝，来吃饭啦！"） | **空位**（用户决定：保留漫画文字，不配音） |
 | eggSmall | egg-small.mp3 | 单次 | call @ p=0.55、tablecall @ p=0.5（"我在这儿……"） | **空位**（同上） |
 | steps | footsteps-loop.mp3（7.56 s 循环） | 循环，主要动作声 | search：离开这一拍接上（@leave−0.08 → @leave，0→0.3），探头格 p5b 落定时（@peek±0.04）停下；eggcall：妈妈转身后由远到近 0→0.15、低通 700→3000 Hz；return：0.15→0.3、低通开到 16 kHz，回到碗前停下（audio-map 的 ramps / lowpass） | 已接入（未试听） |
@@ -48,6 +49,12 @@
 ## 动作声跟画面（2026-11-14 晚）
 
 用户要求：滚动让镜头进入，动作和声音随后按真实时间一起播放；不能画面停了声音继续，也不能停滚就断。所以切菜、下锅、翻炒、调汁、淋汁、放碗、开场蛋跳都改成**前景事件触发**（`kitchen:oneshot` / `kitchen:action` / `comic:panel`，见 useKitchenAudio.ts 文件头），触发时刻由 PanelPerf / ComicLayer / Egg 的动画时间轴决定；对应的滚动触发和整段循环已去掉，同一动作不会响两遍。前景没派发事件时这些声音保持静音（不退回滚动触发）。接蛋 catch 仍按 @eggOnSpatula：蛋的飞行本身由滚动驱动，所以声音也跟滚动。
+
+## 接触声对齐（2026-11-14 晚第二轮）
+
+接触声从文件里"接触之前"的位置跳过（ONESHOTS.skip），让主要撞击落在事件后约 10 ms：chop-hit 0.030 s、catch 0.044 s、egg-rice 0.020 s、egg-hop 0.006 s、bowl-down 0.055 s，开头 3 ms 淡入防咔哒。
+校准实测（录音器注入 3 kHz 校准音对齐时钟，首尾漂移 < 3.5 ms；测的是混音器输出，不含扬声器设备延迟，Chrome 报告 outputLatency 27 ms + baseLatency 5 ms）：
+切菜刀碰案板在接触帧绘制前 1–4 ms（接触帧在事件后约 15.5 ms 绘制，撞击在事件后 12–14 ms）；catch 7 ms、egg-rice 9 ms、bowl-down 13 ms、egg-hop 6–11 ms。之前报告的 75–110 ms 主要是录音器时钟偏移（约 75 ms）+ chop-hit 刀碰案板在文件第 42 ms，不是混音器的延迟。
 
 ## 客观测量（2026-11-14，全部**未经人耳试听**）
 

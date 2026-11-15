@@ -128,6 +128,10 @@ build() {
                       # 柔和，-36…-47 dB），3.2 s 之后变成一下一下的咕嘟（大流量，不用）。取 [0.85, 2.05]，0.08 s 淡入、0.35 s 淡出、
                       # 高通 150 Hz 去掉手持的低频 → 1.2 s 小流量液体声
       oneshot_trim "$raw" "$wav" 0.85 2.05 0.08 0.35 "highpass=f=150"; finalize "$wav" "$out" 6 192k ;;
+    egg-rice)         # 蛋被铲子放到饭上（p4b）：和 catch 同一原档（Pixabay "soft plop"）的第二声 plop（2.04 s 起音），比落铲更闷：
+                      # 取 [2.035, 2.45]，2.5 kHz 低通，2 ms 淡入、0.15 s 淡出 → 0.415 s。"碗放到桌上"另用 bowl-down（p4e）
+      raw="$RAW/catch.mp3"
+      oneshot_trim "$raw" "$wav" 2.035 2.45 0.002 0.15 "lowpass=f=2500"; finalize "$wav" "$out" 3 192k ;;
     egg-hop)          # 开场蛋在锅里跳的落地声（nebulasnails "Wet Splat 2"，CC0）：原档 0.55 s，起音 0.025 s。取 [0.02, 0.20]，
                       # 两次 2 kHz 低通把"啪"压成很软的"噗"，2 ms 淡入、0.08 s 淡出 → 0.18 s。混音器限制间隔并轻微变化
       oneshot_trim "$raw" "$wav" 0.02 0.20 0.002 0.08 "lowpass=f=2000,lowpass=f=2000"; finalize "$wav" "$out" 3 192k ;;
@@ -155,6 +159,6 @@ build() {
 }
 
 names=("$@")
-if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3 stirfry-stir sauce-stir pour egg-hop); fi
+if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3 stirfry-stir sauce-stir pour egg-hop egg-rice); fi
 for n in "${names[@]}"; do build "$n"; done
 echo "完成。测量：tools/audio_measure.sh"
