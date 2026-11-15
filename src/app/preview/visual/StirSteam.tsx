@@ -18,6 +18,14 @@ export const STEAM = {
   full: 0.5,
   /** 位置包络（以炒菜段起点为 0，单位：段）：[开始升, 升满, 开始退, 退完] */
   env: [-0.3, 0.12, 0.55, 0.9] as [number, number, number, number],
+  /**
+   * 满屏雾的"弥漫"进度（以炒菜段起点为 0，单位：段）：[开始, 弥漫到最大]。
+   * 一开始只有锅口那一缕烟；满屏雾随滚动慢慢长，并且只从锅口向外扩散（半径随进度变大），不会一滑进来整页就糊。
+   * maxFog：最后弥漫时满屏雾的最大浓度（相对原来的 1）；radius：扩散半径（屏幕长边的倍数）[刚冒烟时, 弥漫到最大时]
+   */
+  spread: [0.05, 0.55] as [number, number],
+  maxFog: 0.55,
+  radius: [0.18, 1.25] as [number, number],
   /** 强度平滑：升 / 退的速度（每秒） */
   up: 1.6,
   down: 2.2,
@@ -107,6 +115,7 @@ export default function StirSteam() {
   const perf = usePerfEnabled();
   const cv = useRef<HTMLCanvasElement>(null);
   const target = useRef(0);
+  const spread = useRef(0);
 
   const idx = beats.findIndex((b) => b.id === "stirfry");
   const [e0, e1, e2, e3] = STEAM.env;
@@ -116,6 +125,8 @@ export default function StirSteam() {
   // 离开炒菜段就散：声音还没退完也不能让雾留着（滚到下一页应当没有雾，桌面上也不剩）
   const level = Math.min(Math.max(posEnv, soundEnv), 1 - ramp(pos, e2, e3));
   useEffect(() => { target.current = level; }, [level]);
+  const spreadV = ramp(pos, STEAM.spread[0], STEAM.spread[1]);
+  useEffect(() => { spread.current = spreadV; }, [spreadV]);
 
   useEffect(() => {
     const c = cv.current;
@@ -146,34 +157,49 @@ export default function StirSteam() {
       ctx.clearRect(0, 0, W, H);
       if (I < 0.01) return;
       const L = Math.max(W, H);
-      STEAM.layers.forEach((l, i) => {
-        const tile = l.size * L;
-        off[i][0] += l.vx * tile * dt; off[i][1] += l.vy * tile * dt;
-        const k = tile / TILE;
-        pats[i].setTransform(new DOMMatrix().translate(off[i][0], off[i][1]).scale(k));
-        ctx.globalAlpha = Math.min(1, l.a * STEAM.density * I * 1.6);
-        ctx.fillStyle = pats[i];
-        ctx.fillRect(0, 0, W, H);
-      });
-      // 上稀下浓
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "destination-out";
-      const g = ctx.createLinearGradient(0, 0, 0, H * 0.7);
-      g.addColorStop(0, `rgba(0,0,0,${STEAM.topThin})`);
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, H);
-      // 均匀薄雾
-      ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = `rgba(255,250,238,${STEAM.haze * I})`;
-      ctx.fillRect(0, 0, W, H);
-
-      // 烟柱：源头 = 炒菜格里那口锅的锅口（每帧按格子当前的屏幕位置算）；锅口以下不画
+      // 锅口（烟的源头）：每帧按炒菜格当前的屏幕位置算；满屏雾也从这里向外扩散
       const el = document.querySelector<HTMLElement>(`[data-panel="${PL.panel}"]`);
       const r = el?.getBoundingClientRect();
-      if (r && (r.bottom < 0 || r.top > window.innerHeight)) return; // 这一格不在画面里，没有源头就不冒
       const sx = (r && r.width > 10 ? r.left + r.width * PL.at[0] : window.innerWidth * 0.45) / 2;
       const sy = Math.min(H, (r && r.width > 10 ? r.top + r.height * PL.at[1] : window.innerHeight * 0.85) / 2);
+      // 满屏雾：浓度随弥漫进度慢慢长（前期几乎没有），范围从锅口向外扩，最后才弥漫整页
+      const S = spread.current;
+      const K = STEAM.maxFog * Math.pow(S, 1.6);
+      if (K > 0.004) {
+        STEAM.layers.forEach((l, i) => {
+          const tile = l.size * L;
+          off[i][0] += l.vx * tile * dt; off[i][1] += l.vy * tile * dt;
+          const k = tile / TILE;
+          pats[i].setTransform(new DOMMatrix().translate(off[i][0], off[i][1]).scale(k));
+          ctx.globalAlpha = Math.min(1, l.a * STEAM.density * I * K * 1.6);
+          ctx.fillStyle = pats[i];
+          ctx.fillRect(0, 0, W, H);
+        });
+        // 上稀下浓
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = "destination-out";
+        const g = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+        g.addColorStop(0, `rgba(0,0,0,${STEAM.topThin})`);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+        // 均匀薄雾
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = `rgba(255,250,238,${STEAM.haze * I * K})`;
+        ctx.fillRect(0, 0, W, H);
+        // 只保留锅口周围的一圈：半径随弥漫进度变大，边缘柔和渐隐
+        const rad = (STEAM.radius[0] + (STEAM.radius[1] - STEAM.radius[0]) * S) * L;
+        const rg = ctx.createRadialGradient(sx, sy, rad * 0.15, sx, sy, rad);
+        rg.addColorStop(0, "rgba(0,0,0,1)");
+        rg.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.globalCompositeOperation = "destination-in";
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalCompositeOperation = "source-over";
+      }
+      ctx.globalAlpha = 1;
+      if (r && (r.bottom < 0 || r.top > window.innerHeight)) return; // 这一格不在画面里，没有源头就不冒
+
       const reach = Math.max(10, Math.min(sy, PL.reach * H));
       const t = gsap.ticker.time;
       // 1) 丝状噪声：竖向拉长，往上流
