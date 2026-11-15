@@ -29,9 +29,9 @@
 | sizzle | sizzle-loop.mp3（20 s 循环） | 循环，主要动作声 | opening **0.32**（2026-11-14 从 0.45 降：房间声 + 轻滋滋声）；drop（仅 v2）动作阶段 0.32→0.2、停留 0.2；bag 0.12；idea 0.1→停留阶段 0.05；chop 0.06；**stirfry 0.1**（2026-11-14：不再拿开场滋滋声当翻炒，只是后景锅的远处底声）；sauce 0.08；missing 0.2→停留阶段 0.04；hear 进入阶段自动 0.04→0.6、停留阶段 0.6→0.3；catch 动作阶段 0.3→0.38 + 低通随 flight 从 1.5 kHz 开到 16 kHz；handoff 进入阶段 0.38→0 | 已接入 |
 | chop | chop-loop.mp3（6.5 s 循环） | 循环 | 2026-11-14 起不再使用：切菜格改为逐刀触发 chopHit | 文件保留，不加载 |
 | chopHit | chop-hit.mp3（0.26 s） | 单次，**由前景动画逐刀触发**（window 事件 `kitchen:oneshot`，detail.sound = "chopHit"） | chop 段落刀接触的那一帧，每刀一次（前景三刀）；电平 0.5 = 原来循环里每一刀 | 已接入（未试听） |
-| stirfryIn | stirfry-in.mp3（1.6 s，2026-11-14 换成"食材落锅 + 短暂滋啦"） | 单次，**由前景事件触发**（kitchen:oneshot stirfryIn） | p2d 第一批第一粒玉米落进菜堆的那一刻（格子进入阅读位置后 0.25 + 0.46 s）；去掉了 stirfry @0.22 的滚动触发 | 已接入（未试听） |
-| stirfryStir | stirfry-stir.mp3（3.2 s） | 一段动作，**由前景事件开始 / 停止**（kitchen:action stirfry） | p2d 第二批菜落完开始（木铲推菜、轻刮锅），自然播完；格子离开 / 复位时 0.2 s 淡出；电平 0.3 | 已接入（未试听；p2e 翻炒格本身是静态图，木铲没有动画） |
-| sauceStir | sauce-stir.mp3（2.6 s；旧的 sauce-stir-loop.mp3 循环不再加载） | 一段动作，**由前景事件开始 / 停止**（kitchen:action sauceStir） | p3a 两圈开始时响、两圈转完（1.9 s）收住、余势时安静；离开时 0.2 s 淡出；电平 0.3 | 已接入（未试听） |
+| stirfryIn | stirfry-in.mp3（1.6 s，2026-11-14 换成"食材落锅 + 短暂滋啦"） | 单次，**由前景事件触发**（kitchen:oneshot stirfryIn） | p2d 第 2 帧（木铲把菜推下、落进锅；格子进入阅读位置后约 0.68 s）；去掉了 stirfry @0.22 的滚动触发 | 已接入（未试听） |
+| stirfryStir | stirfry-stir.mp3（3.2 s） | 一段动作，**由前景事件开始 / 停止**（kitchen:action stirfry） | p2d 第 3 帧（菜已入锅，约 1.20 s）开始（木铲推菜、轻刮锅），自然播完；格子离开 / 复位时 0.2 s 淡出；电平 0.3 | 已接入（未试听；p2e 翻炒格本身是静态图，木铲没有动画） |
+| sauceStir | sauce-stir.mp3（2.6 s；旧的 sauce-stir-loop.mp3 循环不再加载） | 一段动作，**由前景事件开始 / 停止**（kitchen:action sauceStir） | p3a 两圈开始时响（约 0.31 s）、两圈转完（约 1.56 s）收住；离开时 0.2 s 淡出；电平 0.3 | 已接入（未试听） |
 | pop | pop.mp3（0.28 s） | 单次 | hear @ p=0.35（"啵！"，播放电平 0.5） | 已接入（2026-11-14，未试听） |
 | catch | catch.mp3（0.6 s） | 单次 | catch @ actionEnd（动作阶段结束 = 蛋落到空锅铲；v1 节拍 p=0.78，v2 p=0.80） | 已接入 |
 | eggHop | egg-hop.mp3（0.18 s） | 单次，**由 Egg 落回锅面那一帧触发**（kitchen:oneshot eggHop，surface = "pan"） | 开场蛋在锅里跳：每次落地一声很软的"噗"，两次至少隔 1.8 s，音高 ±6%、电平 ±1.5 dB 轻微变化；桌面上的跳不出声；电平 0.16 | 已接入（2026-11-14，未试听） |

@@ -30,7 +30,7 @@
  *   回到这一段开始之前才重新允许。
  * - audio-map 的扩展：ramps（段内定时的电平斜坡）和 lowpass（段内定时的低通，目前给 steps 由远到近），见 MappedBeat。
  * - 动作声跟前景的真实动作走（2026-11-14 用户要求"滚动让镜头进入，动作和声音随后按真实时间一起播放"）。三种 window 事件：
- *   · "kitchen:oneshot" {sound}：接触的那一帧播一次。chopHit（每刀）、stirfryIn（第一批菜落锅）、eggHop（开场蛋落回锅面，
+ *   · "kitchen:oneshot" {sound}：接触的那一帧播一次。chopHit（每刀）、stirfryIn（菜落进锅那一帧）、eggHop（开场蛋落回锅面，
  *     detail.surface 不是 "pan" 的不出声；两次之间至少 HOP_MIN_GAP_MS，每次音高 ±6%、电平 ±1.5 dB 轻微变化）。
  *   · "kitchen:action" {name, phase: "start"|"stop"}：一段动作。start 从头播这一段（同名的上一段先 50 ms 收掉，不叠），
  *     stop 0.2 s 淡出；没收到 stop 就自然播完。name → 声音见 audio-map 的 cues.action（翻炒 stirfry、调汁 sauceStir）。
@@ -95,7 +95,7 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number }
   eggHop: { file: "egg-hop.mp3", volume: 0.16 },
   // 翻炒：木铲在钢锅里推菜、轻刮锅，3.2 s 一段（kitchen:action stirfry）
   stirfryStir: { file: "stirfry-stir.mp3", volume: 0.3 },
-  // 调汁：木勺在碗里轻搅、碰碗三下，2.6 s 一段，对齐前景两圈（kitchen:action sauceStir）
+  // 调汁：木勺在碗里轻搅、碰碗，2.6 s 一段；前景两圈约 1.25 s，转完时的停止事件把它淡出（kitchen:action sauceStir）
   sauceStir: { file: "sauce-stir.mp3", volume: 0.3 },
   // 接蛋前的声音铺垫（listen）：画外右侧，蛋在桌沿台面上轻跳落下的"嗒"。从 chop 原档里刀碰木案板的三下撞击切出、
   // 1.5 kHz 低通成软的小木头接触声；声像偏右（蛋在画外右侧，hear 格里妈妈也看向右上）；很轻

@@ -73,21 +73,21 @@
 |---|---|---|---|
 | 开场 | room-loop 0.2 + sizzle-loop **0.32**（原 0.45）+ egg-hop（每次落回锅面一声很软的"噗"，至少隔 1.8 s，音高 ±6%） | Egg 落地帧派发 kitchen:oneshot eggHop（surface = pan） | egg-hop：nebulasnails "Wet Splat 2"，CC0 |
 | 切菜 | chop-hit（已有） | PanelPerf 落刀接触帧 chopHit（已有） | Pixabay（已有） |
-| 配菜入锅 | stirfry-in（新：食材落锅 + 短暂滋啦 1.6 s） | p2d 第一粒玉米落进菜堆 kitchen:oneshot stirfryIn；去掉 stirfry @0.22 | LG "Stir fry 07"，**CC BY 4.0** |
-| 翻炒 | stirfry-stir（新：木铲推菜、轻刮锅 3.2 s） | p2d 第二批落完 kitchen:action stirfry start；离开 / 复位 stop（0.2 s 淡出）；stirfry 段 sizzle 0.45 → 0.1 | buzkill "Carmelized Onions … Wooden Spatula"，CC0 |
-| 调汁 | sauce-stir（新：木勺轻搅、碰碗三下 2.6 s），sauce 段不再放整段循环 | p3a 两圈开始 start、两圈转完（1.9 s）/ 离开 / 复位 stop | dynamique "stirring bowl"，CC0 |
+| 配菜入锅 | stirfry-in（新：食材落锅 + 短暂滋啦 1.6 s） | p2d 第 2 帧（木铲把菜推下、落进锅，格子到位后约 0.68 s）kitchen:oneshot stirfryIn；去掉 stirfry @0.22 | LG "Stir fry 07"，**CC BY 4.0** |
+| 翻炒 | stirfry-stir（新：木铲推菜、轻刮锅 3.2 s） | p2d 第 3 帧（菜已入锅，约 1.20 s）kitchen:action stirfry start；离开 / 复位 stop（0.2 s 淡出）；stirfry 段 sizzle 0.45 → 0.1 | buzkill "Carmelized Onions … Wooden Spatula"，CC0 |
+| 调汁 | sauce-stir（新：木勺轻搅、碰碗三下 2.6 s），sauce 段不再放整段循环 | p3a 两圈开始 start（约 0.31 s）、两圈转完（约 1.56 s）/ 离开 / 复位 stop | dynamique "stirring bowl"，CC0 |
 | 接蛋 | catch（已有） | @eggOnSpatula（蛋的飞行由滚动驱动，声音也跟滚动） | Pixabay（已有） |
 | 放碗 | bowl-down（已有） | p4b 进入阅读位置后 0.1 s（comic:panel）；去掉 bowl @0.25 | Mixkit（已有） |
 | 淋汁 | pour（新：细细一股油流 1.2 s，不是大杯倒水） | p4c 进入阅读位置后 0.9 s（comic:panel），离开时淡出；去掉 bowl @0.55 | alexarje "Pouring oil (SoundAction 072)"，**CC BY 4.0** |
 
 - 事件约定写在 useKitchenAudio.ts 文件头；格子 → 声音的对应在 audio-map.json 的 cues。
-- 派发点：Egg.tsx 的 eggHop 由集成会话加好（feat/visual-direction 6d77cd3，落地帧，surface = pan / table）。PanelPerf.tsx（下锅、翻炒、调汁、PanelCue）、ComicLayer.tsx（静态格挂 PanelCue）不是声音分支的文件：为了能录带声演示，本分支单独一个提交加了这几处派发（几十行），已请 scroll-motion-demo 按同一约定实现；集成时任选一边，事件名和 detail 不变即可。
-- 已知缺口：p2e 翻炒格是静态图，木铲没有动画，所以翻炒声是接在下锅动作之后的一段 3.2 s，不对应可见的木铲动作；sauce-stir 以木勺碰碗为主，液体搅动的成分较弱；bowl-down 是"碗放到木桌上"，画面 p4b 是铲子把蛋放到饭上，用户要求沿用已有短音效，所以保留，如果觉得不贴，可以换成更软的落饭声。
+- 派发点全部在前景 / 集成那边：Egg.tsx 的 eggHop（集成会话 6d77cd3，落地帧，surface = pan / table）；PanelPerf.tsx 的 stirfryIn、kitchen:action stirfry / sauceStir、所有非特写格的 comic:panel（scroll-motion-demo 2e26fa4，逐帧画面版本）。本分支曾临时加过一版派发（2f6d17d），已在 5956beb 撤回，声音分支不改前景文件。
+- 已知缺口：p2e 翻炒格是静态图，木铲没有动画，所以翻炒声是接在下锅动作之后的一段 3.2 s（前景"菜已入锅"那一帧开始），不对应可见的木铲动作；调汁两圈现在约 1.25 s，sauce-stir 的第三下碰碗（1.65 s）会被停止淡出，实际听到两下；sauce-stir 以木勺碰碗为主，液体搅动的成分较弱；bowl-down 是"碗放到木桌上"，画面 p4b 是铲子把蛋放到饭上，用户要求沿用已有短音效，所以保留，如果觉得不贴，可以换成更软的落饭声。
 - 我没有音频输出，没有真正试听。录屏里的声音是页面混音器的真实输出（AudioContext 旁路录音），能听、能看对齐，但"自然不自然"需要用户判断。
+- 带声录屏（8 段 + 完整两条）和逐事件对照在主仓库 `notes/delivery-action-audio/`（未纳入 git）。实测：stirfry 段每次进入 stirfryIn 只响 1 次；切菜三刀三声；调汁声 1.25 s 随两圈开始 / 结束；中途离开时翻炒在 2.5 s、调汁在 1.1 s 收住；放碗峰值 -14.6 dB。
 
 ## 需要集成会话改：
 
 - 无需改 beats 数据：音量和触发点都在 audio-map.json。若试听后要调 sauce（0.4）/ chop（0.5）/ 炒菜段 sizzle（0.45），改 audio-map.json 即可。
 - 空位素材（脚步、妈妈喊、蛋喊、啵、淋汁）到位后：放入 `public/assets/audio/` 对应文件名，`tools/audio_build.sh` 加一条处理规则，LICENSES.md 记一行，README 表状态改为"已接入"。
 - （2026-11-14 晚）网页上需要可见的音效署名：stirfry-in（LG "Stir fry 07"）和 pour（alexarje "Pouring oil (SoundAction 072)"）是 CC BY 4.0，署名文字见 public/assets/audio/LICENSES.md 文末。建议放在页脚或结尾的"音效致谢"。
-- （2026-11-14 晚）前景派发点：采用本分支 PanelPerf / ComicLayer 的派发提交，或由 scroll-motion-demo 自己实现同样的事件（kitchen:oneshot stirfryIn，kitchen:action stirfry / sauceStir，comic:panel 所有格子）。没有事件时这些动作保持静音。
