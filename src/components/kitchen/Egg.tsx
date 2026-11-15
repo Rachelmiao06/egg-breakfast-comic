@@ -21,6 +21,7 @@ import { beatById, eggTravel, type Beat, type Timeline } from "@/lib/beats";
 import { ANCHORS, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import FollowMid from "./FollowMid";
+import { KITCHEN_ONESHOT_EVENT } from "./useKitchenAudio";
 
 const { eggRest: REST, eggSize: SIZE } = ANCHORS;
 
@@ -420,6 +421,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           .to(egg, { y: -H, scaleX: 1, scaleY: 1.03, duration: 0.4 * k, ease: "power2.out" })
           .to(shadow, { scale: 0.6, opacity: 0.16, duration: 0.52 * k, ease: "power2.out" }, "<-0.12")
           .to(egg, { y: 0, scaleX: 0.96, scaleY: 1.08, duration: 0.34 * k, ease: "power2.in" })
+          // 落回锅面 / 桌面的那一帧：接触声事件（混音器只在 surface === "pan" 时出声，间隔和变化由混音器控制）
+          .call(() => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "eggHop", surface: idle } })))
           .to(shadow, { scale: 1, opacity: 0.45, duration: 0.34 * k, ease: "power2.in" }, "<")
           .to(egg, { scaleX: 1.18, scaleY: 0.8, duration: 0.1, ease: "power1.out" })
           .to(shadow, { scale: 1.12, opacity: 0.55, duration: 0.1 }, "<")
