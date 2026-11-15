@@ -7,6 +7,7 @@
  * 不碰元素原有的 inline transform（进场、阅读位移还在用它）。
  */
 import { useEffect } from "react";
+import { pointer } from "./pointer";
 
 const MAX_TILT = 4.5; // 度
 const STICKY = 8; // 已悬停的格子，边缘外多少像素内仍算在上面（抬起后矩形会变，防止边缘抖动）
@@ -27,6 +28,7 @@ export default function PanelHover() {
     };
     const onMove = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
+      pointer.x = e.clientX; pointer.y = e.clientY; pointer.on = true;
       let next: HTMLElement | null = cur && hit(e.clientX, e.clientY, STICKY, cur) ? cur : null;
       if (!next) {
         const all = document.querySelectorAll<HTMLElement>(".panel-frame");
@@ -44,7 +46,7 @@ export default function PanelHover() {
       cur.style.setProperty("--ph-rm", Math.hypot(a, b).toFixed(3));
       cur.style.setProperty("--sheen", `${(((e.clientX - r.left) / r.width) * 100).toFixed(1)}%`);
     };
-    const onLeave = () => { release(cur); cur = null; };
+    const onLeave = () => { release(cur); cur = null; pointer.on = false; };
     window.addEventListener("pointermove", onMove, { passive: true });
     document.documentElement.addEventListener("pointerleave", onLeave);
     window.addEventListener("blur", onLeave);
