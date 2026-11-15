@@ -68,7 +68,6 @@
     "bowl": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
     "yolk": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
     "call": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [ { "sound": "room", "from": 0.2, "to": 0.14, "phase": "hold" } ], "oneshots": [ { "sound": "momCall", "at": 0.25 }, { "sound": "eggSmall", "at": 0.55 } ] },
-    "tablecall": { "loops": { "room": 0.14, "sizzle": 0.05 }, "fades": [], "oneshots": [] },
     "search": { "roomHz": 4000, "loops": { "room": 0.06 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "steps", "from": 0, "to": 0.3, "start": "@leave-0.08", "end": "@leave" }, { "sound": "steps", "from": 0.3, "to": 0, "start": "@peek-0.04", "end": "@peek+0.04" } ] },
     "eggcall": { "roomHz": 4000, "loops": { "room": 0.08 }, "fades": [], "oneshots": [ { "sound": "eggCall", "at": 0.25 } ], "ramps": [ { "sound": "steps", "from": 0, "to": 0.15, "start": "enterEnd", "end": 1 } ], "lowpass": [ { "sound": "steps", "fromHz": 700, "toHz": 3000, "start": "enterEnd", "end": 1 } ] },
     "return": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "steps", "from": 0.15, "to": 0.3, "start": 0, "end": "enterEnd-0.06" }, { "sound": "steps", "from": 0.3, "to": 0, "start": "enterEnd-0.02", "end": "enterEnd+0.04" } ], "lowpass": [ { "sound": "steps", "fromHz": 3000, "toHz": 16000, "start": 0, "end": "enterEnd-0.06" } ] },
