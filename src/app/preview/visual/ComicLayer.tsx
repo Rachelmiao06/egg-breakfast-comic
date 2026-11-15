@@ -305,59 +305,11 @@ function FlowLayer() {
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
         return <Fragment key={p.key}>{panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
       })}
-      <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} aspect={vp.w / vp.h} />
       {perf && <FrameReact />}
     </div>
   );
 }
 
-/**
- * 接蛋前声音铺垫（listen 段）的画外拟声字：蛋在右侧桌沿、镜头外，两三下轻轻的跳动接触声从右边传来（hear 格里妈妈也看向右上）。
- * 出现时刻读 listen 段的 events（tap1 / tap2 / tap3），跳动声读同一组值（audio-map "@tap1" 等）。不出现“妈！这里！”（那是寻找段的台词）。
- * 全部由滚动直接决定：倒滚就退回，快速滚过不会堆积，停在原地不会重复。静音时靠这几个字和随后伸铲的漫画理解剧情。
- */
-function SoundText({ g, index, beats, portrait, aspect }: { g: number; index: Record<string, number>; beats: { id: string; events?: Record<string, number> }[]; portrait: boolean; aspect: number }) {
-  const li = index["listen"];
-  if (li === undefined) return null;
-  const ev = beats[li].events ?? {};
-  const at = (name: string) => li + (ev[name] ?? 0.5);
-  const hideAt = li + 0.9; // 伸铲格进场前收起
-  const items: { text: string; from: number; x: number; y: number; rot: number }[] = [
-    { text: "嗒……", from: at("tap1"), x: portrait ? 62 : 74, y: portrait ? 38 : 36, rot: 6 },
-    { text: "嗒", from: at("tap2"), x: portrait ? 72 : 81, y: portrait ? 45 : 43, rot: -5 },
-    { text: "嗒", from: at("tap3"), x: portrait ? 80 : 86, y: portrait ? 41 : 39, rot: 8 },
-  ];
-  const k = portrait ? 3.2 : Math.min(1.6, Math.max(1, 1.6 / aspect)); // 竖屏、窄窗口按视口宽放大
-  return (
-    <>
-      {items.map((it, n) => {
-        const a = Math.min(Math.max((g - it.from) / 0.04, 0), 1) * (1 - Math.min(Math.max((g - hideAt) / 0.06, 0), 1));
-        if (a <= 0.001) return null;
-        return (
-          <div
-            key={n}
-            aria-live="polite"
-            className="absolute select-none whitespace-nowrap"
-            style={{
-              left: `${it.x}vw`,
-              top: `${it.y}vh`,
-              fontSize: `max(${1.5 * k}vw, ${portrait ? 18 : 15}px)`,
-              fontWeight: 700,
-              fontFamily: '"PingFang SC", "Hiragino Sans GB", "Heiti SC", "Noto Sans SC", sans-serif',
-              color: "#3a2418",
-              letterSpacing: "0.06em",
-              textShadow: "0 0 6px rgba(250,244,232,0.95), 0 0 14px rgba(250,244,232,0.8)",
-              opacity: a,
-              transform: `rotate(${it.rot}deg) translateY(${(1 - a) * 0.6}vh)`,
-            }}
-          >
-            {it.text}
-          </div>
-        );
-      })}
-    </>
-  );
-}
 
 /**
  * 结尾独立特写：笑点格离开后，妈妈的表情格单独停在画面中央（原图不放大超过 1.4 倍）。

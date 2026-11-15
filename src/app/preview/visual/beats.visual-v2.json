@@ -329,11 +329,6 @@
     0
    ],
    "egg": "table",
-   "events": {
-    "tap1": 0.3,
-    "tap2": 0.44,
-    "tap3": 0.53
-   },
    "audio": {
     "loops": {
      "room": 0.14,
