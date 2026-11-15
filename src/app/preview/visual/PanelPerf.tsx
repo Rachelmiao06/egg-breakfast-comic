@@ -16,6 +16,8 @@ import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
 
 type Place = { x: number; y: number; w: number };
+/** 声像跟着格子：按格子中心在屏幕上的横向位置给 -0.7…0.7（左边的格声音偏左，右边偏右）；厨房声不受影响 */
+const panFor = (pos: Place) => Math.max(-0.7, Math.min(0.7, ((pos.x + pos.w / 2) / 50 - 1) * 0.7));
 /** 格子在屏幕上的状态（ComicLayer 按布局算）：可见比例、入场是否结束、是否开始离场 */
 export type Stage = { vis: number; entered: boolean; leaving: boolean };
 /** 可见 ≥ 90% 且入场结束才开始；可见 < 60% 或开始离场就收住；几乎看不见（< 12%）或退回入场前才复位，下次进入再播 */
@@ -110,7 +112,7 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
 /**
  * 配菜下锅格 p2d：空中两粒玉米（能和锅底干净分开的只有这两粒）单独成层，底图原位置补了同一锅底的纹理。
  * 格子稳定后两小批：第一批从原位置落进锅里没入菜堆；停一下，第二批从铲边稍高处出现再落下；之后停住（菜已入锅，不再倒）。
- * "滋啦"沿用节拍表里的 stirfryIn（按滚动在段内 0.22 触发），这里不派发声音，避免重复。
+ * （旧版说明）"滋啦"现在只由 StirfryPanel 第 2 帧派发 stirfryIn，节拍表里按滚动触发的那一条已删除。
  * 木铲推动、砧板倾斜、热气需要新图（见 docs/tasks/scroll-motion-demo-asset-requests.md）。
  */
 /**
@@ -133,7 +135,8 @@ function FramesPanel({
   endFrame?: number;
   delay?: number;
   /** 每切到一帧时的回调（例如落刀接触帧派发声音） */
-  onStep?: (f: number, i: number) => void;
+  /** pan：按格子在屏幕上的横向位置给的声像（-0.7…0.7），声音事件带上它，声音在格子那一侧 */
+  onStep?: (f: number, i: number, pan: number) => void;
   /** 有稳定前景遮挡层（<dir>-front.webp：对白泡、锅沿等，从底图取出，画在动作帧之上） */
   front?: boolean;
   /** 静态格（减少动态效果）时也按同样时刻跑 onStep（只放声音，画面不动） */
@@ -161,7 +164,7 @@ function FramesPanel({
       // 静态格：画面不动，只在同样的时刻跑 onStep / onEnd（例如三下落刀声）
       const t = gsap.timeline({ delay, onComplete: () => { tl.current = null; } });
       let at = 0;
-      steps.forEach((st, i) => { t.call(() => onStep?.(st.f, i), [], at); at += st.ms / 1000; });
+      steps.forEach((st, i) => { t.call(() => onStep?.(st.f, i, panFor(pos)), [], at); at += st.ms / 1000; });
       t.call(() => { onEnd?.(); if (haltAtEnd) halt(); }, [], at);
       tl.current = t;
       return;
@@ -170,7 +173,7 @@ function FramesPanel({
     const t = gsap.timeline({ delay, onComplete: () => { tl.current = null; show(endFrame); flag(false); } });
     let at = 0;
     steps.forEach((s, i) => {
-      t.call(() => { show(s.f); onStep?.(s.f, i); }, [], at);
+      t.call(() => { show(s.f); onStep?.(s.f, i, panFor(pos)); }, [], at);
       at += s.ms / 1000;
     });
     t.call(() => { show(endFrame); onEnd?.(); if (haltAtEnd) halt(); }, [], at);
@@ -195,7 +198,7 @@ function FramesPanel({
 const F4 = "/assets/comic-v4/frames/";
 /** 声音事件（混音器在 kitchen-audio 分支接收；没收到就静音）。时刻都挂在 useStage 的真实时间轴上 */
 const oneshot = (sound: string) => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound } }));
-const action = (name: string, phase: "start" | "stop") => window.dispatchEvent(new CustomEvent("kitchen:action", { detail: { name, phase } }));
+const action = (name: string, phase: "start" | "stop", pan?: number) => window.dispatchEvent(new CustomEvent("kitchen:action", { detail: { name, phase, pan } }));
 
 /**
  * 所有漫画格通用的"格子到位"信号：同一套 useStage 规则（到位 start、离场 stop、复位 reset），
@@ -219,7 +222,7 @@ export function PanelSignal({ k, q, stage }: { k: string; q: number; stage: Stag
  */
 const SAUCE_STEPS: FrameStep[] = [1, 2, 3, 1, 2, 3].map((f) => ({ f, ms: 210 }));
 /** 声音：两圈开始时 sauceStir start，两圈转完 / 离场 / 复位时 stop。静态格同一时刻派发 */
-const sauceStep = (_f: number, i: number) => { if (i === 0) action("sauceStir", "start"); };
+const sauceStep = (_f: number, i: number, pan: number) => { if (i === 0) action("sauceStir", "start", pan); };
 export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   return <FramesPanel {...props} dir={`${F4}p3a`} steps={SAUCE_STEPS} endFrame={1} runStatic onStep={sauceStep} haltAtEnd onHalt={() => action("sauceStir", "stop")} />;
 }
@@ -237,14 +240,14 @@ const CHOP_STEPS: FrameStep[] = [
     ...(k === 2 ? [] : [{ f: 2, ms: 90 }]),
   ]),
 ];
-const chopHit = (f: number) => { if (f === 3) window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit" } })); };
+const chopHit = (f: number, _i: number, pan: number) => { if (f === 3) window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit", pan } })); };
 export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   return <FramesPanel {...props} dir={`${F4}p2b`} steps={CHOP_STEPS} endFrame={3} delay={0.35} onStep={chopHit} front runStatic />;
 }
 
 /**
  * 配菜入锅格 p2d（new pics/B-pouring 三帧：1 开始滑落、2 木铲推动、3 已入锅）：只向前播一次，停在第 3 帧，不倒放。
- * 锅身前沿和对白泡是前景遮挡层，菜落进锅里而不是浮在锅上。"滋啦"沿用节拍表里的 stirfryIn，不另发。
+ * 锅身前沿和对白泡是前景遮挡层，菜落进锅里而不是浮在锅上。"滋啦"只在这里派发（节拍表里按滚动触发的已删除）。
  */
 const POUR_STEPS: FrameStep[] = [{ f: 1, ms: 380 }, { f: 2, ms: 520 }, { f: 3, ms: 1 }];
 /** 声音：第 2 帧（菜被推下、落进锅里）"滋啦" stirfryIn；第 3 帧（已入锅）开始翻炒声，离场 / 复位时停。静态格同一时刻派发 */

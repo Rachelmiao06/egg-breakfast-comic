@@ -21,10 +21,23 @@ import { beatById, eggTravel, type Beat, type Timeline } from "@/lib/beats";
 import { ANCHORS, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import FollowMid from "./FollowMid";
+import { KITCHEN_ONESHOT_EVENT } from "./useKitchenAudio";
 
 const { eggRest: REST, eggSize: SIZE } = ANCHORS;
 
 export type Pt = { x: number; y: number };
+
+/** 蛋落地（真实时间的小跳落回桌面 / 锅里的那一下）：页面里的画框读它做"被震到"的小抖动。detail: { kind: "pan" | "table" } */
+export const EGG_LAND_EVENT = "egg:land";
+/** 有人点了蛋：蛋自己回一个小跳（EggPoke 派发） */
+export const EGG_POKE_EVENT = "egg:poke";
+const eggLand = (kind: "pan" | "table") => window.dispatchEvent(new CustomEvent(EGG_LAND_EVENT, { detail: { kind } }));
+/**
+ * 纸世界的帧率：蛋飞向锅铲的最后一段（actionP ≥ STEP_FROM）和落铲的压缩回弹按"一拍二"走（每 STEP_MS 才更新一次姿态，
+ * 压缩用 steps 缓动），像从顺滑的厨房进入了一格一格的纸面；蛋回到空桌的碗里又恢复顺滑。网址加 ?step=0 关掉做对比。
+ */
+const STEP_FROM = 0.8, STEP_MS = 83;
+const paperStepOn = () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("step") !== "0";
 /** 可调的定位点（场景像素，脚底中心）。不传时用 src/lib/scene.ts 的默认值。 */
 export type EggAnchors = {
   panLaunch: Pt;
@@ -98,6 +111,8 @@ type Plan = {
   z: number;
   opacity: number;
   landing: Station | null; // 刚到达的站点（用于一次性落地回弹）
+  /** 飞行的最后一段：姿态按"一拍二"更新（纸世界的帧率） */
+  step?: boolean;
 };
 
 const b_isFlight = (b: Beat) => b.egg === "flight";
@@ -207,7 +222,7 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
           // 身体逐渐倒向妈妈，中途多前倾一点，落到铲面时正好是铲面上的倾角（与停稳姿态无缝衔接）
           pose.rotation = a.spatulaTilt * smooth(actionP) + (a.flightLean ?? 0) * Math.sin(Math.PI * actionP);
         }
-        return { pose, station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null };
+        return { pose, station: null, idle: null, settle: false, z: Z.eggFlying, opacity: 1, landing: null, step: actionP >= STEP_FROM };
       }
       return { ...base("spatula", null, Z.eggFlying), landing: "spatula" };
     }
@@ -269,6 +284,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   });
 
   // ---- 外层：位置（滚动控制或站点） ----
+  const stepRef = useRef<{ t: number; id: number; vars: gsap.TweenVars | null }>({ t: 0, id: 0, vars: null });
+  useEffect(() => () => { window.clearTimeout(stepRef.current.id); }, []);
   const lastStation = useRef<Station | null>(null);
   const lastLanding = useRef<Station | null>(null);
   useEffect(() => {
@@ -277,7 +294,19 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     const discrete = P.station !== null && lastStation.current !== P.station; // 换站（含快速拖过整段）
     const vars = { x: P.pose.x, y: P.pose.y, scale: P.pose.scale, rotation: P.pose.rotation, transformOrigin: "50% 100%" };
     if (reducedMotion) gsap.set(w, vars);
-    else if (direct && P.station === null) gsap.set(w, { ...vars, overwrite: true }); // 滚动主运动：直接映射
+    else if (direct && P.station === null) {
+      // 滚动主运动：直接映射；飞行最后一段按"一拍二"（纸世界），停下滚动后由尾部定时器把最终姿态补上
+      const st = stepRef.current;
+      if (P.step && paperStepOn()) {
+        st.vars = vars;
+        const now = performance.now();
+        if (now - st.t >= STEP_MS) { st.t = now; gsap.set(w, { ...vars, overwrite: true }); }
+        else if (!st.id) st.id = window.setTimeout(() => { st.id = 0; st.t = performance.now(); if (st.vars) gsap.set(w, { ...st.vars, overwrite: true }); }, STEP_MS - (now - st.t));
+      } else {
+        if (st.id) { window.clearTimeout(st.id); st.id = 0; }
+        gsap.set(w, { ...vars, overwrite: true });
+      }
+    }
     else if (direct) gsap.to(w, { ...vars, duration: discrete ? 0.22 : 0.0, ease: "power2.out", overwrite: true });
     else gsap.to(w, { ...vars, duration: 0.3, ease: "power2.out", overwrite: true });
     lastStation.current = P.station;
@@ -286,12 +315,13 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
       const s = eggRef.current;
       if (P.landing === "spatula" && a.spatulaTilt !== undefined) {
         // 落铲：一次轻微压缩 → 小回弹 → 停稳（不连续弹跳，压缩量小，五官不变形）
+        const stepped = paperStepOn();
         gsap.timeline()
-          .to(s, { scaleX: 1.08, scaleY: 0.9, duration: LAND_SQUASH_S * 0.13, ease: "power2.out", transformOrigin: "50% 100%", overwrite: "auto" })
+          .to(s, { scaleX: 1.08, scaleY: 0.9, duration: LAND_SQUASH_S * 0.13, ease: stepped ? "steps(2)" : "power2.out", transformOrigin: "50% 100%", overwrite: "auto" })
           // 压缩到底的那一刻换成安心表情（同一次落地事件，真实时间；若此时已经被滚回飞行中就不换）
           .call(() => { if (lastStation.current === "spatula") { restArmed.current = true; setFace("rest"); } })
-          .to(s, { scaleX: 0.98, scaleY: 1.03, duration: LAND_SQUASH_S * 0.2, ease: "sine.out" })
-          .to(s, { scaleX: 1, scaleY: 1, duration: LAND_SQUASH_S * 0.3, ease: "sine.inOut" });
+          .to(s, { scaleX: 0.98, scaleY: 1.03, duration: LAND_SQUASH_S * 0.2, ease: stepped ? "steps(2)" : "sine.out" })
+          .to(s, { scaleX: 1, scaleY: 1, duration: LAND_SQUASH_S * 0.3, ease: stepped ? "steps(3)" : "sine.inOut" });
       } else
         gsap.timeline()
           .to(s, { scaleX: 1.18, scaleY: 0.8, duration: LAND_SQUASH_S * 0.15, ease: "power1.out", transformOrigin: "50% 100%" })
@@ -359,6 +389,28 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peekKey, reducedMotion]);
 
+  // ---- 被点了一下（彩蛋）：回一个小跳；在路上（滚动控制）或在抬头一跳时不理 ----
+  useEffect(() => {
+    const onPoke = () => {
+      const egg = eggRef.current, shadow = shadowRef.current;
+      const st = lastStation.current;
+      if (!egg || !shadow || reducedMotion || st === null || peekingRef.current) return;
+      const H = st === "pan" ? PAN_JUMP * 0.55 : TABLE_HOP * 1.2;
+      gsap.killTweensOf([egg, shadow]);
+      gsap.timeline()
+        .to(egg, { scaleX: 1.14, scaleY: 0.84, duration: 0.08, ease: "power2.out", transformOrigin: "50% 100%" })
+        .to(egg, { y: -H, scaleX: 0.95, scaleY: 1.08, rotation: -5, duration: 0.2, ease: "power2.out" })
+        .to(shadow, { scale: 0.65, opacity: 0.2, duration: 0.2 }, "<")
+        .to(egg, { y: 0, rotation: 0, scaleX: 0.97, scaleY: 1.05, duration: 0.2, ease: "power2.in" })
+        .to(shadow, { scale: 1, opacity: 0.45, duration: 0.2 }, "<")
+        .call(() => eggLand(st === "pan" ? "pan" : "table"))
+        .to(egg, { scaleX: 1.16, scaleY: 0.82, duration: 0.08, ease: "power1.out" })
+        .to(egg, { scaleX: 1, scaleY: 1, duration: 0.4, ease: "elastic.out(1, 0.45)" });
+    };
+    window.addEventListener(EGG_POKE_EVENT, onPoke);
+    return () => window.removeEventListener(EGG_POKE_EVENT, onPoke);
+  }, [reducedMotion]);
+
   // ---- 内层：站点上的自主小跳（真实时间） ----
   const settleRef = useRef(P.settle);
   const kickRef = useRef<(() => void) | null>(null);
@@ -393,6 +445,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
               .to(egg, { rotation: 0, duration: 0.12, ease: "sine.inOut" })
               .to(egg, { scaleX: 0.94, scaleY: 1.1, y: -H * 0.45, duration: 0.16, ease: "power2.out" })
               .to(egg, { y: 0, scaleX: 1.1, scaleY: 0.88, duration: 0.16, ease: "power2.in" })
+              .call(() => eggLand("table"))
               .to(egg, { scaleX: 1, scaleY: 1, duration: 0.45, ease: "elastic.out(1, 0.5)" })
               .to(shadow, { scale: 1, opacity: 0.45, duration: 0.3 }, "<");
           } else {
@@ -421,6 +474,9 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           .to(shadow, { scale: 0.6, opacity: 0.16, duration: 0.52 * k, ease: "power2.out" }, "<-0.12")
           .to(egg, { y: 0, scaleX: 0.96, scaleY: 1.08, duration: 0.34 * k, ease: "power2.in" })
           .to(shadow, { scale: 1, opacity: 0.45, duration: 0.34 * k, ease: "power2.in" }, "<")
+          // 落回锅面 / 桌面的那一帧（放在影子这一步之后，不改变影子“<”的对齐）：接触声事件（混音器只在 surface === "pan" 时出声，间隔和变化由混音器控制）
+          .call(() => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "eggHop", surface: idle } })))
+          .call(() => eggLand(idle === "pan" ? "pan" : "table"))
           .to(egg, { scaleX: 1.18, scaleY: 0.8, duration: 0.1, ease: "power1.out" })
           .to(shadow, { scale: 1.12, opacity: 0.55, duration: 0.1 }, "<")
           .to(egg, { scaleX: 1, scaleY: 1, duration: 0.55, ease: "elastic.out(1, 0.45)" })

@@ -168,12 +168,7 @@
      "sizzle": 0.08
     },
     "fades": [],
-    "oneshots": [
-     {
-      "sound": "stirfryIn",
-      "at": 0.22
-     }
-    ]
+    "oneshots": []
    },
    "camera": "full",
    "phases": {

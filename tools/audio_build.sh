@@ -108,8 +108,33 @@ build() {
       loop_seam "$raw" "$wav" 0 6.34 0.5 0.1 0.29;   finalize "$wav" "$out" 3 192k loop ;;
     sauce-stir-loop)  # 原档 18.81 s，前 0.8 s 静音；取 [0.80, 18.70]（两端都在勺声间隙里）→ 17.7 s 循环
       loop_seam "$raw" "$wav" 0.80 18.70 0.6 0.2;    finalize "$wav" "$out" 3 192k loop ;;
-    stirfry-in)       # 原档 7.9 s，起音在 0.88 s（之前为静音）；取 [0.86, 2.66] 一声爆发，尾部 0.7 s 淡出 → 1.8 s
+    stirfry-in-water) # 旧版下锅声（水滴进热锅的一声爆发，没有食材落锅）：原档 7.9 s，起音 0.88 s；取 [0.86, 2.66]，尾部 0.7 s 淡出 → 1.8 s。
+                      # 2026-11-14 起不再加载，保留可重做
+      out="$OUT/alt/stirfry-in-water.mp3"; mkdir -p "$OUT/alt"
       oneshot_trim "$raw" "$wav" 0.86 2.66 0.01 0.7; finalize "$wav" "$out" 6 192k ;;
+    stirfry-in)       # 配菜落锅 + 短暂滋啦（LG "Stir fry 07"，CC BY 4.0）：原档 17.3 s，0.44 s 前是锅里轻微的油声，
+                      # 0.44–0.48 s 食材一下落进锅（低频冲击，-40 → -31 dB），随后滋啦声铺开。取 [0.42, 2.02]，
+                      # 尾部 0.6 s 淡出（1.88 s 处一个油爆被淡出压低）→ 1.6 s。由前景 p2d 第一批玉米落锅时派发
+      oneshot_trim "$raw" "$wav" 0.42 2.02 0.005 0.6; finalize "$wav" "$out" 6 192k ;;
+    stirfry-stir)     # 翻炒（buzkill "Carmelized Onions Large Steel Pan Stirring Wooden Spatula Bubbling"，CC0）：原档 75.8 s，
+                      # 前 28 s 是木铲在钢锅里推洋葱、轻微刮锅；5.0 / 11.75 / 14.75 s 有较重的敲锅。取 [6.2, 9.4]（三下均匀的推铲，
+                      # 约 1.4 s 一下，最响 -29 dB），0.15 s 淡入、0.7 s 淡出 → 3.2 s 一段。由前景"翻炒开始"事件播放，停止事件 0.2 s 淡出
+      oneshot_trim "$raw" "$wav" 6.2 9.4 0.15 0.7; finalize "$wav" "$out" 6 192k ;;
+    sauce-stir)       # 调汁搅拌（dynamique "stirring bowl.wav"，CC0；标签：木勺、玻璃碗、液体）：原档 52 s 单声道、很轻（-34 LUFS，
+                      # 底噪约 -62 dB）。前 32 s 是规律的轻搅、约 0.65 s 碰一下碗。取 [9.95, 12.55]：0.15 s、0.75 s、1.65 s 三下碰碗
+                      # 落在前景两圈（1.9 s）里，2.35 s 那下被淡出压低；先 afftdn 轻度降噪 10 dB，0.08 s 淡入、0.4 s 淡出 → 2.6 s
+      oneshot_trim "$raw" "$wav" 9.95 12.55 0.08 0.4 "afftdn=nr=10:nf=-62:tn=1,highpass=f=120"; finalize "$wav" "$out" 3 192k ;;
+    pour)             # 淋汁（alexarje "Pouring oil (SoundAction 072)"，CC BY 4.0）：原档 44 s；0.95 s 开始是细细的一股油流（宽带、
+                      # 柔和，-36…-47 dB），3.2 s 之后变成一下一下的咕嘟（大流量，不用）。取 [0.85, 2.05]，0.08 s 淡入、0.35 s 淡出、
+                      # 高通 150 Hz 去掉手持的低频 → 1.2 s 小流量液体声
+      oneshot_trim "$raw" "$wav" 0.85 2.05 0.08 0.35 "highpass=f=150"; finalize "$wav" "$out" 6 192k ;;
+    egg-rice)         # 蛋被铲子放到饭上（p4b）：和 catch 同一原档（Pixabay "soft plop"）的第二声 plop（2.04 s 起音），比落铲更闷：
+                      # 取 [2.035, 2.45]，2.5 kHz 低通，2 ms 淡入、0.15 s 淡出 → 0.415 s。"碗放到桌上"另用 bowl-down（p4e）
+      raw="$RAW/catch.mp3"
+      oneshot_trim "$raw" "$wav" 2.035 2.45 0.002 0.15 "lowpass=f=2500"; finalize "$wav" "$out" 3 192k ;;
+    egg-hop)          # 开场蛋在锅里跳的落地声（nebulasnails "Wet Splat 2"，CC0）：原档 0.55 s，起音 0.025 s。取 [0.02, 0.20]，
+                      # 两次 2 kHz 低通把"啪"压成很软的"噗"，2 ms 淡入、0.08 s 淡出 → 0.18 s。混音器限制间隔并轻微变化
+      oneshot_trim "$raw" "$wav" 0.02 0.20 0.002 0.08 "lowpass=f=2000,lowpass=f=2000"; finalize "$wav" "$out" 3 192k ;;
     catch)            # 原档 4.8 s 有三声 plop，第一声起音 0.49 s、峰值 0.52 s；取 [0.47, 1.07]，尾部 0.15 s 淡出 → 0.6 s
       oneshot_trim "$raw" "$wav" 0.47 1.07 0.005 0.15; finalize "$wav" "$out" 3 192k ;;
     footsteps-loop)   # 原档 29.86 s 单声道，地毯上穿拖鞋慢走，约 -42 LUFS；0.17–7.76 s 是 7 步均匀的一段（间隔约 1.27 s）。
@@ -134,6 +159,6 @@ build() {
 }
 
 names=("$@")
-if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3); fi
+if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3 stirfry-stir sauce-stir pour egg-hop egg-rice); fi
 for n in "${names[@]}"; do build "$n"; done
 echo "完成。测量：tools/audio_measure.sh"
