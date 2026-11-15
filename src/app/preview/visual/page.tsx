@@ -17,6 +17,7 @@ import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import { SearchBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, gOf, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
+import StirSteam from "./StirSteam";
 import PaperFrameTexture from "./PaperFrameTexture";
 import { HEAR_EVENT } from "./PanelPerf";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, trajectoryFor, wanderTableFor } from "./eggPath";
@@ -150,6 +151,7 @@ function StageV2() {
       </div>
       <SearchBackdrop />
       <ComicLayer flow />
+      <StirSteam />
       <ScrollDriver smooth />
       <EggPoke />
       <PanelHover />

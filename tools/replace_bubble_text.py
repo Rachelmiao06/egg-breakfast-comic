@@ -40,25 +40,18 @@ def font_for(key):
 
 
 def clean_text(rgb):
-    """只在泡内原文字范围里找墨色笔画，外扩 2 px 后 inpaint 成泡内纸色；返回 (干净的 rgb, 原墨色)"""
+    """泡内原文字范围里所有"不是纸色"的像素（含抗锯齿边）外扩后，整片填成泡里的纸色（泡里的纸几乎是平的：标准差 3–5）；返回 (干净的 rgb, 原墨色)。
+    以前用 inpaint + 周围均色，笔画边缘会留下淡灰的影子，网页文字淡入时看起来像脏污。"""
     x0, y0, x1, y1 = OLD
     lum = rgb.astype(float).mean(2)
+    box = lum[y0:y1, x0:x1]
+    ink = np.median(rgb[y0:y1, x0:x1][box < 70], axis=0)
+    paper = np.median(rgb[y0:y1, x0:x1][box > 235], axis=0)
     mask = np.zeros(lum.shape, np.uint8)
-    mask[y0:y1, x0:x1] = (lum[y0:y1, x0:x1] < 150).astype(np.uint8) * 255
-    ink = np.median(rgb[y0:y1, x0:x1][lum[y0:y1, x0:x1] < 70], axis=0)
-    mask = cv2.dilate(mask, np.ones((5, 5), np.uint8))
-    clean = cv2.inpaint(np.ascontiguousarray(rgb[..., ::-1]), mask, 4, cv2.INPAINT_TELEA)[..., ::-1]
-    # inpaint 留下的淡影：笔画外扩带里改用周围纸面的归一化平均色（泡里的纸几乎是平的）
-    band = cv2.dilate(mask, np.ones((7, 7), np.uint8)) > 0
-    known = np.zeros(lum.shape, bool)
-    known[y0 - 8:y1 + 8, x0 - 8:x1 + 8] = True
-    known &= ~band & (rgb.min(2) > 200)
-    k = known.astype(np.float32)
-    w = cv2.GaussianBlur(k, (0, 0), 6)
-    out = clean.astype(np.float32).copy()
-    for c in range(3):
-        num = cv2.GaussianBlur(rgb[..., c].astype(np.float32) * k, (0, 0), 6)
-        out[..., c] = np.where(band & (w > 0.05), num / np.maximum(w, 1e-6), out[..., c])
+    mask[y0:y1, x0:x1] = (box < 232).astype(np.uint8)
+    mask = cv2.dilate(mask, np.ones((7, 7), np.uint8))
+    a = cv2.GaussianBlur(mask.astype(np.float32), (0, 0), 1.2)[..., None]
+    out = rgb.astype(np.float32) * (1 - a) + paper[None, None, :].astype(np.float32) * a
     return np.clip(out, 0, 255).astype(np.uint8), ink
 
 
@@ -69,6 +62,7 @@ def main():
     ap.add_argument("--stroke", type=float, default=0.0)
     ap.add_argument("--height", type=float, default=29.0)
     ap.add_argument("--tracking", type=float, default=-0.6, help="字距调整（p6e 像素，负 = 收紧）")
+    ap.add_argument("--text-layer", action="store_true", help="只输出新字的透明层（墨色 + 字形透明度，和原格同尺寸）→ public/assets/comic-v3/p6e-text.webp；网页用它淡入，字形和图里其它对白同一套字体")
     ap.add_argument("--clean-only", action="store_true", help="只清掉泡内旧字，不排新字")
     args = ap.parse_args()
     im = Image.open(SRC).convert("RGBA")
@@ -103,6 +97,14 @@ def main():
     a = np.asarray(layer.resize((im.width, im.height), Image.LANCZOS)).astype(float) / 255
     out = rgb.astype(float) * (1 - a[..., None]) + ink[None, None, :] * a[..., None]
     rgba[..., :3] = np.clip(out, 0, 255).astype(np.uint8)
+    if args.text_layer:
+        tl = np.zeros(rgba.shape, np.uint8)
+        tl[..., :3] = ink.astype(np.uint8)
+        tl[..., 3] = np.round(a * 255).astype(np.uint8)
+        out = OUT.replace(".webp", "-text.webp")
+        Image.fromarray(tl, "RGBA").save(out, lossless=True, method=6)
+        print("wrote", out)
+        return
     res = Image.fromarray(rgba, "RGBA")
     ys, xs = np.where(a > 0.3)
     print(f"font {FONTS[args.font][1]} {FONTS[args.font][2]} size {size / S:.1f}px  new text x {xs.min()}–{xs.max()}  y {ys.min()}–{ys.max()}  ink {ink.round()}")
