@@ -14,7 +14,6 @@
 import { useEffect, useRef } from "react";
 import { ZCOOL_KuaiLe } from "next/font/google";
 import gsap from "gsap";
-import { DrawnFrame } from "./ComicPage";
 import { envelope, phaseProgress } from "@/lib/beats";
 import { getScrollVelocity } from "@/lib/scroll-velocity";
 import { MOM_PANELS } from "@/lib/scene";
@@ -45,8 +44,6 @@ const CAPTIONS: Record<keyof typeof MOM_PANELS, string> = {
 
 /** 手绘圆润可爱的中文字体（与 /demo/scroll-motion 同款）；加载前先退到系统圆体 */
 const cute = ZCOOL_KuaiLe({ weight: "400", subsets: ["chinese-simplified"] as unknown as ["latin"], preload: false, display: "swap" });
-
-const SEEDS: Record<string, number> = { chop: 3, stirfry: 7, sauce: 11 };
 
 const FONT = '"PingFang SC","Hiragino Sans GB",system-ui,sans-serif';
 
@@ -108,10 +105,8 @@ export default function ComicScroll() {
               className="relative h-full"
               style={reducedMotion ? undefined : { animation: "comic-panel-float 2.8s ease-in-out infinite alternate" }}
             >
-              {/* 漫画格：不透明奶油纸底 + 棕色手绘钢笔框线（四边略不对齐，每格种子不同） */}
-              <div aria-hidden className="absolute -inset-[4%]" style={{ background: "var(--cream)" }}>
-                <DrawnFrame seed={SEEDS[id]} />
-              </div>
+              {/* 漫画格：不透明奶油纸底 + 干净闭合的棕色细框（四角不出头） */}
+              <div aria-hidden className="absolute -inset-[4%]" style={{ background: "var(--cream)", border: "2.5px solid var(--ink)", borderRadius: 6 }} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={img.src}
