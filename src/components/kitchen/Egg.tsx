@@ -207,9 +207,7 @@ function hopBetween(A: Pt, B: Pt, t: number, scaleA: number, scaleB: number, lif
 }
 /**
  * 高跳轨迹上参数 s 处的脚底点（场景像素）：
- *   L → M：三次贝塞尔，从桌面向上起跳、朝她的视线方向，最后竖直到达 M（与下一段同方向，速度方向连续）；
- *   M → E：竖直向上越过画面上缘；E → R：画布上沿之外的直线（全程在画外）；
- *   R → C：横向匀速、纵向加速（ease-in）落到铲面，从铲面右上方斜着下来。
+ *   L → M：抛物线（篮沿 → 妈妈视线点）；M → Ap：继续弹到最高点（listen 镜头抬高后画面内）；Ap 悬停；Ap → C：自由落体落到铲面。
  */
 export function trajFoot(T: EggTraj, s: number): Pt {
   const k = clamp01(s);
@@ -220,13 +218,21 @@ export function trajFoot(T: EggTraj, s: number): Pt {
     const u = k / T.sM;
     return { x: L.x + (M.x - L.x) * u, y: L.y + (M.y - L.y) * u - 4 * u * (1 - u) * flyArch(T) };
   }
-  // M → C：一整条连续弧线（三次贝塞尔，控制点 E、R）：起势竖直向上（和 L → M 末端速度方向连续），越过顶点后从右上方斜着落到铲面。
-  // 参数 s 从 sM 走到 1；sE、sR 只是滚动分段的标记（出画 / 重新入画的时刻），不再是折线的拐点。
-  const u = (k - T.sM) / (1 - T.sM), v = 1 - u;
-  return {
-    x: v * v * v * M.x + 3 * v * v * u * E.x + 3 * v * u * u * R.x + u * u * u * C.x,
-    y: v * v * v * M.y + 3 * v * v * u * E.y + 3 * v * u * u * R.y + u * u * u * C.y,
-  };
+  // 镜头编排（hear 桌面 → listen 抬高 → catch 接蛋）：
+  //   M → Ap（sM → sE）：继续向上弹到最高点，减速上升（竖直先快后慢），横向缓出缓入地偏向铲面一侧；
+  //   Ap 悬停（sE → sR，listen 停留）：在最高点轻微浮动（两端为 0，和上下两段连续）；
+  //   Ap → C（sR → 1，catch 动作）：自由落体——纵向 u² 加速，横向缓入缓出——镜头此时往左下走，所以屏幕上落成一条线。
+  const Ap = R;
+  if (k <= T.sE) {
+    const u = (k - T.sM) / (T.sE - T.sM), ey = 1 - (1 - u) * (1 - u), ex = u * u * (3 - 2 * u);
+    return { x: M.x + (Ap.x - M.x) * ex, y: M.y + (Ap.y - M.y) * ey };
+  }
+  if (k <= T.sR) {
+    const u = (k - T.sE) / (T.sR - T.sE);
+    return { x: Ap.x, y: Ap.y + 6 * Math.sin(2 * Math.PI * u) };
+  }
+  const u = (k - T.sR) / (1 - T.sR);
+  return { x: Ap.x + (C.x - Ap.x) * (u * u * (3 - 2 * u)), y: Ap.y + (C.y - Ap.y) * u * u };
 }
 /** 弧线在 s 处的水平速度方向（>0 向右）：给超人姿势选镜像 */
 function trajVx(T: EggTraj, s: number) {
@@ -257,10 +263,10 @@ function trajPose(T: EggTraj, s: number): Pose {
     const tx = T.M.x - T.L.x, ty = T.M.y - T.L.y - 4 * (1 - 2 * v) * flyArch(T);
     const ang = Math.max(-80, Math.min(80, (Math.atan2(tx, -ty) * 180) / Math.PI));
     lean = LEAN * ang * sm(v / 0.1) * (1 - sm((v - 0.85) / 0.15));
-  } else if (s < T.sR) {
+  } else if (s < T.sE) {
     const a = trajFoot(T, s - 0.01), b = trajFoot(T, s + 0.01);
     const ang = Math.max(-80, Math.min(80, (Math.atan2(b.x - a.x, -(b.y - a.y)) * 180) / Math.PI));
-    lean = LEAN * ang * (1 - sm((s - T.sM) / (T.sR - T.sM)));
+    lean = LEAN * ang * (1 - sm((s - T.sM) / (T.sE - T.sM)));
   }
   return { x: f.x - REST.x, y: f.y - REST.y, scale, rotation: T.tiltC * u2 + lean };
 }

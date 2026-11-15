@@ -172,8 +172,9 @@ export function airPointFor(cfg: SlotConfig, catchView: View): Pt {
  *   M 视线相遇点：hear 格（p3d，左下）右上方、她抬眼的视线方向上；格子位置按 ComicLayer 的排版算出（单格：横屏按 fitPlaces，
  *     竖屏用 portraitPlace），再用 hear 停留时的镜头换成场景坐标。蛋心在格子右缘外 0.62 个蛋宽、格子上沿再往上 10% 格高之上，
  *     整颗在画面内（margin），不压格子和对白。
- *   E / R：M → C 那条连续弧线（三次贝塞尔）的两个控制点：E 在 M 正上方、画布上沿之外（起势竖直向上，和 L → M 的末端速度方向连续），
- *     R 在 catch 取景上缘之外、铲面右上方（末段从右上方斜着落到铲面，不经过对白泡）。弧线整条连续，不再有“飞出画外、画外平移、再掉下来”的折线。
+ *   M → Ap（E = R = Ap）：继续向上弹到最高点（减速上升），Ap 在 listen 镜头（往上抬）画面内：妈妈“嗯？”时蛋弹得很高，镜头跟着抬上去；
+ *   listen 停留：蛋在最高点悬住，轻微浮动；catch：镜头往左下走，蛋从最高点自由落体落到铲面（加速下落，横向缓入）。
+ *   三段分别对应镜头的三个状态（桌面 → 抬高 → 接蛋），蛋的轨迹由“蛋在场景里的位置 + 镜头的位移”叠出一条线。
  *   C 铲面接触点 = landPoint。
  */
 export type Traj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number; camSM: number; camSC: number };
@@ -197,7 +198,7 @@ export function hearPanelRect(vw: number, vh: number, portrait: boolean) {
   return { x0, y0, x1: x0 + wp, y1: y0 + wp / p.aspect };
 }
 
-export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portrait: boolean }, hear: Cam, catchV: View, L: Pt): Traj {
+export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portrait: boolean }, hear: Cam, catchV: View, L: Pt, listenV: View): Traj {
   const scaleL = eggAtTableFor(cfg) * (L.d ?? 1);
   const h = EGG * scaleL; // 蛋高（场景像素），布局框近似正方形
   const eggS = h * hear.s; // hear 镜头下蛋在屏幕上的大小
@@ -212,10 +213,11 @@ export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portr
   cy = Math.max(cy, margin + eggS / 2);
   const M = { x: Math.round((cx - hear.tx) / hear.s), y: Math.round((cy - hear.ty) / hear.s + h / 2) };
   const land = landPoint(cfg.scene.catch);
-  const Wd = BG.anchors.wander;
-  const rx = Math.max(land.x, Math.min(land.x + Wd.airDxEggW * h, catchV.x1 - 0.6 * h));
-  const R = { x: Math.round(rx), y: Math.round(catchV.y0 - 0.55 * h) };
-  const E = { x: M.x, y: Math.round(-h - Wd.airAbove) };
+  // 最高点 Ap：listen 镜头（往上抬）画面上部、M 和铲面之间偏 M 一侧：蛋弹到这里悬住（整颗在画面内），catch 时镜头往左下走、蛋从这里落到铲面
+  const lw = listenV.x1 - listenV.x0, lh = listenV.y1 - listenV.y0;
+  const ax = Math.min(Math.max(M.x + (land.x - M.x) * 0.4, listenV.x0 + 0.12 * lw), listenV.x1 - 0.12 * lw);
+  const Ap = { x: Math.round(ax), y: Math.round(listenV.y0 + 0.38 * lh) };
+  const R = Ap, E = Ap; // E、R 不再是折线拐点：R 仍是“空中站点”（stationPose air），都等于最高点
   // camSM / camSC：起跳点（hear 镜头）和落铲点（catch 镜头）的屏幕缩放（屏幕像素 / 场景像素），让蛋在屏幕上的大小平滑过渡
   const camSC = vp.w / (catchV.x1 - catchV.x0);
   return { L, M, E, R, C: land, sM: 0.3, sE: 0.5, sR: 0.7, scaleL, scaleC: cfg.egg.onSpatulaScale, tiltC: cfg.egg.onSpatulaTilt ?? 0, camSM: hear.s, camSC };

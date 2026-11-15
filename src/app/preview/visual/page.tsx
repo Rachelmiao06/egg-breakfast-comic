@@ -102,7 +102,7 @@ function StageV2() {
     hideDuring: vp.portrait ? undefined : "bag", // bag 段蛋趴在 p1b 的上沿（ComicLayer PerchEgg），桌上的蛋让位；竖屏没有位置，不换
     // 高跳之后的空中站点：画面上缘之外、铲面右上方（接蛋时从这里落到铲面）
     // 高跳轨迹 P(s)：L（右侧桌面）→ M（妈妈视线相遇点）→ E（出画）→ R（铲面右上方、catch 取景上缘外）→ C（铲面接触点）（eggPath.trajectoryFor，docs/EGG-JUMP.md）
-    traj: trajectoryFor(cfg, vp, camAt(gOf("hear", 0.6), vp.w, vp.h), catchView(vp.w, vp.h), tableAt.hear),
+    traj: trajectoryFor(cfg, vp, camAt(gOf("hear", 0.6), vp.w, vp.h), catchView(vp.w, vp.h), tableAt.hear, listenView(vp.w, vp.h)),
     // hear：前景表演开始（HEAR_EVENT start，与妈妈抬眼同一时刻）时蓄力 0.25 s，0.35 s 内冲出画面上缘；回到该段 beforeQ 之前才复位
     // 起跳表演：HEAR_EVENT start（与妈妈抬眼同一时刻）下蹲 0.15 s、上升 0.4 s 到 M；显示参数用 ω 18/s 的临界阻尼弹簧跟随；
     // hear 退出 q 0.85 → listen q 0.12 滚动把蛋从 M 带到 E（listen 停留 q 0.2 之前留出余量，快速拖过时弹簧也来得及把蛋带出画）
@@ -231,6 +231,12 @@ function catchView(vw: number, vh: number) {
   const x = clamp(vw * ax - fx * s, vw - SCENE_W * s, 0);
   const y = clamp(vh * ay - fy * s, vh - SCENE_H * s, 0);
   return { x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s };
+}
+
+/** listen 段（镜头抬高）可见的场景范围：蛋的最高点放在这里面 */
+function listenView(vw: number, vh: number) {
+  const c = camAt(gOf("listen", 0.5), vw, vh);
+  return { x0: -c.tx / c.s, x1: (vw - c.tx) / c.s, y0: -c.ty / c.s, y1: (vh - c.ty) / c.s };
 }
 
 /** 备菜段（阅读）镜头下可见的场景范围：用于把游走站点夹在画面内的桌面上（算法同 SceneStage，读 chop 段中点的镜头） */
