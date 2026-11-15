@@ -292,7 +292,7 @@ function avoidEgg(list: PanelSpec[], places: Record<string, Place>, egg: Rect, v
 const STICK_MS: Record<string, number> = { default: 2000, p2b: 4000, p2d: 3200, p3a: 3600, p3d: 1800, p6e: 3200 };
 /** 停留时间锁：格子 → 最早可以离开的时刻（clockMs）。模块级，不放在渲染里读写的 ref 上 */
 const LATCH = new Map<string, { until: number }>();
-const clockMs = () => Date.now();
+const clockMs = () => (typeof window === "undefined" ? 0 : Date.now()); // 服务端预渲染时不读时钟（Next 不允许），也没有锁
 
 /** 入场方式（URL ?reveal=flow 切回条漫式整列上移；默认逐格出现） */
 function revealMode() {
