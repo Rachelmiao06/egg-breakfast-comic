@@ -1,7 +1,8 @@
 "use client";
 /**
  * 右下角的小声音开关。没有文字，只有图标；音效文件未提供时依旧可点（静音预览）。
- * 选择记在 localStorage（kitchen.soundOn）；恢复为"开"时要等第一次点击 / 按键才真的出声（浏览器自动播放限制）。
+ * 默认是开的；用户关掉后记在 localStorage（kitchen.soundOn = "0"），下次进来保持关闭。
+ * 浏览器的自动播放限制：要等第一次点击 / 触摸 / 按键才真的出声，在那之前按钮会脉动提示一下。
  * 旁边的「音效致谢」：CC BY 4.0 素材要求在网页上可见地署名（标题、作者、来源、许可、是否修改），点开显示，再点或按 Esc 收起。
  */
 import { useEffect, useState } from "react";
@@ -24,7 +25,10 @@ export default function SoundToggle() {
   const { soundOn, setSoundOn } = useScene();
   const { available, locked, unlock } = useKitchenAudio();
   useEffect(() => {
-    try { if (localStorage.getItem(KEY) === "1") setSoundOn(true); } catch { /* 隐私模式等 */ }
+    // 默认开（2026-11-15 用户）：只有用户自己关过（记着 "0"）才保持关闭
+    let on = true;
+    try { if (localStorage.getItem(KEY) === "0") on = false; } catch { /* 隐私模式等 */ }
+    if (on) setSoundOn(true);
   }, [setSoundOn]);
   const toggle = () => {
     // 声音记着是"开"，但浏览器还没放行（刷新后第一次）：这一下只负责放行，不把声音关掉（不用再"关一下再开一下"）
