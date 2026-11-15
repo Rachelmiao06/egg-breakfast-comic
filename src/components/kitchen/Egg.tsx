@@ -205,24 +205,30 @@ export function trajFoot(T: EggTraj, s: number): Pt {
   const k = clamp01(s);
   const { L, M, E, R, C } = T;
   if (k <= T.sM) {
-    // L → M：像超人一样直线掠过去（不是抛物线）：匀速为主，起步和收尾各缓一点
-    const u = k / T.sM, e = u * u * (3 - 2 * u) * 0.35 + u * 0.65;
-    return { x: L.x + (M.x - L.x) * e, y: L.y + (M.y - L.y) * e };
+    // L → M：超人式的一条弧线（不是抛物线跳）：起步沿水平掠过去，随后顺势转弯向上，到 M 时正好竖直向上，
+    // 与 M → E 的竖直上升速度方向连续。二次贝塞尔，控制点 = (M.x, L.y)
+    const u = k / T.sM, e = flyEase(u);
+    const C = { x: M.x, y: L.y };
+    return { x: (1 - e) ** 2 * L.x + 2 * (1 - e) * e * C.x + e * e * M.x, y: (1 - e) ** 2 * L.y + 2 * (1 - e) * e * C.y + e * e * M.y };
   }
   if (k <= T.sE) { const u = (k - T.sM) / (T.sE - T.sM); return { x: M.x + (E.x - M.x) * u, y: M.y + (E.y - M.y) * u }; }
   if (k <= T.sR) { const u = (k - T.sE) / (T.sR - T.sE); return { x: E.x + (R.x - E.x) * u, y: E.y + (R.y - E.y) * u }; }
   const u = (k - T.sR) / (1 - T.sR);
   return { x: R.x + (C.x - R.x) * u, y: R.y + (C.y - R.y) * u * u };
 }
+/** 平飞段的参数：匀速为主，起步和收尾各缓一点 */
+const flyEase = (u: number) => u * u * (3 - 2 * u) * 0.35 + u * 0.65;
 function trajPose(T: EggTraj, s: number): Pose {
   const f = trajFoot(T, s);
   const u = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
-  // 平飞（L → M）：身体顺着飞行方向倾斜（头朝前，最多 75°），起飞和到点时回正；之后竖直上升不倾斜
+  // 平飞（L → M）：身体顺着弧线的切线倾斜（头朝前，起步近乎水平、最多 80°，转弯后逐渐回正到竖直），起飞瞬间从 0 缓入
   let lean = 0;
   if (s < T.sM) {
-    const v = s / T.sM, ang = Math.max(-75, Math.min(75, (Math.atan2(T.M.x - T.L.x, T.L.y - T.M.y) * 180) / Math.PI));
-    const sm = (q: number) => { const c = clamp01(q); return c * c * (3 - 2 * c); };
-    lean = ang * sm(v / 0.2) * (1 - sm((v - 0.8) / 0.2));
+    const v = s / T.sM, e = flyEase(v);
+    const tx = (1 - e) * (T.M.x - T.L.x), ty = e * (T.M.y - T.L.y); // 切线 ∝ (1−e)(C−L) + e(M−C)，C = (M.x, L.y)
+    const ang = Math.max(-80, Math.min(80, (Math.atan2(tx, -ty) * 180) / Math.PI));
+    const q = Math.min(1, v / 0.1);
+    lean = ang * q * q * (3 - 2 * q);
   }
   return { x: f.x - REST.x, y: f.y - REST.y, scale: T.scaleL + (T.scaleC - T.scaleL) * u, rotation: T.tiltC * u + lean };
 }
