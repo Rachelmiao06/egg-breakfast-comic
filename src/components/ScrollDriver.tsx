@@ -80,6 +80,7 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
     };
     update();
     let lenis: Lenis | null = null;
+    let lockPx: number | null = null;
     let tick: ((time: number) => void) | null = null;
     let snapCleanup: (() => void) | null = null;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -101,7 +102,7 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
           const l = lenis;
           if (!l || deltaY === 0) return true;
           // 读格门：格内动画还在播，且已经走到这一段"停留"的末尾，不再接受向前的滚动
-          if (deltaY > 0 && scrollHeld() && l.animatedScroll >= gatePx(beats, l.animatedScroll) - 3) {
+          if (deltaY > 0 && scrollHeld() && l.animatedScroll >= Math.min(gatePx(beats, l.animatedScroll), lockPx ?? Infinity) - 3) {
             if (event.cancelable) event.preventDefault();
             return false;
           }
@@ -144,15 +145,19 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
         snap.destroy();
       };
       let pulling = false;
+      lockPx = null;
       tick = (time) => {
         // 读格门：已经被甩过了门（惯性 / 触屏原生滚动），温柔地拉回门口，不硬跳
+        // 表演一开始就把当时的位置锁住（再给 4vh 的余地）：滚动和动画是一回事，动画在画的时候不能继续往前滚（2026-11-15 用户）
         if (lenis && scrollHeld()) {
-          const gate = gatePx(beats, lenis.animatedScroll);
+          if (lockPx === null) lockPx = lenis.animatedScroll + 4 * (window.innerHeight / 100);
+          const gate = Math.min(gatePx(beats, lenis.animatedScroll), lockPx);
           if (!pulling && lenis.animatedScroll > gate + 6) {
             pulling = true;
             lenis.scrollTo(gate, { duration: 0.6, easing: (t) => 1 - Math.pow(1 - t, 3), force: true, onComplete: () => { pulling = false; } });
           }
         }
+        if (lockPx !== null && !scrollHeld()) lockPx = null;
         lenis?.raf(time * 1000);
       };
       gsap.ticker.add(tick);

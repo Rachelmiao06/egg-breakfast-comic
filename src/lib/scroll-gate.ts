@@ -6,13 +6,32 @@
  */
 const held = new Map<string, number>();
 export function holdScroll(id: string, seconds: number) {
+  waiting.delete(id);
   held.set(id, performance.now() + (seconds + 0.4) * 1000);
 }
 export function releaseScroll(id: string) {
   held.delete(id);
+  waiting.delete(id);
 }
 export function scrollHeld() {
   const now = performance.now();
   for (const [id, until] of held) if (until <= now) held.delete(id);
   return held.size > 0;
+}
+
+/**
+ * 表演排队（2026-11-15 用户：两个格子的动画有先后顺序时，要一个播完再播下一个）。
+ * 想开始表演的格子先 requestTurn(id, seq)：当前没有别的表演在播、也没有序号更小的格子在等，才轮到它；否则它继续等
+ * （PanelPerf.useStage 每 120 ms 再问一次）。轮到并 holdScroll 之后自动从等待名单里去掉。seq 用格子的 order（同段里先读的在前）。
+ */
+const waiting = new Map<string, number>();
+export function requestTurn(id: string, seq: number): boolean {
+  waiting.set(id, seq);
+  const now = performance.now();
+  for (const [other, until] of held) if (other !== id && until > now) return false;
+  for (const [other, s] of waiting) if (other !== id && s < seq) return false;
+  return true;
+}
+export function cancelTurn(id: string) {
+  waiting.delete(id);
 }

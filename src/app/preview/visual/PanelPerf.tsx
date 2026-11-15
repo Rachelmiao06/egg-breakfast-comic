@@ -16,7 +16,7 @@ import { useEffect, useId, useRef, useSyncExternalStore, type CSSProperties } fr
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
 import { PAPER_SHADOW } from "./paper";
-import { holdScroll, releaseScroll } from "@/lib/scroll-gate";
+import { holdScroll, releaseScroll, requestTurn } from "@/lib/scroll-gate";
 
 type Place = { x: number; y: number; w: number };
 /** 声像跟着格子：按格子中心在屏幕上的横向位置给 -0.7…0.7（左边的格声音偏左，右边偏右）；厨房声不受影响 */
@@ -63,13 +63,27 @@ const flag = (on: boolean) => {
  *   在边缘来回滚动不会反复触发：播过之后，没有离开到复位线以外就不会再播。
  * - 关掉表演（减少动态效果 / ?perf=0）时立即复位；卸载时复位。
  */
-function useStage(q: number, stage: Stage, enabled: boolean, playRaw: () => void, stopRaw: () => void, resetRaw: () => void, gateS = 0) {
+function useStage(q: number, stage: Stage, enabled: boolean, playRaw: () => void, stopRaw: () => void, resetRaw: () => void, gateS = 0, seq = 0) {
   const played = useRef(false);
   const gateId = useId();
+  const retry = useRef(0);
+  const tryPlayRef = useRef<() => void>(() => {});
   // gateS > 0：开始表演时拦住滚动（src/lib/scroll-gate.ts），表演收住 / 复位 / 卸载时放开
-  const wrap = (f: () => void, hold: boolean) => () => { if (gateS > 0) { if (hold) holdScroll(gateId, gateS); else releaseScroll(gateId); } f(); };
+  const wrap = (f: () => void, hold: boolean) => () => { if (!hold && retry.current) { window.clearTimeout(retry.current); retry.current = 0; } if (gateS > 0) { if (hold) holdScroll(gateId, gateS); else releaseScroll(gateId); } f(); };
   const play = wrap(playRaw, true), stop = wrap(stopRaw, false), reset = wrap(resetRaw, false);
   const wasEnabled = useRef(enabled);
+  // 排队（src/lib/scroll-gate.ts requestTurn）：别的格子的表演还在播、或同段里序号更小的格子还在等时，这一格先等，每 120 ms 再问一次。
+  // 每次渲染后更新"尝试开始"函数，让重试的定时器总能读到最新的格子状态。
+  useEffect(() => {
+    tryPlayRef.current = () => {
+      retry.current = 0;
+      if (!enabled || played.current) return;
+      if (!(stage.entered && stage.vis >= READY_VIS && !stage.leaving)) return;
+      if (gateS > 0 && !requestTurn(gateId, seq)) { retry.current = window.setTimeout(() => tryPlayRef.current(), 120); return; }
+      played.current = true;
+      play();
+    };
+  });
   useEffect(() => {
     if (!enabled) {
       if (wasEnabled.current) { wasEnabled.current = false; played.current = false; reset(); }
@@ -78,11 +92,11 @@ function useStage(q: number, stage: Stage, enabled: boolean, playRaw: () => void
     wasEnabled.current = true;
     if (stage.vis < GONE_VIS || (q < BEFORE_Q && !stage.entered)) { if (played.current) { played.current = false; reset(); } return; }
     if (stage.leaving || stage.vis < LEAVE_VIS) { stop(); return; }
-    if (stage.entered && stage.vis >= READY_VIS && !played.current) { played.current = true; play(); }
+    if (stage.entered && stage.vis >= READY_VIS && !played.current && !retry.current) tryPlayRef.current();
   });
   // 卸载时复位，并清掉"播过"标记：格子离开视口被卸载、再次进入重新挂载时能再播；
   // 开发模式 StrictMode 的"挂载 → 模拟卸载 → 再挂载"也一样（否则刚开始就被复位，而 played 还是 true，整段不播）
-  useEffect(() => () => { played.current = false; reset(); releaseScroll(gateId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { window.clearTimeout(retry.current); played.current = false; reset(); releaseScroll(gateId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
@@ -108,7 +122,7 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   // 否则停在"抬眼"半途，回滚回来也一直是半截表情。已播完时什么都不做。
   const stop = () => { hearSignal("stop"); if (timers.current.length) { clear(); show(2); } };
   const reset = () => { hearSignal("reset"); clear(); show(0); };
-  useStage(q, stage, animate, play, stop, reset, 2.4);
+  useStage(q, stage, animate, play, stop, reset, 2.4, p.order ?? 0);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -143,7 +157,7 @@ export function TurnPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   };
   const stop = () => { if (timers.current.length) { clear(); show(8); } };
   const reset = () => { clear(); show(0); };
-  useStage(q, stage, animate, play, stop, reset, animate ? 2.8 : 0);
+  useStage(q, stage, animate, play, stop, reset, animate ? 2.8 : 0, p.order ?? 0);
   if (!animate) return <StaticImg src={`${TURN_DIR}pose-08.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -189,7 +203,7 @@ export function SeqPanel({ p, pos, dy, q, stage, animate, frames, schedule, gate
   };
   const stop = () => { if (timers.current.length) { clear(); show(last); allText(true); } };
   const reset = () => { clear(); show(0); allText(false); };
-  useStage(q, stage, animate, play, stop, reset, animate ? gateS : 0);
+  useStage(q, stage, animate, play, stop, reset, animate ? gateS : 0, p.order ?? 0);
   useEffect(() => { allText(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!animate) return <StaticImg src={staticSrc} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
@@ -285,7 +299,7 @@ function LayersPanel({
     tl.current = t;
     debugTl(k, t);
   };
-  useStage(q, stage, animate || runStatic, play, stop, reset, animate ? 2.6 : 0);
+  useStage(q, stage, animate || runStatic, play, stop, reset, animate ? 2.6 : 0, p.order ?? 0);
   if (!animate) return <StaticImg src={`${F4}${k}-f1.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const layer = (n: string, src: string, ref: boolean) => (
     // eslint-disable-next-line @next/next/no-img-element
@@ -418,7 +432,7 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
     tl.current = t;
     debugTl("p2d", t);
   };
-  useStage(q, stage, true, play, stop, reset, animate ? 3.2 : 0);
+  useStage(q, stage, true, play, stop, reset, animate ? 3.2 : 0, p.order ?? 0);
   if (!animate) return <StaticImg src={`${P2D}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   const layer = (n: string) => (
@@ -476,7 +490,7 @@ export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; po
     }
     timer.current = window.setTimeout(() => { clear(); halt(); flag(false); }, STIR_LOOP_MS * STIR_LAPS);
   };
-  useStage(q, stage, true, play, stop, reset, animate ? 2.8 : 0);
+  useStage(q, stage, true, play, stop, reset, animate ? 2.8 : 0, p.order ?? 0);
   if (!animate) return <StaticImg src={`${P3A}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   return (
@@ -536,7 +550,7 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
     tl.current = t;
     debugTl("p6e", t);
   };
-  useStage(q, stage, animate, play, stop, reset, 2.2);
+  useStage(q, stage, animate, play, stop, reset, 2.2, p.order ?? 0);
   if (!animate) return <StaticImg src={`${P5}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   const layer = (n: string, o: number) => (
