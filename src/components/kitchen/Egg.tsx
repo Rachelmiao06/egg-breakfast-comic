@@ -107,7 +107,7 @@ export type EggFaces = {
   soarPivot?: [number, number];
 };
 type Face = "base" | "fly" | "rest" | "soar";
-export type EggTraj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number };
+export type EggTraj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number; camSM?: number; camSC?: number };
 const span = (v: number, [a, b]: readonly [number, number]) => clamp01((v - a) / (b - a));
 export const DEFAULT_EGG_ANCHORS: EggAnchors = {
   panLaunch: ANCHORS.panLaunch,
@@ -220,10 +220,18 @@ export function trajFoot(T: EggTraj, s: number): Pt {
     const u = k / T.sM;
     return { x: L.x + (M.x - L.x) * u, y: L.y + (M.y - L.y) * u - 4 * u * (1 - u) * flyArch(T) };
   }
-  if (k <= T.sE) { const u = (k - T.sM) / (T.sE - T.sM); return { x: M.x + (E.x - M.x) * u, y: M.y + (E.y - M.y) * u }; }
-  if (k <= T.sR) { const u = (k - T.sE) / (T.sR - T.sE); return { x: E.x + (R.x - E.x) * u, y: E.y + (R.y - E.y) * u }; }
-  const u = (k - T.sR) / (1 - T.sR);
-  return { x: R.x + (C.x - R.x) * u, y: R.y + (C.y - R.y) * u * u };
+  // M → C：一整条连续弧线（三次贝塞尔，控制点 E、R）：起势竖直向上（和 L → M 末端速度方向连续），越过顶点后从右上方斜着落到铲面。
+  // 参数 s 从 sM 走到 1；sE、sR 只是滚动分段的标记（出画 / 重新入画的时刻），不再是折线的拐点。
+  const u = (k - T.sM) / (1 - T.sM), v = 1 - u;
+  return {
+    x: v * v * v * M.x + 3 * v * v * u * E.x + 3 * v * u * u * R.x + u * u * u * C.x,
+    y: v * v * v * M.y + 3 * v * v * u * E.y + 3 * v * u * u * R.y + u * u * u * C.y,
+  };
+}
+/** 弧线在 s 处的水平速度方向（>0 向右）：给超人姿势选镜像 */
+function trajVx(T: EggTraj, s: number) {
+  const a = trajFoot(T, Math.max(0, s - 0.01)), b = trajFoot(T, Math.min(1, s + 0.01));
+  return b.x - a.x;
 }
 /** 平飞段的参数：匀速为主，起步和收尾各缓一点 */
 /** 抛物线飞行时身体倾斜的倍数：超人姿势图本身已朝飞行方向倾斜，切线只再叠加一部分 */
@@ -232,17 +240,29 @@ const LEAN = 0.35;
 const flyArch = (T: EggTraj) => 40 + 0.25 * Math.abs(T.M.x - T.L.x);
 function trajPose(T: EggTraj, s: number): Pose {
   const f = trajFoot(T, s);
-  const u = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
-  // 抛物线（L → M）：身体顺着切线倾斜（上升时头朝前上方、过顶后头朝前下方，最多 80°），起飞瞬间从 0 缓入、到 M 回正
+  const sm = (q: number) => { const c = clamp01(q); return c * c * (3 - 2 * c); };
+  // 缩放：起跳前 scaleL；之后让蛋在“屏幕上”的大小从起跳点平滑过渡到落铲点（镜头也在 hear → catch 之间变，所以按屏幕大小插值再除以当时的镜头缩放），
+  // 不再到了最后一段才突然缩小
+  let scale = T.scaleL;
+  if (s > T.sM && T.camSM && T.camSC) {
+    const u = sm((s - T.sM) / (1 - T.sM));
+    const cam = T.camSM + (T.camSC - T.camSM) * sm((s - T.sM) / (T.sR - T.sM));
+    scale = (T.scaleL * T.camSM + (T.scaleC * T.camSC - T.scaleL * T.camSM) * u) / cam;
+  } else if (s > T.sR) scale = T.scaleL + (T.scaleC - T.scaleL) * ((s - T.sR) / (1 - T.sR));
+  const u2 = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
+  // 身体顺着切线倾斜：L → M 抛物线（最多 80°，起飞瞬间从 0 缓入、到 M 回正）；M → R 弧线按速度方向倾斜，到 R 渐退到 0；R → C 接铲面倾角
   let lean = 0;
   if (s < T.sM) {
     const v = s / T.sM;
     const tx = T.M.x - T.L.x, ty = T.M.y - T.L.y - 4 * (1 - 2 * v) * flyArch(T);
     const ang = Math.max(-80, Math.min(80, (Math.atan2(tx, -ty) * 180) / Math.PI));
-    const sm = (q: number) => { const c = clamp01(q); return c * c * (3 - 2 * c); };
     lean = LEAN * ang * sm(v / 0.1) * (1 - sm((v - 0.85) / 0.15));
+  } else if (s < T.sR) {
+    const a = trajFoot(T, s - 0.01), b = trajFoot(T, s + 0.01);
+    const ang = Math.max(-80, Math.min(80, (Math.atan2(b.x - a.x, -(b.y - a.y)) * 180) / Math.PI));
+    lean = LEAN * ang * (1 - sm((s - T.sM) / (T.sR - T.sM)));
   }
-  return { x: f.x - REST.x, y: f.y - REST.y, scale: T.scaleL + (T.scaleC - T.scaleL) * u, rotation: T.tiltC * u + lean };
+  return { x: f.x - REST.x, y: f.y - REST.y, scale, rotation: T.tiltC * u2 + lean };
 }
 
 /** 本段之前，蛋最后停在哪一站（决定 flight 从哪起飞） */
@@ -360,7 +380,7 @@ function plan(t: Timeline, beats: Beat[], a0: EggAnchors): Plan {
   }
 }
 
-type JumpLive = { T?: EggTraj; jump?: EggAnchors["jump"]; reduced: boolean; P: Plan; setFace: (f: Face) => void };
+type JumpLive = { T?: EggTraj; jump?: EggAnchors["jump"]; reduced: boolean; P: Plan; setFace: (f: Face) => void; setSoarFlip: (f: boolean) => void };
 type Ref<T> = { current: T };
 type JumpEnv = {
   wrap: Ref<HTMLDivElement | null>; egg: Ref<HTMLDivElement | null>; shadow: Ref<HTMLDivElement | null>; dot: Ref<SVGCircleElement | null>;
@@ -390,7 +410,9 @@ function createJumpController(env: JumpEnv) {
     }
     const p = trajPose(T, x);
     // 腾空：L → M → E（出画前）用超人飞行姿势，之后（R → C，朝妈妈下落）换回 fly 图
-    env.live.current.setFace(x < T.sE && !env.live.current.reduced ? "soar" : "fly");
+    // 超人姿势：L → M 朝左上（镜像），M 之后朝弧线的水平方向（向右不镜像、向左镜像）；快到铲面（R 之后）换回朝左下的 fly 图
+    const lv0 = env.live.current;
+    if (x < T.sR && !lv0.reduced) { lv0.setFace("soar"); lv0.setSoarFlip(x < T.sM || trajVx(T, x) < 0); } else lv0.setFace("fly");
     gsap.set(w, { x: p.x, y: p.y, scale: p.scale, rotation: p.rotation, transformOrigin: "50% 100%", overwrite: true });
     dotAt(p.x + REST.x, p.y + REST.y);
   };
@@ -570,6 +592,10 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     const els: [Face, HTMLImageElement | null][] = [["base", baseImgRef.current], ["fly", flyImgRef.current], ["rest", restImgRef.current], ["soar", soarImgRef.current]];
     for (const [k, el] of els) if (el) el.style.visibility = k === want ? "visible" : "hidden";
   };
+  const setSoarFlip = (flip: boolean) => {
+    const el = soarImgRef.current;
+    if (el) el.style.transform = flip ? "scaleX(-1)" : "scaleX(1)";
+  };
   const onSpatula = P.station === "spatula";
   const flying = b_isFlight(timeline.beat) && P.station === null;
   useEffect(() => {
@@ -587,7 +613,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   const lastLanding = useRef<Station | null>(null);
   // ---- 高跳轨迹控制器（createJumpController）：显示参数用临界阻尼弹簧跟随 max(s_滚动, s_表演)；蛋离开 L、还没到 C 时由它移动蛋 ----
   const trailDot = useRef<SVGCircleElement>(null);
-  const live = useRef<JumpLive>({ T: a.traj, jump: a.jump, reduced: reducedMotion, P, setFace });
+  const live = useRef<JumpLive>({ T: a.traj, jump: a.jump, reduced: reducedMotion, P, setFace, setSoarFlip });
   const ctl = useRef<JumpController | null>(null);
   const trajActive = useRef(false); // 控制器写，组件读
   const landSpatula = (s: HTMLDivElement) => {
@@ -607,7 +633,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     return () => { c.dispose(); ctl.current = null; };
   }, []);
   useEffect(() => {
-    live.current = { T: a.traj, jump: a.jump, reduced: reducedMotion, P, setFace };
+    live.current = { T: a.traj, jump: a.jump, reduced: reducedMotion, P, setFace, setSoarFlip };
     landRef.current = landSpatula;
     ctl.current?.sync(a.traj && a.jump ? sScroll : null);
   });

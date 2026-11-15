@@ -172,11 +172,11 @@ export function airPointFor(cfg: SlotConfig, catchView: View): Pt {
  *   M 视线相遇点：hear 格（p3d，左下）右上方、她抬眼的视线方向上；格子位置按 ComicLayer 的排版算出（单格：横屏按 fitPlaces，
  *     竖屏用 portraitPlace），再用 hear 停留时的镜头换成场景坐标。蛋心在格子右缘外 0.62 个蛋宽、格子上沿再往上 10% 格高之上，
  *     整颗在画面内（margin），不压格子和对白。
- *   E 出画点：M 正上方、画布上沿之外（整颗蛋在任何取景之外）。
- *   R 重新入画点：catch 取景上缘之外半个多蛋高、铲面右上方（在接蛋取景横向范围内），从这里落下不经过对白泡。
+ *   E / R：M → C 那条连续弧线（三次贝塞尔）的两个控制点：E 在 M 正上方、画布上沿之外（起势竖直向上，和 L → M 的末端速度方向连续），
+ *     R 在 catch 取景上缘之外、铲面右上方（末段从右上方斜着落到铲面，不经过对白泡）。弧线整条连续，不再有“飞出画外、画外平移、再掉下来”的折线。
  *   C 铲面接触点 = landPoint。
  */
-export type Traj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number };
+export type Traj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number; camSM: number; camSC: number };
 type Cam = { s: number; tx: number; ty: number }; // 场景 → 屏幕：X = x * s + tx
 
 /** hear 格在屏幕上的位置（像素），与 ComicLayer 对单格的排版一致 */
@@ -216,5 +216,7 @@ export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portr
   const rx = Math.max(land.x, Math.min(land.x + Wd.airDxEggW * h, catchV.x1 - 0.6 * h));
   const R = { x: Math.round(rx), y: Math.round(catchV.y0 - 0.55 * h) };
   const E = { x: M.x, y: Math.round(-h - Wd.airAbove) };
-  return { L, M, E, R, C: land, sM: 0.3, sE: 0.5, sR: 0.7, scaleL, scaleC: cfg.egg.onSpatulaScale, tiltC: cfg.egg.onSpatulaTilt ?? 0 };
+  // camSM / camSC：起跳点（hear 镜头）和落铲点（catch 镜头）的屏幕缩放（屏幕像素 / 场景像素），让蛋在屏幕上的大小平滑过渡
+  const camSC = vp.w / (catchV.x1 - catchV.x0);
+  return { L, M, E, R, C: land, sM: 0.3, sE: 0.5, sR: 0.7, scaleL, scaleC: cfg.egg.onSpatulaScale, tiltC: cfg.egg.onSpatulaTilt ?? 0, camSM: hear.s, camSC };
 }
