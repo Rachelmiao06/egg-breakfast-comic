@@ -67,7 +67,34 @@ def process(page: Image.Image, box) -> Image.Image:
     alpha[rim] = np.minimum(alpha[rim], a_rim[rim])
     rgb[rim] = ink
     rgba = np.dstack([np.clip(rgb, 0, 255), alpha * 255]).astype(np.uint8)
-    return Image.fromarray(rgba, "RGBA")
+    return trim_frame(Image.fromarray(rgba, "RGBA"))
+
+
+def trim_frame(im: Image.Image, keep: int = 6) -> Image.Image:
+    """只留一圈干净的黑边：框外纸边、圆角、抗锯齿毛边全部裁掉，框线统一成 keep 像素的纯黑矩形。
+    每条边从不透明区域边缘往里数，连续的深色像素就是框线（含外缘毛边），多出 keep 的部分切掉。"""
+    a = np.asarray(im).astype(int)
+    opaque = a[..., 3] > 128
+    ys, xs = np.where(opaque)
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    dark = a[..., :3].mean(2) < 95
+    def run(line_dark):
+        n = 0
+        while n < len(line_dark) and line_dark[n]: n += 1
+        return n
+    cy, cx = (y0 + y1) // 2, (x0 + x1) // 2
+    # 取中间 1/3 的多条扫描线的中位数，避开角落和圆角
+    ty = np.linspace(y0 + (y1 - y0) // 3, y1 - (y1 - y0) // 3, 9).astype(int)
+    tx = np.linspace(x0 + (x1 - x0) // 3, x1 - (x1 - x0) // 3, 9).astype(int)
+    l = int(np.median([run(dark[y, x0:x1]) for y in ty]))
+    r = int(np.median([run(dark[y, x0:x1][::-1]) for y in ty]))
+    t = int(np.median([run(dark[y0:y1, x]) for x in tx]))
+    b = int(np.median([run(dark[y0:y1, x][::-1]) for x in tx]))
+    # 外圈（含抗锯齿毛边）切掉，只留 keep 像素纯黑框
+    box = (x0 + max(0, l - keep), y0 + max(0, t - keep), x1 - max(0, r - keep), y1 - max(0, b - keep))
+    out = im.crop(box)
+    arr = np.asarray(out).copy(); arr[..., 3] = 255   # 裁完后整格不透明
+    return Image.fromarray(arr, "RGBA")
 
 
 if __name__ == "__main__":
