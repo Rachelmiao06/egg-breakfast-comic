@@ -36,7 +36,7 @@ function rng(seed: number) {
  * 手绘框线：viewBox 0–1000，preserveAspectRatio none 贴满格子，线宽用 non-scaling-stroke 保持像素粗细。
  * 四条边各自一条二次曲线，起止点略过角 3–9 个单位（≈ 像钢笔画过头），中点向内外弯 2–5 个单位。
  */
-function DrawnFrame({ seed }: { seed: number }) {
+export function DrawnFrame({ seed }: { seed: number }) {
   const r = rng(seed);
   const j = (amp: number) => (r() * 2 - 1) * amp;
   const over = () => 3 + r() * 6;
