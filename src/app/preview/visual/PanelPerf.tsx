@@ -216,24 +216,30 @@ function LayersPanel({
  * CHOP_STROKES 刀：小抬 → 快落 → 刀刃接触的那一刻派发 chopHit → 短停 → 抬回 → 停顿；三刀后停在抬刀姿态（和静态格一样）。
  * 静态格画面不动，三下刀声照常、时刻相同。
  */
-const CHOP_DOWN = { yPercent: 18, xPercent: 0, rotation: 1.5 };
-/** 刀数：2026-11-15 用户要求切菜声持续更久，声音逐刀跟着动画走，所以加长的是动画本身（原来 3 刀，约 1.8 s；现在约 5 s） */
+/**
+ * 2026-11-15 重做：以前整只手带刀垂直平移 18%（刀尖穿过胡萝卜，像整块贴图在抖）。
+ * 真正的切法是刀尖几乎不离开案板，刀跟（连手）抬起再压下：所以支点放在刀尖（ChopPanel pivot），
+ * 抬刀 = 绕刀尖顺时针转几度（手随之抬高），落刀 = 转回并略过零点（压进菜里），再带一点往前推的位移。
+ * 每刀幅度、节奏略有不同，越切越顺（后面几刀更快更短），不再像节拍器。
+ */
 const CHOP_STROKES = 8;
 function chopScript(tl: gsap.core.Timeline, t: Targets, pan: number) {
   let at = 0;
   for (let i = 0; i < CHOP_STROKES; i++) {
-    tl.to(t.part, { yPercent: -1.6, rotation: -0.8, duration: 0.1, ease: "power1.out" }, at); // 小抬
-    at += i === 0 ? 0.14 : 0.11;
-    tl.to(t.part, { ...CHOP_DOWN, duration: 0.1, ease: "power3.in" }, at); // 落刀
-    at += 0.1;
+    const k = 1 - 0.35 * (i / (CHOP_STROKES - 1)); // 越切越快、越短
+    const lift = (i % 2 ? 7.5 : 9) * (0.8 + 0.2 * k);
+    tl.to(t.part, { rotation: lift, yPercent: -1.2, xPercent: -0.4, duration: 0.2 * k + 0.08, ease: "power2.out" }, at); // 抬刀跟：刀尖留在案板上
+    at += (i === 0 ? 0.26 : 0.2) * k + 0.08;
+    tl.to(t.part, { rotation: -1.6, yPercent: 0.9, xPercent: 0.7, duration: 0.11, ease: "power3.in" }, at); // 压下去，略微往前推
+    at += 0.11;
     tl.call(() => oneshot("chopHit", pan), [], at); // 刀刃接触
-    at += 0.07;
-    tl.to(t.part, { yPercent: 0, xPercent: 0, rotation: 0, duration: 0.22, ease: "power2.out" }, at); // 抬回
-    at += 0.22 + (i === CHOP_STROKES - 1 ? 0 : 0.1);
+    at += 0.05;
+    tl.to(t.part, { rotation: 0, yPercent: 0, xPercent: 0, duration: 0.16, ease: "power2.out" }, at); // 回到静止
+    at += 0.16 + (i === CHOP_STROKES - 1 ? 0 : 0.08 * k);
   }
 }
 export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <LayersPanel {...props} k="p2b" pivot={[6.81, 42.16]} delay={0.35} build={chopScript} runStatic />;
+  return <LayersPanel {...props} k="p2b" pivot={[56.4, 68.7]} delay={0.35} build={chopScript} runStatic />;
 }
 
 /**
@@ -319,56 +325,107 @@ export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: num
 }
 
 /**
- * 对白分层样板：结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。
- * 不是打字机：原漫画、气泡轮廓和构图都不动，只把气泡里的旧字清掉（tools/replace_bubble_text.py --clean-only → p6e-clean.webp），
- * 对白换成透明字层 p6e-text.webp（同一套字形预先排好，不依赖浏览器字体；旧版用网页文字回退苹方加描边，和其它对白字形不一致）。
- * 播放（格子进入并稳定后，按真实时间）：
- *   1. 短暂停顿；
- *   2. 气泡以外的画面轻微降饱和、降对比（底图加 CSS filter）；气泡本身用精确的泡形遮罩（tools/dialogue_layers.py → p6e-bubble.webp，
- *      原图里泡的纸面 + 描边 + 尾巴）叠一份不加滤镜的原图，所以泡保持奶油白、不透明、清楚，分界沿着泡原来不规则的纸边；
- *   3. 整句对白在约半秒内从浅墨渐浓，一直清楚可读，不逐字跳出。
- * 进入稳定前气泡里是空的（反转对白不提前露出）。离场落到终态（降饱和 + 文字全显），复位回到原样（文字隐藏）。
- * 减少动态效果 / ?perf=0：直接显示完整原图（p6e.webp，字已排在图里）。不加发光、投影、抖动。
+ * 结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。2026-11-15 按分层重做（tools/prepare_p6e_layers.py，public/assets/comic-v5/p6e/，全部 1463×1075 同尺寸同位置）：
+ *   base（空泡、没有蛋脸、没有淌出的蛋黄）＋ yolk1/2/3（蛋黄从短到长的三个形态）＋ faceA / faceB / faceClosed（蛋脸：看正前 / 眼神略偏 / 闭眼）
+ *   ＋ bubble（泡形遮罩，alpha）＋ text（对白字层）＋ steam（碗口热气）。
+ * 只动三样，每样有理由：
+ *   1. 蛋黄慢慢往外淌（yolk1 → yolk2 → yolk3 淡入叠上去，约 5 s，停在最长；剧情就是"流出来了"，不倒回去）。
+ *   2. 蛋眼睛：每隔 2.4–4.6 s（不规则）眨一下，偶尔眼神略偏一下再回来；脸始终面无表情，眼神是唯一的表演。
+ *   3. 碗口一缕很淡的热气（常驻轻飘）。
+ * 对白：停顿 → 气泡以外的画面轻微降饱和、降对比（只作用于底图、蛋黄、蛋脸）；泡本身用泡形遮罩叠一份不加滤镜的底图，所以保持奶油白；
+ * 对白整句约半秒内从浅墨渐浓。进入稳定前泡里是空的。离场落到终态（降饱和 + 文字全显 + 蛋黄最长 + 睁眼），复位回到原样。
+ * 减少动态效果 / ?perf=0：直接显示终态静图（static.webp）。不加发光、投影、抖动。
  */
-const P3 = "/assets/comic-v3/";
+const P5 = "/assets/comic-v5/p6e/";
 const P6E_TEXT = "没事，是我拉肚子了。";
 const DIM = { saturate: 0.68, contrast: 0.9, brightness: 1.02 };
+/** 两次眨眼的间隔（秒），依次循环；不规则、周期长，重复不容易被看出来 */
+const BLINK_WAITS = [3.1, 2.4, 4.2, 2.8, 4.6, 3.4, 2.6];
 export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  const base = useRef<HTMLImageElement>(null);
-  const text = useRef<HTMLImageElement>(null);
+  const art = useRef<HTMLDivElement>(null);
+  const els = useRef<Record<string, HTMLImageElement | null>>({});
   const tl = useRef<gsap.core.Timeline | null>(null);
+  const life = useRef<{ timer: number; steam: gsap.core.Tween | null }>({ timer: 0, steam: null });
   const look = useRef({ dim: 0, ink: 0, show: 0 });
   const apply = () => {
     const { dim, ink, show } = look.current;
-    if (base.current) base.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
-    if (text.current) text.current.style.opacity = String(show * (0.22 + 0.78 * ink)); // 字是图层（tools/replace_bubble_text.py --text-layer），淡入就是透明度
+    if (art.current) art.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
+    const text = els.current.text;
+    if (text) text.style.opacity = String(show * (0.22 + 0.78 * ink));
   };
   const setLook = (v: { dim: number; ink: number; show: number }) => { look.current = { ...v }; apply(); };
-  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0 }); };
-  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1 }); };
+  const face = (n: "faceA" | "faceB" | "faceClosed") => (["faceA", "faceB", "faceClosed"] as const).forEach((k) => { const el = els.current[k]; if (el) el.style.opacity = k === n ? "1" : "0"; });
+  const yolk = (a: number, b: number, c: number) => ([["yolk1", a], ["yolk2", b], ["yolk3", c]] as const).forEach(([k, v]) => { const el = els.current[k]; if (el) el.style.opacity = String(v); });
+  const stopLife = () => { window.clearTimeout(life.current.timer); life.current.steam?.kill(); life.current.steam = null; };
+  const steamAt = (o: number) => { const el = els.current.steam; if (el) gsap.set(el, { opacity: o, yPercent: 0 }); };
+  // 眨眼调度：睁眼停几秒 → 闭眼 0.12 s → 睁眼；每三次里有一次是眼神略偏 0.9 s
+  const blinkLoop = (n = 0) => {
+    const wait = BLINK_WAITS[n % BLINK_WAITS.length] * 1000;
+    life.current.timer = window.setTimeout(() => {
+      if (n % 3 === 2) {
+        face("faceB");
+        life.current.timer = window.setTimeout(() => { face("faceA"); blinkLoop(n + 1); }, 900);
+      } else {
+        face("faceClosed");
+        life.current.timer = window.setTimeout(() => { face("faceA"); blinkLoop(n + 1); }, 130);
+      }
+    }, wait);
+  };
+  const rest = () => { stopLife(); face("faceA"); yolk(1, 0, 0); steamAt(0); };
+  const reset = () => { tl.current?.kill(); tl.current = null; rest(); setLook({ dim: 0, ink: 0, show: 0 }); };
+  const stop = () => {
+    if (!tl.current) return;
+    tl.current.kill(); tl.current = null; stopLife();
+    face("faceA"); yolk(1, 1, 1); steamAt(0.45);
+    setLook({ dim: 1, ink: 1, show: 1 });
+  };
   const play = () => {
     reset();
     const st = look.current;
+    const y = { a: 0, b: 0 };
     const t = gsap.timeline({ delay: 0.35, onUpdate: apply, onComplete: () => { tl.current = null; } });
     t.to(st, { dim: 1, duration: 0.6, ease: "power1.inOut" }, 0); // 泡以外轻微降饱和、降对比
     t.to(st, { show: 1, duration: 0.12, ease: "none" }, 0.3); // 对白出现（浅墨）
     t.to(st, { ink: 1, duration: 0.5, ease: "power1.out" }, 0.3); // 从浅墨渐浓
+    // 蛋黄慢慢往外淌：短 → 中 → 长，叠加淡入，停在最长
+    t.to(y, { a: 1, duration: 2.2, ease: "sine.inOut", onUpdate: () => yolk(1, y.a, 0) }, 0.9);
+    t.to(y, { b: 1, duration: 2.6, ease: "sine.inOut", onUpdate: () => yolk(1, 1, y.b) }, 3.0);
+    // 热气：进入后淡入，之后常驻轻飘
+    const steam = els.current.steam;
+    if (steam) {
+      t.to(steam, { opacity: 0.5, duration: 1.4, ease: "sine.out" }, 0.8);
+      t.call(() => { life.current.steam = gsap.to(steam, { yPercent: -1.6, opacity: 0.85, duration: 3.2, ease: "sine.inOut", yoyo: true, repeat: -1 }); }, [], 2.2);
+    }
+    t.call(() => blinkLoop(), [], 1.6); // 眨眼从对白出现后开始
     tl.current = t;
   };
   useStage(q, stage, animate, play, stop, reset);
-  if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
+  if (!animate) return <StaticImg src={`${P5}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none";
+  const layer = (n: string, o: number, extra?: CSSProperties) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P5}${n}.webp`} alt="" draggable={false} className={`${img} pointer-events-none`} style={{ opacity: o, ...extra }} />
+  );
   return (
-    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
+    <div className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
+      {/* 会被降饱和的部分：底图、蛋黄、蛋脸 */}
+      <div ref={art} className="absolute inset-0">
+        {layer("base", 1)}
+        {layer("yolk1", 1)}
+        {layer("yolk2", 0)}
+        {layer("yolk3", 0)}
+        {layer("faceA", 1)}
+        {layer("faceB", 0)}
+        {layer("faceClosed", 0)}
+      </div>
+      {/* 泡本身：同一张底图、不加滤镜，只露出泡形遮罩里的部分 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={base} src={`${P3}p6e-clean.webp`} alt="" draggable={false} className={img} />
-      {/* 泡本身：同一张图、不加滤镜，只露出泡形遮罩里的部分 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${P3}p6e-clean.webp`} alt="" draggable={false} className={img}
-        style={{ maskImage: `url(${P3}p6e-bubble.webp)`, WebkitMaskImage: `url(${P3}p6e-bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
-      {/* 新对白：和图里其它对白同一套字形（Lantinghei SC Heavy 排好的透明层），不依赖浏览器有没有这个字体 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={text} src={`${P3}p6e-text.webp`} alt={P6E_TEXT} draggable={false} className={`${img} pointer-events-none`} style={{ opacity: 0 }} />
+      <img src={`${P5}base.webp`} alt="" draggable={false} className={img}
+        style={{ maskImage: `url(${P5}bubble.webp)`, WebkitMaskImage: `url(${P5}bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
+      {/* 对白字层：字形预先排好，不依赖浏览器字体 */}
+      {layer("text", 0)}
+      {layer("steam", 0)}
+      <span className="sr-only">{P6E_TEXT}</span>
     </div>
   );
 }
