@@ -17,7 +17,8 @@
     "2026-11-15：酱油瓶的「嘘」改成小男孩声音（ElevenLabs Teddy Twinkle - Cute Cartoon Boy，英文声音念 Shhhh，因为「嘘」是气声、与语言无关），走人声通路（不经配乐总线）；合成的气声版 st-bottle-shh.mp3 不再使用。",
     "2026-11-15：酱油瓶的「嘘」(boy-shh) 不再按滚动位置触发，改成跟前景动画同一件事：Backdrops 里酱油瓶听 hopTap 事件 120 ms 后「一惊」，所以蛋起跳那一帧的 hopTap1（hear / listen）和结尾第一个点的 hopTap1（closeup）触发嘘，晚 150 ms，5 s 内只嘘一声；声像 -0.7，增益 1.0（人声通路 ×1.4），文件响度 -14 LUFS。并修正：之前把所有 hopTap 事件都静音了，连蛋起跳的蹬桌声也没了，现在只在 closeup 里静音。",
     "2026-11-15 再改：嘘的位置。蛋起跳发生在 hear 段，镜头还没推到酱油瓶；用户看到的是 listen 段镜头落在酱油瓶上（瓶子竖着手指）却没声音。所以 listen 段 0.2（酱油瓶画面到位）按滚动位置触发嘘；结尾特写仍按第一个点的 hopTap1 事件触发；两者共用 5 s 间隔。",
-    "2026-11-15 第七轮：妈妈的人声太多——去掉 mom-content（idea 第二格）和 mom-gasp（recognize），人声 ×1.4 → ×1.1；加 props：在 bag / idea / chop / stirfry / sauce / missing / bowl / yolk / call / return 段，每隔 3.5–8 s 随机轻响一个厨房道具声（纸袋、案板、菜落桌面…，库内录音，声像随机），当作厨房的白噪音质感。"
+    "2026-11-15 第七轮：妈妈的人声太多——去掉 mom-content（idea 第二格）和 mom-gasp（recognize），人声 ×1.4 → ×1.1；加 props：在 bag / idea / chop / stirfry / sauce / missing / bowl / yolk / call / return 段，每隔 3.5–8 s 随机轻响一个厨房道具声（纸袋、案板、菜落桌面…，库内录音，声像随机），当作厨房的白噪音质感。",
+    "2026-11-15：yolk-ooze 重做（用户：蛋黄流出来的声音几乎听不到）：加入慢放降调的真实倒油录音 + 中频黏稠流动 + 6 个咕噜气泡，时长 2.8 s，增益 0.6 → 1.0（直接进输出）。"
   ],
   "voiceAvailable": [
     "mom-sigh",
@@ -246,7 +247,7 @@
         {
           "sound": "yolk-ooze",
           "at": "enterEnd+0.03",
-          "gain": 0.6
+          "gain": 1.0
         },
         {
           "sound": "mom-wow",

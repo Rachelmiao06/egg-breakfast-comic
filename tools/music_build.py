@@ -484,21 +484,39 @@ def stinger_cricket():
 
 
 def stinger_ooze():
-    """蛋黄流出来：黏稠、缓慢、湿润的流动声（低通噪声 + 缓慢起伏）+ 几个小气泡 "咕噜"。合成的，不是录音 """
-    d = 2.4
+    """蛋黄流出来（2026-11-15 用户：几乎听不到，要明显得多）：慢放降调的真实倒油录音（pour.mp3，液体质感）+ 合成的黏稠湿润流动 +
+    一串"咕噜"气泡（上滑的短音）+ 开头勺子划开的"啵"。比上一版响得多、频带更宽（不再只是低通噪声）"""
+    d = 2.8
     t = tt(d)
-    n = lowpass(RNG.standard_normal(len(t)), 700, 2) + 0.6 * bandpass(RNG.standard_normal(len(t)), 250, 500)
-    wob = lowpass(RNG.standard_normal(len(t)), 3, 2)
-    wob = 0.65 + 0.35 * wob / (np.abs(wob).max() + 1e-9)
-    env = (1 - np.exp(-t / 0.18)) * np.exp(-np.maximum(t - 1.3, 0) / 0.45)
-    y = n * wob * env * 0.5
-    for bt, f0 in ((0.45, 180), (0.9, 220), (1.25, 170), (1.7, 200)):
-        tb = tt(0.12)
-        f = f0 * (1 + 1.4 * tb / 0.12)
+    # 1 真实液体质感：pour.mp3 慢放到 0.78 倍、低通 3.5 kHz
+    pour = None
+    try:
+        raw = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", os.path.join(ROOT, "public/assets/audio/pour.mp3"), "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"], capture_output=True, check=True).stdout
+        pw = np.frombuffer(raw, dtype="<f4").astype(float)
+        idx = np.arange(0, len(pw) - 1, 0.78)
+        pour = np.interp(idx, np.arange(len(pw)), pw)
+        pour = lowpass(pour, 3500, 2)
+        pour = pour / (np.abs(pour).max() + 1e-9)
+        pour = pour * np.exp(-np.maximum(np.arange(len(pour)) / SR - 1.2, 0) / 0.5)
+    except Exception:
+        pour = None
+    y = np.zeros(len(t))
+    if pour is not None:
+        n_ = min(len(y), len(pour)); y[:n_] += 0.9 * pour[:n_]
+    # 2 黏稠湿润的流动：中频带通噪声 + 缓慢起伏
+    n = bandpass(RNG.standard_normal(len(t)), 350, 2600)
+    wob = lowpass(RNG.standard_normal(len(t)), 5, 2)
+    wob = 0.55 + 0.45 * wob / (np.abs(wob).max() + 1e-9)
+    env = (1 - np.exp(-t / 0.1)) * np.exp(-np.maximum(t - 1.7, 0) / 0.5)
+    y += n * wob * env * 0.8
+    # 3 咕噜气泡：上滑的短音，频率各不同
+    for bt, f0 in ((0.05, 320), (0.4, 240), (0.75, 300), (1.05, 220), (1.4, 280), (1.8, 200)):
+        tb = tt(0.16)
+        f = f0 * (1 + 1.6 * tb / 0.16)
         ph = 2 * np.pi * np.cumsum(f) / SR
-        b = np.sin(ph) * np.exp(-tb / 0.035) * (1 - np.exp(-tb / 0.003))
+        b = np.sin(ph) * np.exp(-tb / 0.05) * (1 - np.exp(-tb / 0.002))
         i = int(bt * SR)
-        y[i:i + len(b)] += 0.55 * b
+        y[i:i + len(b)] += 0.9 * b
     return render_once([(0.0, y, 0.0, 1.0)], 0.12, 0.8, 0.4)
 
 
