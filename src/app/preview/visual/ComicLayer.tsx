@@ -281,6 +281,12 @@ function FlowLayer() {
     if (vp.portrait) {
       // 竖屏：整列的下沿停在蛋的上方（蛋在下半屏时），放不下就在停留阶段缓慢上移阅读
       const bottom = eggHere && eggHere.y > 30 ? eggHere.y - 1 : 95;
+      if (list.length === 1 && list[0].portraitPlace) {
+        // 独占一段、指定了竖屏位置的格子（slots.json portraitPlace）：放在指定位置，不进竖排列
+        places[list[0].key] = { ...list[0].portraitPlace };
+        pans[list[0].key] = 0;
+        continue;
+      }
       const r = columnPlaces(list, vp.w, vp.h, 4, bottom);
       Object.assign(places, r.places);
       for (const p of list) pans[p.key] = r.pan;

@@ -8,7 +8,7 @@ import { useState, useSyncExternalStore } from "react";
 import ScrollDriver from "@/components/ScrollDriver";
 import KitchenCharacters from "@/components/kitchen/KitchenCharacters";
 import KitchenScene from "@/components/kitchen/KitchenScene";
-import { fallPoint } from "@/components/kitchen/Egg";
+import { trajFoot } from "@/components/kitchen/Egg";
 import { SCENE_H, SCENE_W } from "@/lib/scene";
 import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
@@ -17,8 +17,8 @@ import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import { SearchBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, gOf, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
-import { HEAR_CUE, HEAR_EVENT } from "./PanelPerf";
-import { airPointFor, eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, wanderTableFor } from "./eggPath";
+import { HEAR_EVENT } from "./PanelPerf";
+import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, trajectoryFor, wanderTableFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
 import EggPoke from "./EggPoke";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
@@ -98,9 +98,12 @@ function StageV2() {
     tableWait: tableAt.hear,
     eggAtTable: eggAtTableFor(cfg),
     // 高跳之后的空中站点：画面上缘之外、铲面右上方（接蛋时从这里落到铲面）
-    air: airPointFor(cfg, catchView(vp.w, vp.h)),
+    // 高跳轨迹 P(s)：L（右侧桌面）→ M（妈妈视线相遇点）→ E（出画）→ R（铲面右上方、catch 取景上缘外）→ C（铲面接触点）（eggPath.trajectoryFor，docs/EGG-JUMP.md）
+    traj: trajectoryFor(cfg, vp, camAt(gOf("hear", 0.6), vp.w, vp.h), catchView(vp.w, vp.h), tableAt.hear),
     // hear：前景表演开始（HEAR_EVENT start，与妈妈抬眼同一时刻）时蓄力 0.25 s，0.35 s 内冲出画面上缘；回到该段 beforeQ 之前才复位
-    leap: { event: HEAR_EVENT, beforeQ: HEAR_CUE.beforeQ, crouch: 0.25, rise: 0.35 },
+    // 起跳表演：HEAR_EVENT start（与妈妈抬眼同一时刻）下蹲 0.15 s、上升 0.4 s 到 M；显示参数用 ω 18/s 的临界阻尼弹簧跟随；
+    // hear 退出 q 0.85 → listen q 0.2 滚动把蛋从 M 带到 E（listen 停留之前完全出画）
+    jump: { event: HEAR_EVENT, crouch: 0.15, rise: 0.4, omega: 18, mToE: [0.85, 0.2] as [number, number] },
     // 环境段 tablecall：饭桌上的碗（后景会话提供碗；这里只给蛋的脚底点和大小）
     bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
     eggInBowl: BG.anchors.eggInTableBowl,
@@ -115,7 +118,7 @@ function StageV2() {
   };
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;
-  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = fallPoint(anchors.air, anchors.spatulaLand!, flight);
+  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = trajFoot(anchors.traj, anchors.traj.sR + (1 - anchors.traj.sR) * flight);
   // 环境段（蛋是主体）：镜头水平方向主要跟着蛋的站点，窄屏、竖屏也不会把蛋切出画面；进入和离开时按段内进度渐变
   let follow: number | undefined;
   const envEgg = t.beat.egg === "ready" ? anchors.tableWait : t.beat.egg === "inBowl" ? anchors.bowlLand : null;
@@ -226,6 +229,14 @@ function catchView(vw: number, vh: number) {
 }
 
 /** 备菜段（阅读）镜头下可见的场景范围：用于把游走站点夹在画面内的桌面上（算法同 SceneStage，读 chop 段中点的镜头） */
+/** 某时刻（故事位置 g）的镜头：场景 → 屏幕 X = x · s + tx（算法同 SceneStage） */
+function camAt(g: number, vw: number, vh: number) {
+  const cam = cameraV2(g);
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  const s = Math.max(vw / SCENE_W, vh / SCENE_H) * cam.zoom;
+  return { s, tx: clamp(vw * cam.at.x - cam.x * s, vw - SCENE_W * s, 0), ty: clamp(vh * cam.at.y - cam.y * s, vh - SCENE_H * s, 0) };
+}
+
 function readingView(vw: number, vh: number) {
   const cam = cameraV2(gOf("chop", 0.5));
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
