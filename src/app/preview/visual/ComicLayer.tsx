@@ -4,11 +4,11 @@
  * 进入阶段减速入场（power3.out），停留完全静止，退出加速离场（power2.in）。
  * 第 1 段用接缝遮罩小样（CSS mask），其他格按各自方向滑入，不统一淡入。
  */
-import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { ChopPanel, HearPanel, PanelCue, SaucePanel, StirfryPanel, usePerfEnabled } from "./PanelPerf";
+import { ChopPanel, HearPanel, SaucePanel, StirfryPanel, usePerfEnabled } from "./PanelPerf";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -296,8 +296,7 @@ function FlowLayer() {
         if (p.key === "p3d") return <HearPanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
         if (p.key === "p2d") return <StirfryPanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
         if (p.key === "p3a") return <SaucePanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
-        // 静态格也派发进入 / 离开阅读位置的信号（comic:panel），声音（淋汁、放碗）跟它走
-        return <Fragment key={p.key}><FlowPanel p={p} pos={pos} dy={dy} /><PanelCue panelKey={p.key} q={q} stage={stage} /></Fragment>;
+        return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
       })}
       <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} aspect={vp.w / vp.h} />
     </div>
