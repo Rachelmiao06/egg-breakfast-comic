@@ -32,6 +32,9 @@ const P6D_TEXT: SeqText = {
   // 第一个泡在第 1 张里一口气打完；第二个泡在第 2、3 张之间打
   plan: [{ row: 0, at: 0.1, per: 0.09 }, { row: 1, at: 0.6, per: 0.08 }, { row: 2, at: 1.4, per: 0.12 }, { row: 3, at: 1.8, per: 0.1 }],
 };
+// p5f 妈妈趴在桌边看碗里的蛋（用户 2026-11-15 送图，6 张，timeline：f1 0.65 s → (f2 f3 f4 f5 各 0.24 s) × 2 → f6 停住，共 2.57 s 后停在第 6 张）
+const P5F_FRAMES = seqFrames("p5f", 6);
+const P5F_SCHEDULE: [number, number][] = [[0, 0], [1, 0.65], [2, 0.89], [3, 1.13], [4, 1.37], [1, 1.61], [2, 1.85], [3, 2.09], [4, 2.33], [5, 2.57]];
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
 
@@ -454,6 +457,7 @@ function FlowLayer() {
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p4d" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P4D_FRAMES} schedule={P4D_SCHEDULE} gateS={2.2} staticSrc={P4D_FRAMES[7]} />
           : p.key === "p6d" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P6D_FRAMES} schedule={P6D_SCHEDULE} gateS={3.4} text={P6D_TEXT} staticSrc="/assets/comic-v3/p6d.webp" />
+          : p.key === "p5f" ? <SeqPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} frames={P5F_FRAMES} schedule={P5F_SCHEDULE} gateS={3.0} staticSrc={P5F_FRAMES[5]} />
           : p.key === "p5e" ? <TurnPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : <FlowPanel push={false ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
