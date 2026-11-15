@@ -359,7 +359,8 @@ function createJumpController(env: JumpEnv) {
     env.active.current = true;
     if (egg && !crouch) gsap.to(egg, { y: 0, scaleX: 1, scaleY: 1, rotation: 0, duration: 0.12, overwrite: true });
     if (shadow) gsap.set(shadow, { opacity: 0 }); // 离开桌面：后景不留影子
-    env.live.current.setFace("fly");
+    // 起跳表演进行中时，换成飞行图由下蹲后的"转身"那一帧负责（见 cue）；被滚动带离 L 时在这里换
+    if (!crouch) env.live.current.setFace("fly");
     env.lastStation.current = null;
     env.lastLanding.current = null;
   };
@@ -375,13 +376,15 @@ function createJumpController(env: JumpEnv) {
     } else {
       env.lastStation.current = "table";
       env.lastLanding.current = "table";
-      lv.setFace("base");
       if (shadow) gsap.to(shadow, { opacity: 0.45, scale: 1, duration: 0.2 });
       if (egg && !lv.reduced) {
         eggLand("table");
-        gsap.timeline().to(egg, { scaleX: 1.16, scaleY: 0.82, duration: 0.09, ease: "power1.out", transformOrigin: "50% 100%", overwrite: true })
+        // 落回桌面时"转身"回正面：横向一收，收到最窄的那一帧换回原图，再接落桌回弹
+        gsap.timeline().to(egg, { scaleX: 0.78, scaleY: 1.05, duration: 0.06, ease: "power2.in", transformOrigin: "50% 100%", overwrite: true })
+          .call(() => { if (!st.active) env.live.current.setFace("base"); })
+          .to(egg, { scaleX: 1.16, scaleY: 0.82, duration: 0.09, ease: "power1.out" })
           .to(egg, { scaleX: 1, scaleY: 1, duration: 0.4, ease: "elastic.out(1, 0.45)" });
-      }
+      } else lv.setFace("base");
     }
     // 交还给站点：本段要停的位置若不同（快速倒滚到更早的段、交接段的回正缩小），平滑接过去
     const Pn = lv.P;
@@ -461,8 +464,12 @@ function createJumpController(env: JumpEnv) {
           perfTw = gsap.to(perfObj, { v: T.sM, duration: jp.rise, ease: "power2.out", onUpdate: () => { st.perf = perfObj.v; ensureLoop(); }, onComplete: () => { perfTw = null; ensureLoop(); } });
           ensureLoop();
         })
-        .to(egg, { scaleX: 0.9, scaleY: 1.12, duration: 0.1, ease: "power2.out" })
-        .to(egg, { scaleX: 1, scaleY: 1, duration: 0.25, ease: "power2.out" });
+        // "转身"：蹬离后身体向上拉长的同时横向一收（像转过身面向妈妈），收到最窄的那一帧换成飞行图，再展开。
+        // 原图（正面）和飞行图（朝左下）是两张不同的画，直接换会跳；收窄到 0.76 再展开，换图读成转身动作
+        .to(egg, { scaleX: 0.76, scaleY: 1.14, duration: 0.07, ease: "power2.in" })
+        .call(() => { if (st.active || st.perf > 0) env.live.current.setFace("fly"); })
+        .to(egg, { scaleX: 1.03, scaleY: 1.04, duration: 0.1, ease: "power2.out" })
+        .to(egg, { scaleX: 1, scaleY: 1, duration: 0.18, ease: "sine.out" });
     },
     dispose() { cancelAnimationFrame(st.raf); perfTw?.kill(); crouch?.kill(); },
   };
