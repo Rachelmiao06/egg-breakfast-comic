@@ -215,33 +215,31 @@ function LayersPanel({
 }
 
 /**
- * 切胡萝卜格 p2b：握刀的手（连袖口和刀）是原图拆出来的运动层（public/assets/comic-v4/layers/p2b-*，胡萝卜、扶菜的手、对白泡、框线都是遮挡层）。
- * 用户 2026-11-15 试过 ChatGPT 重画的握刀姿态（comic-v5/p2b）：左手比右手小一圈、袖口悬在画面边缘、和围裙身体没有连接，转角度后更像手断开，已撤回，继续用原图的手。
- * 静态格画面不动，三下刀声照常、时刻相同。
- *
- * 2026-11-15 重做：以前整只手带刀垂直平移 18%（刀尖穿过胡萝卜，像整块贴图在抖）。
- * 真正的切法是刀尖几乎不离开案板，刀跟（连手）抬起再压下：所以支点放在刀尖（ChopPanel pivot），
- * 抬刀 = 绕刀尖顺时针转几度（手随之抬高），落刀 = 转回并略过零点（压进菜里），再带一点往前推的位移。
- * 每刀幅度、节奏略有不同，越切越顺（后面几刀更快更短），不再像节拍器。
+ * 切胡萝卜格 p2b（2026-11-15 用 ChatGPT 的 p2b-finished 素材，tools/prepare_p2b_final.py → comic-v4/layers/p2b-*）。
+ * 唯一的一只握刀手（K0：袖口 + 手 + 刀，一个刚体）绕固定的刀尖旋转：刀尖始终贴在胡萝卜左端，刀跟连手抬起（最多约 12°）再压下，
+ * 手的大小和右手一致，袖子从画面外连进来（被对白泡盖住连接处），解剖不会变形。几次试过的别的做法（逐姿态硬切、整只手平移 18%、
+ * 拿生成的不同姿态拼）都因为手型跳变、手臂断开或刀尖落在空处撤掉了。
+ *   层：p2b-base（去掉握刀手的底图）→ p2b-part（K0，支点 = 刀尖）→ p2b-front（对白泡，盖在袖子上面）。
+ * 每刀：抬刀跟（刀尖不动）→ 停一小会 → 快压下去（接触那一刻派发 chopHit）→ 短停。越切越快、幅度略有不同，不像节拍器。共 8 刀，约 5 s。
+ * 不含胡萝卜被切短 / 菜丁变多（素材里没有）。静态格（减少动态效果）＝静止姿态，三下刀声照常、时刻相同。
  */
 const CHOP_STROKES = 8;
+const CHOP_AMP = [11, 12, 10, 12, 9, 11, 10, 12]; // 每刀抬刀跟的角度（度）：绕刀尖顺时针 = 刀跟抬起
 function chopScript(tl: gsap.core.Timeline, t: Targets, pan: number) {
   let at = 0;
   for (let i = 0; i < CHOP_STROKES; i++) {
-    const k = 1 - 0.35 * (i / (CHOP_STROKES - 1)); // 越切越快、越短
-    const lift = (i % 2 ? 7.5 : 9) * (0.8 + 0.2 * k);
-    tl.to(t.part, { rotation: lift, yPercent: -1.2, xPercent: -0.4, duration: 0.2 * k + 0.08, ease: "power2.out" }, at); // 抬刀跟：刀尖留在案板上
-    at += (i === 0 ? 0.26 : 0.2) * k + 0.08;
-    tl.to(t.part, { rotation: -1.6, yPercent: 0.9, xPercent: 0.7, duration: 0.11, ease: "power3.in" }, at); // 压下去，略微往前推
-    at += 0.11;
+    const k = 1 - 0.35 * (i / (CHOP_STROKES - 1)); // 越切越快
+    const rise = 0.3 * k + 0.1;
+    tl.to(t.part, { rotation: CHOP_AMP[i], duration: rise, ease: "sine.out" }, at); // 抬刀跟：刀尖留在菜上
+    at += rise + 0.05 * k;
+    tl.to(t.part, { rotation: 0, duration: 0.12, ease: "power3.in" }, at); // 快压下去
+    at += 0.12;
     tl.call(() => oneshot("chopHit", pan), [], at); // 刀刃接触
-    at += 0.05;
-    tl.to(t.part, { rotation: 0, yPercent: 0, xPercent: 0, duration: 0.16, ease: "power2.out" }, at); // 回到静止
-    at += 0.16 + (i === CHOP_STROKES - 1 ? 0 : 0.08 * k);
+    at += 0.12 + (i === CHOP_STROKES - 1 ? 0 : 0.14 * k);
   }
 }
 export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <LayersPanel {...props} k="p2b" pivot={[56.4, 68.7]} delay={0.35} build={chopScript} runStatic />;
+  return <LayersPanel {...props} k="p2b" pivot={[56.73, 82.5]} delay={0.35} build={chopScript} runStatic />;
 }
 
 /**
