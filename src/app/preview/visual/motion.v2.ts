@@ -64,5 +64,5 @@ export function cameraV2(g: number, egg?: { x: number; y: number } | null, follo
 /** 景深：由镜头自身的位移推出（相对开场焦点），远景少动、近景多动 */
 export function depthFromCamera(cam: Cam) {
   const k0 = bg.camera.keys[0] as [string, number, number, number];
-  return { x: (cam.x - k0[2]) * bg.camera.depthGain, y: (cam.y - k0[3]) * bg.camera.depthGain };
+  return { x: (cam.x - k0[2]) * bg.camera.depthGain, y: (cam.y - k0[3]) * bg.camera.depthGain, z: cam.zoom };
 }

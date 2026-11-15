@@ -8,10 +8,12 @@
  */
 import { useEffect } from "react";
 import { HANDOFF } from "@/components/kitchen/Egg";
-import { Z } from "@/lib/scene";
+import { SCENE_H, SCENE_W, Z } from "@/lib/scene";
 import { phaseProgress } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import { Placeholder } from "./ComicLayer";
+import { BG, cameraV2, gNow } from "./motion.v2";
+import { useViewport } from "./viewport";
 import { handoffBox, landedEgg, landPoint, useSlots } from "./slots";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -19,6 +21,7 @@ const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 export default function ScenePanels({ debug = false, flow = false }: { debug?: boolean; flow?: boolean }) {
   const { timeline: t, flight } = useScene();
   const { cfg } = useSlots();
+  const vp = useViewport();
   const slot = cfg.scene.catch;
   // 预先解码接蛋格、交接格（含遮罩）和蛋的表情图：这些图到接蛋段才第一次挂载，首次解码会在伸铲格出现那一帧卡顿约 0.3 秒
   const warm = [slot.src, cfg.scene.handoff?.src, cfg.scene.handoff?.eggHoleMask, cfg.egg.faces?.fly, cfg.egg.faces?.rest].filter(Boolean).join("|");
@@ -73,7 +76,16 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
       </div>
     ) : null;
   if (k <= 0) return handNode;
-  const [x, y, w, h] = slot.box;
+  const [x0, y, w, h] = slot.box;
+  // 接蛋格进场时镜头还在从高处往左下落（x 902 → 810），格子是场景里的东西，会被一起带到屏幕左边之外（4:3 窗口左边被切，2026-11-15 检查）。
+  // 这里按当前镜头算出左边界，格子的左缘不小于它；镜头落定后（静止阅读）边界已在格子左边，不再起作用。
+  let x = x0;
+  if (flow && t.beat.id === "catch") {
+    const cam = cameraV2(gNow(t));
+    const sc = Math.max(vp.w / SCENE_W, vp.h / SCENE_H) * cam.zoom;
+    const tx = Math.min(0, Math.max(vp.w - SCENE_W * sc, vp.w * cam.at.x - cam.x * sc));
+    x = Math.max(x0, -tx / sc + BG.eggPath.boxMargin);
+  }
   const lp = landPoint(slot);
   const e = out3(k);
   return (

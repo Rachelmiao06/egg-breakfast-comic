@@ -103,7 +103,7 @@ function StageV2() {
     hideDuring: vp.portrait ? undefined : "bag", // bag 段蛋趴在 p1b 的上沿（ComicLayer PerchEgg），桌上的蛋让位；竖屏没有位置，不换
     // 高跳之后的空中站点：画面上缘之外、铲面右上方（接蛋时从这里落到铲面）
     // 高跳轨迹 P(s)：L（右侧桌面）→ M（妈妈视线相遇点）→ E（出画）→ R（铲面右上方、catch 取景上缘外）→ C（铲面接触点）（eggPath.trajectoryFor，docs/EGG-JUMP.md）
-    traj: trajectoryFor(cfg, vp, camAt(gOf("hear", 0.6), vp.w, vp.h), catchView(vp.w, vp.h), tableAt.hear, listenView(vp.w, vp.h)),
+    traj: trajectoryFor(cfg, vp, camAt(gOf("hear", 0.6), vp.w, vp.h), catchView(vp.w, vp.h, landPoint(cfg.scene.catch)), tableAt.hear, listenView(vp.w, vp.h)),
     // hear：前景表演开始（HEAR_EVENT start，与妈妈抬眼同一时刻）时蓄力 0.25 s，0.35 s 内冲出画面上缘；回到该段 beforeQ 之前才复位
     // 起跳表演：HEAR_EVENT start（与妈妈抬眼同一时刻）下蹲 0.15 s、上升 0.4 s 到 M；显示参数用 ω 18/s 的临界阻尼弹簧跟随；
     // hear 退出 q 0.85 → listen q 0.12 滚动把蛋从 M 带到 E（listen 停留 q 0.2 之前留出余量，快速拖过时弹簧也来得及把蛋带出画）
@@ -225,9 +225,12 @@ function fitCatchTo(cfg: SlotConfig, centerX: number, visW: number): SlotConfig 
  * 新版接蛋镜头（backgrounds.json camera.keys 里 catch 落定时的关键帧）下，视口里能看到的场景范围（场景像素）。
  * 算法与 SceneStage 相同：cover 缩放 × zoom，焦点放到 at，再夹住不露出画布外。
  */
-function catchView(vw: number, vh: number) {
+function catchView(vw: number, vh: number, follow?: { x: number; y: number }) {
   const key = (BG.camera.keys as [string, number, number, number, number, number, number][]).find((k) => k[0] === "catch" && k[1] >= 0.8)!;
-  const [, , fx, fy, zoom, ax, ay] = key;
+  const [, , fx0, fy0, zoom, ax, ay] = key;
+  let fx = fx0, fy = fy0;
+  // 接蛋落定时镜头会轻微跟着蛋走（cameraV2 的 followEgg）：取景范围要算上这一步，否则 4:3 窗口里接蛋格左边会被切掉（2026-11-15 检查）
+  if (follow) { fx += (follow.x - fx) * BG.camera.followEgg; fy += (follow.y - fy) * BG.camera.followEgg; }
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
   const s = Math.max(vw / SCENE_W, vh / SCENE_H) * zoom;
   const x = clamp(vw * ax - fx * s, vw - SCENE_W * s, 0);
@@ -262,7 +265,7 @@ function readingView(vw: number, vh: number) {
 /** 新版：接蛋格连同右侧的蛋位放得进接蛋镜头就保持原位，放不下就缩小、靠左、下缘贴桌面（eggPath.ts fitCatchForEgg）。交接格滑动也按这个可见范围 */
 function fitSlotsV2(cfg: SlotConfig, vw: number, vh: number): SlotConfig {
   // 接蛋格右侧要留出桌沿上蛋的位置（蛋从妈妈右侧、铲面右上方飞来；格子在起跳前就已升起，会盖住格内的蛋）：见 eggPath.ts
-  return fitCatchForEgg(cfg, catchView(vw, vh));
+  return fitCatchForEgg(cfg, catchView(vw, vh, landPoint(cfg.scene.catch)));
 }
 
 export default function VisualPreviewPage() {

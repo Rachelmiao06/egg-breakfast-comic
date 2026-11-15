@@ -54,6 +54,8 @@ type Group = keyof typeof MOTION;
  * 远景跟得少、近景跟得多，形成纵深；主体层 f = 1（蛋、火苗、油跟它走）。试验值。
  */
 const DEPTH: Record<Group, number> = { far: 0.35, counter: 0.65, mid: 1, front: 1.6 };
+/** 镜头推近时各层额外放大的比例（相对整体 zoom）：近的层多长一点、远的不长，推近时才有"走近了"的透视感（只放大，不会露边） */
+const ZOOM_PARALLAX: Record<Group, number> = { far: 0, counter: 0.15, mid: 0.3, front: 0.75 };
 
 const LAYERS: { name: KitchenLayerName; z: number; group: Group }[] = [
   { name: "far", z: Z.back, group: "far" },
@@ -68,7 +70,7 @@ type Props = {
   /** Mouse parallax (ignored on touch devices). */
   mouse?: boolean;
   /** 镜头位移（场景像素），由页面按统一时间轴算出；各层按 DEPTH 系数错速。 */
-  depth?: { x: number; y: number };
+  depth?: { x: number; y: number; z?: number };
   /** 直接映射滚动（progress、depth 不再缓动；只有鼠标视差保留轻微滞后，属于次级运动） */
   direct?: boolean;
   /** Render the retired toast plate (only for overlay checks; off in the story). */
@@ -107,7 +109,7 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
     document.addEventListener("pointerleave", onLeave);
 
     let shown = live.current.progress;
-    const dz = { x: live.current.depth.x, y: live.current.depth.y };
+    const dz = { x: live.current.depth.x, y: live.current.depth.y, z: live.current.depth.z ?? 1 };
     let prev = performance.now();
     const ease = (perSecond: number, dt: number) => 1 - Math.exp(-perSecond * dt);
 
@@ -125,6 +127,7 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
       // 镜头景深位移也做平滑，避免滚动时一顿一顿
       dz.x += (L.depth.x - dz.x) * (L.reducedMotion || L.direct ? 1 : ease(6, dt));
       dz.y += (L.depth.y - dz.y) * (L.reducedMotion || L.direct ? 1 : ease(6, dt));
+      dz.z += ((L.depth.z ?? 1) - dz.z) * (L.reducedMotion || L.direct ? 1 : ease(6, dt));
       const t: Record<Group, string> = { far: "", counter: "", mid: "", front: "" };
       let midVars: [number, number, number] = [0, 0, 1];
       let counterVars: [number, number] = [0, 0];
@@ -137,8 +140,9 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
           1 +
           Math.max(0, tx / ORIGIN_X, -tx / (SCENE_W - ORIGIN_X), ty / ORIGIN_Y, -ty / (SCENE_H - ORIGIN_Y)) +
           0.0005;
-        t[g] = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0) scale(${s.toFixed(4)})`;
-        if (g === "mid") midVars = [tx, ty, s];
+        const zs = 1 + Math.max(0, dz.z - 1) * ZOOM_PARALLAX[g] * pg;
+        t[g] = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0) scale(${(s * zs).toFixed(4)})`;
+        if (g === "mid") midVars = [tx, ty, s * zs];
         if (g === "counter") counterVars = [tx, ty];
       }
       els.current.forEach((el, i) => {
