@@ -5,7 +5,7 @@
 //   等待段：锅 (720,670) 在开场画面里；蛋在桌沿时脚底在 B1 桌面上、整只蛋在画面里（沿镜头路径逐点）
 //   接蛋飞行：起跳点在铲面落点右侧；整段飞行 x 不增（不往左越过落点再折返）；最后 30% 从右上方下落；
 //            蛋身不碰气泡、始终在格内 keepRightOf 以右（不经过手和妈妈视线左侧）；起跳、越框、下降、落铲四个阶段蛋都在画面里
-//   tablecall：碗 + 蛋在画面里
+//   tablecall：碗 + 蛋在画面里（方案 B 之后没有这一段，检查自动跳过）
 // usage: node tools/bg_constraints.mjs [WxH,...]   （--json 输出明细）
 import { readFileSync } from "node:fs";
 
@@ -121,7 +121,7 @@ const ph = { enter: 0.25, action: 0, hold: 0.6, exit: 0.15, ...catchB.phases };
 const flightStart = ph.enter, flightEnd = ph.enter + ph.action; // 动作阶段 = 飞行
 // ---- --views（只输出视野表）：各节拍下每个视口看到的场景范围（场景像素），给出图 brief 定“画面边缘”用 ----
 if (process.argv.includes("--views")) {
-  const BEATS = [["opening", 0.5], ["drop", 0.9], ["bag", 0.5], ["missing", 0.5], ["prejump", 0.6], ["hear", 0.5], ["catch", 0.5], ["handoff", 0.6], ["bowl", 0.5], ["call", 0.5], ["tablecall", 0.6], ["search", 0.5], ["eggcall", 0.5], ["return", 0.5], ["punchline", 0.5]];
+  const BEATS = [["opening", 0.5], ["drop", 0.9], ["bag", 0.5], ["missing", 0.5], ["prejump", 0.6], ["hear", 0.5], ["catch", 0.5], ["handoff", 0.6], ["bowl", 0.5], ["call", 0.5], ["search", 0.5], ["eggcall", 0.5], ["return", 0.5], ["punchline", 0.5]];
   const out = { beats: {}, landscapeAll: null, all: null };
   let LA = [-1e9, -1e9, 1e9, 1e9], AL = [-1e9, -1e9, 1e9, 1e9];
   for (const [id, p] of BEATS) {
@@ -234,10 +234,10 @@ for (const [vw, vh] of sizes) {
   for (let i = ia + 1; i < path.length; i++) if (path[i].y < path[i - 1].y - 0.01 || path[i].x > path[i - 1].x + 0.01) fromUpperRight = false;
   const slope = (path[ia].x - L.land.x) / Math.max(1, L.land.y - path[ia].y);
   if (slope < bg.eggPath.minSlope) fromUpperRight = false;
-  // tablecall
+  // tablecall（2026-11-15 饭碗方案 B 删掉了这一段；节拍不存在时不检查）
   const TB = A.tableBowl, BB = bg.bowl.box;
   let bowlWorst = Infinity;
-  for (let g = gOf("tablecall", 0.12); g <= gOf("tablecall", 0.9); g += 0.02) {
+  if (beats.some((b) => b.id === "tablecall")) for (let g = gOf("tablecall", 0.12); g <= gOf("tablecall", 0.9); g += 0.02) {
     const v = view(vw, vh, cam(g, L.wait));
     const eggTop = TB.y - EGG * A.eggInTableBowl;
     bowlWorst = Math.min(bowlWorst, (TB.x + BB[0] - v.x0) * v.s, (v.x1 - (TB.x + BB[0] + BB[2])) * v.s, (Math.min(eggTop, TB.y + BB[1]) - v.y0) * v.s, (v.y1 - (TB.y + BB[1] + BB[3])) * v.s);

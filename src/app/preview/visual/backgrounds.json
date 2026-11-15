@@ -690,7 +690,12 @@
    ],
    [
     "search",
-    0.1,
+    0.25,
+    -3
+   ],
+   [
+    "search",
+    0.4,
     0
    ],
    [
@@ -747,12 +752,12 @@
    ],
    [
     "search",
-    0.02,
+    0.25,
     -3
    ],
    [
     "search",
-    0.15,
+    0.4,
     0
    ],
    [
@@ -1021,5 +1026,5 @@
    ]
   }
  },
- "notes_bowlB": "2026-11-15 集成会话：用户选饭碗方案 B，tablecall 段和背景饭碗已删除（curves.bowl 恒为 0，TableBowl 不再显示）；camera / friendJar / friendSoy / friendLeaves / doorway / doorwayDrift 里引用 tablecall 的点已移除或改到 search 开头。"
+ "notes_bowlB": "2026-11-15 集成会话：用户选饭碗方案 B，tablecall 段和背景饭碗已删除（curves.bowl 恒为 0，TableBowl 不再显示）；camera / friendJar / friendSoy / friendLeaves / doorway / doorwayDrift 里引用 tablecall 的点已移除或改到 search 开头。 后景会话：酱油瓶、糖罐在 search 开头回正的点改到 search 0.25 → 0.4（门口厨房 search 0.25 才盖满；原 0.02/0.1 起动会在淡入中途露出半透明的动作）。"
 }

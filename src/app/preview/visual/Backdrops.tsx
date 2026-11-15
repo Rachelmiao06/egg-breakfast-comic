@@ -10,8 +10,8 @@
  *   → 环境段 prejump（桌沿上的蛋准备起跳）：纸面降到半透明（curves.paper），活着的厨房从桌沿后面透出来，
  *       这一段没有漫画格，后景就是画面主体。
  *   → 饭桌：蛋交给漫画之后（curves.dinner），纸面 + 桌沿整体下移 22 场景像素（饭桌更近，桌面让出碗的底座）。
- *   → 环境段 tablecall（空饭桌上碗里的蛋在喊）：B3 占位碗（curves.bowl），碗身 z 62（蛋之下）、前沿遮挡层 Z.bowlFront（蛋之上），
- *       位置全部相对 anchors.tableBowl，与蛋的脚底点对位；碗只跟随主体层视差，不跟随饭桌位移，所以永远和蛋锁在一起。
+ *   → （旧）环境段 tablecall 和 B3 背景饭碗：2026-11-15 饭碗方案 B 删除，curves.bowl 恒为 0，TableBowl 不再显示；
+ *       接住之后蛋只在漫画里。
  *   → 寻找段外围：<SearchBackdrop/> 里的 SearchSurround，页面层（fixed z-5，漫画之下），横版 / 竖版两张，
  *       进场时从右往左持续漂移（curves.doorwayDrift），像镜头转到家里另一处；淡出后露回饭桌。
  *   → 收尾：<SearchBackdrop/> 里的 EndingSheet，干净暖米白平涂，盖住一切（含桌沿）。

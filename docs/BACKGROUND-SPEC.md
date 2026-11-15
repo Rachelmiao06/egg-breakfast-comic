@@ -34,8 +34,9 @@
 | hear | 桌沿 + 纸面 | 纸面回到不透明 |
 | catch | 桌沿 + 纸面 | 镜头移到 640,790、放大 1.08；蛋从桌沿等待点起跳飞进接蛋格 |
 | handoff … call | 饭桌（同一条桌沿） | `dinner` 曲线保留为位移旋钮（当前 0）：B1 正式图到位后如果桌面高度要为饭桌微调，只改这里 |
-| **tablecall**（环境段，无漫画格） | **空饭桌 + B3 碗**（复用 p3b 的碗）：后景是主体 | `bowl`：call 90% → tablecall 12% 碗淡入（蛋在 tablecall 进入阶段 40% 后才淡入，碗先在），search 15% → 30% 碗淡出（此时 B2 已盖满）。纸面保持干净，画面只有桌沿、碗和碗里喊话的蛋，突出“空”。镜头推到 700,880、放大 1.22 并跟随碗 |
-| search、eggcall | **B2 外围**，盖住全屏 | `doorway`：tablecall 85% → search 25% 淡入，eggcall 70% → return 20% 淡出。`doorwayDrift`：同一时段外围从右往左持续漂移 +2.5vw → −2.5vw（像镜头从饭桌转到家里另一处、再转回来） |
+| ~~tablecall~~（2026-11-15 方案 B 已删除）| — | — |
+| *(旧)* **tablecall**（环境段，无漫画格） | **空饭桌 + B3 碗**（复用 p3b 的碗）：后景是主体 | `bowl`：call 90% → tablecall 12% 碗淡入（蛋在 tablecall 进入阶段 40% 后才淡入，碗先在），search 15% → 30% 碗淡出（此时 B2 已盖满）。纸面保持干净，画面只有桌沿、碗和碗里喊话的蛋，突出“空”。镜头推到 700,880、放大 1.22 并跟随碗 |
+| search、eggcall | **B2 外围**，盖住全屏 | `doorway`：search 0 → search 25% 淡入（方案 B 之前是 tablecall 85% 起），eggcall 70% → return 20% 淡出。`doorwayDrift`：同一时段外围从右往左持续漂移 +2.5vw → −2.5vw（像镜头从饭桌转到家里另一处、再转回来） |
 | return … punchline | 饭桌（B2 淡出后露回） | — |
 | closeup | **收尾平涂**，盖住全屏 | `ending`：punchline 72% → closeup 40% 淡入，之后安静停住 |
 
