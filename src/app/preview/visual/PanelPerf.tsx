@@ -42,6 +42,10 @@ export function usePerfEnabled() {
   );
 }
 
+/** 开发模式下把各格的时间线挂到 window.__perf，方便在浏览器里按时间点定位（隐藏窗格里 GSAP 不走帧时也能逐帧检查）；生产构建不挂 */
+declare global { interface Window { __perf?: Record<string, gsap.core.Timeline> } }
+const debugTl = (k: string, t: gsap.core.Timeline) => { if (process.env.NODE_ENV !== "production") (window.__perf ??= {})[k] = t; };
+
 function boxStyle(pos: Place, aspect: number, dy: number): CSSProperties {
   return { left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW };
 }
@@ -190,6 +194,7 @@ function LayersPanel({
     const t = gsap.timeline({ delay, onComplete: () => { tl.current = null; if (animate) { settle(); flag(false); } if (haltAtEnd) halt(); } });
     build(t, targets, panFor(pos));
     tl.current = t;
+    debugTl(k, t);
   };
   useStage(q, stage, animate || runStatic, play, stop, reset);
   if (!animate) return <StaticImg src={`${F4}${k}-f1.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
@@ -210,79 +215,66 @@ function LayersPanel({
 }
 
 /**
- * 切胡萝卜格 p2b：握刀的手（连袖口和刀）整体往下切，绕袖口与手腕交界轻微转动。
- * 最低姿态取自 A-chopping 第 3 帧相对第 1 帧的位姿（下移 18% 画布高、转 1°）；刀尖落进胡萝卜后面（胡萝卜、扶菜的手、对白泡、框线都是遮挡层）。
-
- * CHOP_STROKES 刀：小抬 → 快落 → 刀刃接触的那一刻派发 chopHit → 短停 → 抬回 → 停顿；三刀后停在抬刀姿态（和静态格一样）。
+ * 切胡萝卜格 p2b：握刀的手（连袖口和刀）是原图拆出来的运动层（public/assets/comic-v4/layers/p2b-*，胡萝卜、扶菜的手、对白泡、框线都是遮挡层）。
+ * 用户 2026-11-15 试过 ChatGPT 重画的握刀姿态（comic-v5/p2b）：左手比右手小一圈、袖口悬在画面边缘、和围裙身体没有连接，转角度后更像手断开，已撤回，继续用原图的手。
  * 静态格画面不动，三下刀声照常、时刻相同。
+ *
+ * 2026-11-15 重做：以前整只手带刀垂直平移 18%（刀尖穿过胡萝卜，像整块贴图在抖）。
+ * 真正的切法是刀尖几乎不离开案板，刀跟（连手）抬起再压下：所以支点放在刀尖（ChopPanel pivot），
+ * 抬刀 = 绕刀尖顺时针转几度（手随之抬高），落刀 = 转回并略过零点（压进菜里），再带一点往前推的位移。
+ * 每刀幅度、节奏略有不同，越切越顺（后面几刀更快更短），不再像节拍器。
  */
-const CHOP_DOWN = { yPercent: 18, xPercent: 0, rotation: 1.5 };
-/** 刀数：2026-11-15 用户要求切菜声持续更久，声音逐刀跟着动画走，所以加长的是动画本身（原来 3 刀，约 1.8 s；现在约 5 s） */
 const CHOP_STROKES = 8;
 function chopScript(tl: gsap.core.Timeline, t: Targets, pan: number) {
   let at = 0;
   for (let i = 0; i < CHOP_STROKES; i++) {
-    tl.to(t.part, { yPercent: -1.6, rotation: -0.8, duration: 0.1, ease: "power1.out" }, at); // 小抬
-    at += i === 0 ? 0.14 : 0.11;
-    tl.to(t.part, { ...CHOP_DOWN, duration: 0.1, ease: "power3.in" }, at); // 落刀
-    at += 0.1;
+    const k = 1 - 0.35 * (i / (CHOP_STROKES - 1)); // 越切越快、越短
+    const lift = (i % 2 ? 7.5 : 9) * (0.8 + 0.2 * k);
+    tl.to(t.part, { rotation: lift, yPercent: -1.2, xPercent: -0.4, duration: 0.2 * k + 0.08, ease: "power2.out" }, at); // 抬刀跟：刀尖留在案板上
+    at += (i === 0 ? 0.26 : 0.2) * k + 0.08;
+    tl.to(t.part, { rotation: -1.6, yPercent: 0.9, xPercent: 0.7, duration: 0.11, ease: "power3.in" }, at); // 压下去，略微往前推
+    at += 0.11;
     tl.call(() => oneshot("chopHit", pan), [], at); // 刀刃接触
-    at += 0.07;
-    tl.to(t.part, { yPercent: 0, xPercent: 0, rotation: 0, duration: 0.22, ease: "power2.out" }, at); // 抬回
-    at += 0.22 + (i === CHOP_STROKES - 1 ? 0 : 0.1);
+    at += 0.05;
+    tl.to(t.part, { rotation: 0, yPercent: 0, xPercent: 0, duration: 0.16, ease: "power2.out" }, at); // 回到静止
+    at += 0.16 + (i === CHOP_STROKES - 1 ? 0 : 0.08 * k);
   }
 }
 export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <LayersPanel {...props} k="p2b" pivot={[6.81, 42.16]} delay={0.35} build={chopScript} runStatic />;
+  return <LayersPanel {...props} k="p2b" pivot={[56.4, 68.7]} delay={0.35} build={chopScript} runStatic />;
 }
 
 /**
- * 配菜入锅格 p2d：只往前播一次，最后菜已入锅、案板上空了，不倒放回案板。
- * 手腕在框上沿，木铲绕手腕摆：先探进菜堆（往右上，铲头钻到菜下面），再往左下推回来——推回来时案板上的菜堆整堆顺着案板往下沿滑，
- * 过了案板下沿就看不见（菜堆层裁在案板面里），同时铲边掉下的菜（三颗各自一层，循环用）落进锅里、在锅里的菜面上淡出。推两下，菜全部下锅。
- * 终态（播完、离场）：木铲回到原位，菜堆和掉落的菜都不在了；复位（再次进入前）才回到第 1 帧的样子。
- * 锅身前沿、对白泡、框线是遮挡层。
- * 声音：第一颗菜落进锅里的那一刻 stirfryIn（每次播放一次）；推完开始持续翻炒声 stirfry（混音器里静音），离场 / 复位时停。静态格同一时刻派发。
+ * 配菜入锅格 p2d（2026-11-15 用新图重做，tools/prepare_p2d_layers.py，public/assets/comic-v5/p2d/）。
+ * 不再把一张贴图转来转去：木铲、菜堆都是真的"换姿态"（逐帧硬切，0.1 s 快淡入，漫画的动作感），菜一颗颗掉进锅里。
+ *   层（自下而上）：base（干净底图：案板上空、锅里只有一层菜）→ panfull（锅里更满的一截，只在第一批菜落下之后硬切进来，不整张慢交叉淡入，避免重影）
+ *   → pile1 / pile2 / pile3（案板上的菜堆：满 → 被推着往下沿滑 → 只剩几颗）→ 12 颗掉落的单颗菜 → spatA / spatB（木铲推进菜堆 / 往回拉）。
+ * 时间线（从格子到位算起，另有 0.3 s 起手）：0 推进（第 1 帧）→ 0.45 往回拉、菜堆滑开、第一批 6 颗落下 → 1.1 再推进、锅里变满 → 1.5 再拉回、菜堆只剩几颗、第二批 6 颗落下
+ *   → 2.05 案板空了 → 2.3 开始持续的翻炒声。
+ * 终态（播完、离场）：木铲在拉回位，案板空，锅里更满；复位才回到第 1 帧。静态格（减少动态效果）＝第 1 帧，声音时刻不变。
+ * 声音：第一颗菜落进锅里的那一刻 stirfryIn（每次播放一次）；推完开始持续翻炒声 stirfry（混音器里静音），离场 / 复位时停。
  */
-const DROP_FALL = 22; // 掉落距离（画布高百分比）：从案板边落到锅里的菜面
-/** 菜堆顺着案板往下沿滑的总位移（画布百分比）：最远的葱圈也要越过案板下沿 */
-const PILE_SLIDE = { x: -24, y: 64 };
-/** 案板上表面（第 1 帧的位置，画布百分比）：菜堆层裁在这里面，滑过下沿就消失 */
-const BOARD_CLIP = "polygon(55.5% 0%, 100% 0%, 100% 6%, 80.6% 66.4%, 36.6% 47.4%)";
-function stirfryScript(tl: gsap.core.Timeline, t: Targets, pan: number, start: () => void) {
-  const stroke = (at: number, k0: number, k1: number) => {
-    tl.to(t.part, { rotation: -5, duration: 0.36, ease: "sine.inOut" }, at); // 探进菜堆
-    tl.to(t.part, { rotation: 0.8, duration: 0.42, ease: "power2.inOut" }, at + 0.36); // 推回来
-    tl.to(t.part, { rotation: 0, duration: 0.2, ease: "sine.out" }, at + 0.78);
-    tl.fromTo(t.pile, { xPercent: PILE_SLIDE.x * k0, yPercent: PILE_SLIDE.y * k0 }, { xPercent: PILE_SLIDE.x * k1, yPercent: PILE_SLIDE.y * k1, duration: 0.62, ease: "power1.inOut", immediateRender: false }, at + 0.4);
-  };
-  const fall = (d: object, at: number) => {
-    tl.fromTo(d, { yPercent: -6, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.1, ease: "none", immediateRender: false }, at - 0.1);
-    tl.to(d, { yPercent: DROP_FALL, duration: 0.42, ease: "power2.in" }, at);
-    tl.to(d, { opacity: 0, duration: 0.12, ease: "none" }, at + 0.32);
-  };
-  // 第一下：原位的三颗先掉（第 1 帧里它们已经在半空）
-  stroke(0, 0, 0.5);
-  tl.to(t.drop1, { yPercent: DROP_FALL, duration: 0.42, ease: "power2.in" }, 0.45);
-  tl.to(t.drop1, { opacity: 0, duration: 0.12 }, 0.77);
-  tl.to(t.drop2, { yPercent: DROP_FALL, duration: 0.42, ease: "power2.in" }, 0.55);
-  tl.to(t.drop2, { opacity: 0, duration: 0.12 }, 0.87);
-  tl.to(t.drop3, { yPercent: DROP_FALL, duration: 0.42, ease: "power2.in" }, 0.62);
-  tl.to(t.drop3, { opacity: 0, duration: 0.12 }, 0.94);
-  tl.call(() => oneshot("stirfryIn", pan), [], 0.87); // 第一颗落进锅里
-  fall(t.drop1, 1.0);
-  // 第二下：剩下的菜推下去
-  stroke(1.0, 0.5, 1);
-  fall(t.drop2, 1.5);
-  fall(t.drop3, 1.62);
-  fall(t.drop1, 1.75);
-  tl.to(t.pile, { opacity: 0, duration: 0.15, ease: "none" }, 1.9); // 最后几颗贴着案板边的也落下去
-  tl.call(start, [], 2.25);
-}
-const STIRFRY_END = (set: (n: string, v: gsap.TweenVars) => void) => {
-  set("pile", { xPercent: PILE_SLIDE.x, yPercent: PILE_SLIDE.y, opacity: 0 });
-  ["drop1", "drop2", "drop3"].forEach((n) => set(n, { opacity: 0 }));
-};
+const P2D = "/assets/comic-v5/p2d/";
+/** 裁边后的坐标换算：生成图原尺寸 2184×720，四周裁掉 24px（tools/prepare_p2d_layers.py） */
+const cx = (x: number) => (x * 2184 - 24) / 2136;
+const cy = (y: number) => (y * 720 - 24) / 672;
+/** 案板下沿（原图归一化坐标）：x 0.42 → 0.76，y 0.47 → 0.71，菜从这条沿上被推出去 */
+const edgeY = (x: number) => 0.47 + ((0.71 - 0.47) / (0.76 - 0.42)) * (x - 0.42);
+/** 掉落的菜：素材名（d-<s>.webp）、素材宽（px）、从案板沿哪个 x 掉、什么时候掉（秒）。第一批在第一次拉回时，第二批在第二次 */
+const DROPS: { s: string; w: number; x: number; at: number }[] = [
+  { s: "carrot1", w: 159, x: 0.50, at: 0.45 }, { s: "corn2", w: 175, x: 0.57, at: 0.52 }, { s: "scal1", w: 180, x: 0.54, at: 0.60 },
+  { s: "corn1", w: 159, x: 0.63, at: 0.68 }, { s: "carrot2", w: 160, x: 0.60, at: 0.76 }, { s: "scal3", w: 108, x: 0.68, at: 0.84 },
+  { s: "corn3", w: 180, x: 0.52, at: 1.55 }, { s: "carrot3", w: 148, x: 0.66, at: 1.62 }, { s: "scal2", w: 175, x: 0.58, at: 1.70 },
+  { s: "corn2", w: 175, x: 0.71, at: 1.78 }, { s: "carrot1", w: 159, x: 0.62, at: 1.86 }, { s: "scal1", w: 180, x: 0.55, at: 1.94 },
+];
+const dropLandY = (i: number) => 0.83 + (i % 3) * 0.035; // 落进锅里的菜面（原图归一化 y）
+/** 一颗菜的宽度（占格宽 %）：单颗素材比案板上的略大，按 0.62 缩到和菜堆里的差不多（约 1.15 倍） */
+const dropW = (w: number) => (w / 1800) * 100 * 0.62;
+const P2D_BACK = ["base", "panfull", "pile1", "pile2", "pile3"];
+const P2D_FRONT = ["spatA", "spatB"];
+const P2D_INIT: Record<string, number> = { base: 1, panfull: 0, pile1: 1, pile2: 0, pile3: 0, spatA: 1, spatB: 0 };
+const P2D_END: Record<string, number> = { base: 1, panfull: 1, pile1: 0, pile2: 0, pile3: 0, spatA: 0, spatB: 1 };
+
 /** 持续的动作声：只有真的 start 过才在收住时发 stop（播放还没走到 start 就离场时不发空的 stop） */
 function useActionSound(name: string) {
   const on = useRef(false);
@@ -291,9 +283,72 @@ function useActionSound(name: string) {
     stop: () => { if (on.current) { on.current = false; action(name, "stop"); } },
   };
 }
-export function StirfryPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
+export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const snd = useActionSound("stirfry");
-  return <LayersPanel {...props} k="p2d" pivot={[20.45, 0.42]} extras={["pile", "drop1", "drop2", "drop3"]} clips={{ pile: BOARD_CLIP }} build={(tl, t, pan) => stirfryScript(tl, t, pan, () => snd.start(pan))} end={STIRFRY_END} runStatic onHalt={snd.stop} />;
+  const els = useRef<Record<string, HTMLImageElement | null>>({});
+  const box = useRef<HTMLDivElement>(null);
+  const tl = useRef<gsap.core.Timeline | null>(null);
+  const live = useRef(false);
+  const apply = (v: Record<string, number>) => Object.entries(v).forEach(([n, o]) => { const el = els.current[n]; if (el) gsap.set(el, { opacity: o }); });
+  const hideDrops = () => DROPS.forEach((_, i) => { const el = els.current[`drop${i}`]; if (el) gsap.set(el, { opacity: 0, x: 0, y: 0, rotation: 0, xPercent: -50, yPercent: -50 }); });
+  const halt = () => { if (live.current) { live.current = false; snd.stop(); } };
+  const reset = () => { tl.current?.kill(); tl.current = null; apply(P2D_INIT); hideDrops(); flag(false); halt(); };
+  const settle = () => { apply(P2D_END); hideDrops(); flag(false); };
+  const stop = () => {
+    halt();
+    if (!tl.current) return;
+    tl.current.kill(); tl.current = null;
+    settle();
+  };
+  const play = () => {
+    reset();
+    live.current = true;
+    const pan = panFor(pos);
+    const t = gsap.timeline({ delay: 0.3, onComplete: () => { tl.current = null; if (animate) settle(); } });
+    const H = box.current?.clientHeight ?? 300;
+    // 静态格：目标是空对象，画面不动，声音时刻不变
+    const g = (n: string): gsap.TweenTarget => (animate && els.current[n]) || {};
+    // 姿态硬切：0.1 s 快淡入，不是慢交叉淡入（两个木铲位置差得多，慢淡入会重影）
+    const swap = (from: string, to: string, at: number) => {
+      t.to(g(to), { opacity: 1, duration: 0.1, ease: "none" }, at);
+      t.to(g(from), { opacity: 0, duration: 0.1, ease: "none" }, at + 0.06);
+    };
+    if (animate) flag(true);
+    swap("spatA", "spatB", 0.45); swap("pile1", "pile2", 0.45);
+    swap("spatB", "spatA", 1.1);
+    t.to(g("panfull"), { opacity: 1, duration: 0.15, ease: "none" }, 1.2); // 第一批菜落进锅里之后，锅里变满
+    swap("spatA", "spatB", 1.5); swap("pile2", "pile3", 1.5);
+    t.to(g("pile3"), { opacity: 0, duration: 0.2, ease: "none" }, 2.05); // 最后几颗也落下去，案板空了
+    DROPS.forEach((d, i) => {
+      const x0 = cx(d.x), y0 = cy(edgeY(d.x)), y1 = cy(dropLandY(i));
+      const fall = (y1 - y0) * H, dur = 0.34 + (i % 3) * 0.03, el = g(`drop${i}`);
+      t.set(el, { left: `${x0 * 100}%`, top: `${y0 * 100}%`, opacity: 1, y: 0, rotation: (i % 2 ? -1 : 1) * 15 }, d.at);
+      t.to(el, { y: fall, rotation: (i % 2 ? 1 : -1) * (80 + (i % 4) * 25), duration: dur, ease: "power2.in" }, d.at);
+      t.to(el, { opacity: 0, duration: 0.06, ease: "none" }, d.at + dur - 0.02);
+    });
+    t.call(() => oneshot("stirfryIn", pan), [], 0.45 + 0.34); // 第一颗菜落进锅里
+    t.call(() => snd.start(pan), [], 2.3);
+    tl.current = t;
+    debugTl("p2d", t);
+  };
+  useStage(q, stage, true, play, stop, reset);
+  if (!animate) return <StaticImg src={`${P2D}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
+  const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
+  const layer = (n: string) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P2D}${n}.webp`} alt="" draggable={false} className={img} style={{ opacity: P2D_INIT[n] }} />
+  );
+  return (
+    <div ref={box} className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+      {P2D_BACK.map(layer)}
+      {DROPS.map((d, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={`drop${i}`} ref={(el) => { els.current[`drop${i}`] = el; }} src={`${P2D}d-${d.s}.webp`} alt="" draggable={false}
+          className="absolute block select-none pointer-events-none" style={{ width: `${dropW(d.w)}%`, height: "auto", opacity: 0, transform: "translate(-50%, -50%)" }} />
+      ))}
+      {P2D_FRONT.map(layer)}
+    </div>
+  );
 }
 
 /**
@@ -319,33 +374,32 @@ export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: num
 }
 
 /**
- * 对白分层样板：结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。
- * 不是打字机：原漫画、气泡轮廓和构图都不动，只把气泡里的旧字清掉（tools/replace_bubble_text.py --clean-only → p6e-clean.webp），
- * 对白换成透明字层 p6e-text.webp（同一套字形预先排好，不依赖浏览器字体；旧版用网页文字回退苹方加描边，和其它对白字形不一致）。
- * 播放（格子进入并稳定后，按真实时间）：
- *   1. 短暂停顿；
- *   2. 气泡以外的画面轻微降饱和、降对比（底图加 CSS filter）；气泡本身用精确的泡形遮罩（tools/dialogue_layers.py → p6e-bubble.webp，
- *      原图里泡的纸面 + 描边 + 尾巴）叠一份不加滤镜的原图，所以泡保持奶油白、不透明、清楚，分界沿着泡原来不规则的纸边；
- *   3. 整句对白在约半秒内从浅墨渐浓，一直清楚可读，不逐字跳出。
- * 进入稳定前气泡里是空的（反转对白不提前露出）。离场落到终态（降饱和 + 文字全显），复位回到原样（文字隐藏）。
- * 减少动态效果 / ?perf=0：直接显示完整原图（p6e.webp，字已排在图里）。不加发光、投影、抖动。
+ * 结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。2026-11-15 用 ChatGPT 的三张新帧做"蛋黄流动"（tools/prepare_p6e_flow.py，public/assets/comic-v5/p6e/）：
+ *   base = 04 帧（起点就是"已经流出来不少"，接得上上一格 p6d，泡里是空的）；patch2 / patch3 = 05（更多）/ 06（流成一滩）帧里"蛋黄流出处"的一块羽化椭圆（已配准到 04），其余画面永远是 04。
+ *   为什么不整张交叉淡入：三张是各自重新生成的，碗沿、米粒的线条有细小差异，整张淡入会出现重影；只换流出处的一块，别处纹丝不动。
+ *   蛋、蛋脸、碗都不动，只有蛋黄在流：从已经流出来不少，淌到更多（patch2 淡入 1.0 s），再淌成一滩（patch3 淡入 1.2 s），停在最远，不倒回去（用户 2026-11-15：上一格已经流出来不少，只能"更多"，不能先缩回去）。
+ * 对白：停顿 → 气泡以外的画面轻微降饱和、降对比（作用于底图和补丁）；泡本身用泡形遮罩（bubble.webp，alpha）叠一份不加滤镜的底图，保持奶油白；
+ * 对白字层（text.webp，旧字层按新泡外框缩放）整句约半秒内从浅墨渐浓。进入稳定前泡里是空的。
+ * 离场落到终态（降饱和 + 文字全显 + 蛋黄流到最远），复位回到原样。减少动态效果 / ?perf=0：直接显示终态静图（static.webp）。不加发光、投影、抖动。
  */
-const P3 = "/assets/comic-v3/";
+const P5 = "/assets/comic-v5/p6e/";
 const P6E_TEXT = "没事，是我拉肚子了。";
 const DIM = { saturate: 0.68, contrast: 0.9, brightness: 1.02 };
 export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  const base = useRef<HTMLImageElement>(null);
-  const text = useRef<HTMLImageElement>(null);
+  const art = useRef<HTMLDivElement>(null);
+  const els = useRef<Record<string, HTMLImageElement | null>>({});
   const tl = useRef<gsap.core.Timeline | null>(null);
-  const look = useRef({ dim: 0, ink: 0, show: 0 });
+  const look = useRef({ dim: 0, ink: 0, show: 0, f2: 0, f3: 0 });
   const apply = () => {
-    const { dim, ink, show } = look.current;
-    if (base.current) base.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
-    if (text.current) text.current.style.opacity = String(show * (0.22 + 0.78 * ink)); // 字是图层（tools/replace_bubble_text.py --text-layer），淡入就是透明度
+    const { dim, ink, show, f2, f3 } = look.current;
+    if (art.current) art.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
+    if (els.current.text) els.current.text.style.opacity = String(show * (0.22 + 0.78 * ink));
+    if (els.current.patch2) els.current.patch2.style.opacity = String(f2);
+    if (els.current.patch3) els.current.patch3.style.opacity = String(f3);
   };
-  const setLook = (v: { dim: number; ink: number; show: number }) => { look.current = { ...v }; apply(); };
-  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0 }); };
-  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1 }); };
+  const setLook = (v: { dim: number; ink: number; show: number; f2: number; f3: number }) => { look.current = { ...v }; apply(); };
+  const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0, f2: 0, f3: 0 }); };
+  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; setLook({ dim: 1, ink: 1, show: 1, f2: 1, f3: 1 }); };
   const play = () => {
     reset();
     const st = look.current;
@@ -353,22 +407,32 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
     t.to(st, { dim: 1, duration: 0.6, ease: "power1.inOut" }, 0); // 泡以外轻微降饱和、降对比
     t.to(st, { show: 1, duration: 0.12, ease: "none" }, 0.3); // 对白出现（浅墨）
     t.to(st, { ink: 1, duration: 0.5, ease: "power1.out" }, 0.3); // 从浅墨渐浓
+    t.to(st, { f2: 1, duration: 1.0, ease: "sine.inOut" }, 1.2); // 蛋黄接着往外淌
+    t.to(st, { f3: 1, duration: 1.2, ease: "sine.inOut" }, 2.4); // 淌成一滩，停住
     tl.current = t;
+    debugTl("p6e", t);
   };
   useStage(q, stage, animate, play, stop, reset);
-  if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
-  const img = "absolute inset-0 block h-full w-full select-none";
+  if (!animate) return <StaticImg src={`${P5}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
+  const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
+  const layer = (n: string, o: number) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P5}${n}.webp`} alt="" draggable={false} className={img} style={{ opacity: o }} />
+  );
   return (
-    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
+    <div className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
+      {/* 会被降饱和的部分：底图（04 帧）+ 蛋黄流出处的两块补丁 */}
+      <div ref={art} className="absolute inset-0">
+        {layer("base", 1)}
+        {layer("patch2", 0)}
+        {layer("patch3", 0)}
+      </div>
+      {/* 泡本身：同一张底图、不加滤镜，只露出泡形遮罩里的部分 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={base} src={`${P3}p6e-clean.webp`} alt="" draggable={false} className={img} />
-      {/* 泡本身：同一张图、不加滤镜，只露出泡形遮罩里的部分 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${P3}p6e-clean.webp`} alt="" draggable={false} className={img}
-        style={{ maskImage: `url(${P3}p6e-bubble.webp)`, WebkitMaskImage: `url(${P3}p6e-bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
-      {/* 新对白：和图里其它对白同一套字形（Lantinghei SC Heavy 排好的透明层），不依赖浏览器有没有这个字体 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={text} src={`${P3}p6e-text.webp`} alt={P6E_TEXT} draggable={false} className={`${img} pointer-events-none`} style={{ opacity: 0 }} />
+      <img src={`${P5}base.webp`} alt="" draggable={false} className={img}
+        style={{ maskImage: `url(${P5}bubble.webp)`, WebkitMaskImage: `url(${P5}bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
+      {layer("text", 0)}
+      <span className="sr-only">{P6E_TEXT}</span>
     </div>
   );
 }
