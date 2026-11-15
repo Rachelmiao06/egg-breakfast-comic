@@ -21,21 +21,23 @@
 
 场景 → 声音的对应表在 `src/components/kitchen/audio-map.json`（按场景编号覆盖节拍数据的 audio 字段，表里没有的场景沿用节拍数据原值；场景编号与 `src/app/preview/visual/beats.visual-v2.json` / `beats.visual.json` 一致）。单次音效的触发点可写成阶段符号（`enterEnd` / `actionEnd` / `holdEnd`，可带偏移），由混音器按当前节拍表的 phases 换算，新旧两版节拍共用一张表。
 音量是相对电平（0–1），素材本身已按 `tools/audio_build.sh` 处理（原档在 `tools/audio_raw/`，测量用 `tools/audio_measure.sh`；`tools/audio_render_demo.mjs` 可把整个故事离线混成一条音频 + mp4 供试听）。
-**空位 = 还没有音源，接口里已登记、保持静音；不要用不相关的声音填补。** 混音器只为 `audio-map.json` 的 `available` 列表里的 9 个声音（chop 循环换成了 chopHit）创建 `<audio>` 并请求文件，空位不发请求（没有 404）。补上文件后：放进本目录、加到 `available`、LICENSES.md 记一行、本表状态改为"已接入"。
+**空位 = 还没有音源，接口里已登记、保持静音；不要用不相关的声音填补。** 混音器只为 `audio-map.json` 的 `available` 列表里的 15 个声音（2026-11-14 晚：去掉 sauce 循环，加 eggHop / stirfryStir / sauceStir / pour）创建 `<audio>` 并请求文件，空位不发请求（没有 404）。补上文件后：放进本目录、加到 `available`、LICENSES.md 记一行、本表状态改为"已接入"。
 
 | 声音 id | 文件 | 方式 | 场景编号（音量 / 触发点） | 状态 |
 |---|---|---|---|---|
 | room | room-loop.mp3（40 s 循环） | 循环，全程 | opening/drop/chop/stirfry/sauce/handoff/bowl/yolk/return 0.2；bag/idea/missing 0.25；hear/catch 0.18；eggcall 0.08；search 0.06；对白留空间：call / recognize 停留阶段 0.2→0.14，punchline 0.2→0.12 | 已接入 |
-| sizzle | sizzle-loop.mp3（20 s 循环） | 循环，主要动作声 | opening 0.45；drop（仅 v2）动作阶段 0.45→0.2、停留 0.2（蛋跳到桌沿、厨房转为纸面）；bag 0.12；idea 0.1→停留阶段 0.05；chop 0.06；**stirfry 0.45（承担翻炒底声，待试听）**；sauce 0.08；missing 0.2→停留阶段 0.04（意外前的安静）；hear 进入阶段自动 0.04→0.6、停留阶段 0.6→0.3；catch 动作阶段 0.3→0.38 + 低通随 flight 从 1.5 kHz 开到 16 kHz（由远到近）；handoff 进入阶段 0.38→0 | 已接入 |
+| sizzle | sizzle-loop.mp3（20 s 循环） | 循环，主要动作声 | opening **0.32**（2026-11-14 从 0.45 降：房间声 + 轻滋滋声）；drop（仅 v2）动作阶段 0.32→0.2、停留 0.2；bag 0.12；idea 0.1→停留阶段 0.05；chop 0.06；**stirfry 0.1**（2026-11-14：不再拿开场滋滋声当翻炒，只是后景锅的远处底声）；sauce 0.08；missing 0.2→停留阶段 0.04；hear 进入阶段自动 0.04→0.6、停留阶段 0.6→0.3；catch 动作阶段 0.3→0.38 + 低通随 flight 从 1.5 kHz 开到 16 kHz；handoff 进入阶段 0.38→0 | 已接入 |
 | chop | chop-loop.mp3（6.5 s 循环） | 循环 | 2026-11-14 起不再使用：切菜格改为逐刀触发 chopHit | 文件保留，不加载 |
 | chopHit | chop-hit.mp3（0.26 s） | 单次，**由前景动画逐刀触发**（window 事件 `kitchen:oneshot`，detail.sound = "chopHit"） | chop 段落刀接触的那一帧，每刀一次（前景三刀）；电平 0.5 = 原来循环里每一刀 | 已接入（未试听） |
-| stirfryIn | stirfry-in.mp3（1.8 s） | 单次 | stirfry @ p=0.22（下锅"滋啦"） | 已接入 |
-| stirfry | stirfry-loop.mp3 | 循环 | 用户决定：翻炒复用 sizzle，不新增文件 | **空位**（永久） |
-| sauce | sauce-stir-loop.mp3（17.7 s 循环） | 循环，主要动作声 | sauce 0.4（调汁、盛饭） | 已接入 |
+| stirfryIn | stirfry-in.mp3（1.6 s，2026-11-14 换成"食材落锅 + 短暂滋啦"） | 单次，**由前景事件触发**（kitchen:oneshot stirfryIn） | p2d 第 2 帧（木铲把菜推下、落进锅；格子进入阅读位置后约 0.68 s）；去掉了 stirfry @0.22 的滚动触发 | 已接入（未试听） |
+| stirfryStir | stirfry-stir.mp3（3.2 s） | 一段动作，kitchen:action stirfry | **暂时静音**（2026-11-14 晚第二轮：p2e 翻炒格是静态图，没有可见的翻炒动作，不放连续刮锅声；audio-map cues.muted）。翻炒动画到位后从 muted 移回 cues.action | 文件保留，未接入 |
+| sauceStir | sauce-stir.mp3（2.6 s；旧的 sauce-stir-loop.mp3 循环不再加载） | 一段动作，**由前景事件开始 / 停止**（kitchen:action sauceStir） | p3a 两圈开始时响（约 0.31 s）、两圈转完（约 1.56 s）收住；离开时 0.2 s 淡出；电平 0.3 | 已接入（未试听） |
 | pop | pop.mp3（0.28 s） | 单次 | hear @ p=0.35（"啵！"，播放电平 0.5） | 已接入（2026-11-14，未试听） |
 | catch | catch.mp3（0.6 s） | 单次 | catch @ actionEnd（动作阶段结束 = 蛋落到空锅铲；v1 节拍 p=0.78，v2 p=0.80） | 已接入 |
-| bowlDown | bowl-down.mp3（1.1 s） | 单次 | bowl @ p=0.25（碗落桌） | 已接入 |
-| pour | pour.mp3 | 单次 | bowl @ p=0.55（淋汁） | **空位**（用户决定保持） |
+| eggHop | egg-hop.mp3（0.18 s） | 单次，**由 Egg 落回锅面那一帧触发**（kitchen:oneshot eggHop，surface = "pan"） | 开场蛋在锅里跳：每次落地一声很软的"噗"，两次至少隔 1.8 s，音高 ±6%、电平 ±1.5 dB 轻微变化；桌面上的跳不出声；电平 0.16 | 已接入（2026-11-14，未试听） |
+| eggRice | egg-rice.mp3（0.415 s） | 单次，comic:panel **p4b** start（铲子把蛋放到饭上） | p4b 到位后 0.05 s；比落铲更闷的一声 plop（与 catch 同一原档的第二声，2.5 kHz 低通）；从 20 ms 处开始播；电平 0.4 | 已接入（2026-11-14 晚，未经人耳试听） |
+| bowlDown | bowl-down.mp3（1.1 s） | 单次，comic:panel **p4e** start（妈妈把碗放到桌上，"宝宝，来吃饭啦！"） | p4e 到位后 0.2 s；从文件 55 ms 处开始播，碗碰桌落在事件后约 13 ms；电平 0.3。**只用于真正放碗的这一格** | 已接入（未经人耳试听） |
+| pour | pour.mp3（1.2 s，细细一股油流） | 一段动作，kitchen:action pour start / stop | 要求前景在液流出现 / 消失的帧派发；p4c 现在是静态图，没有这两个事件，**暂时不出声**（不再用固定延迟） | 文件就绪，等 p4c 动画（CC BY 4.0 需署名） |
 | momCall | mom-call.mp3 | 单次 | call @ p=0.25（"宝宝，来吃饭啦！"） | **空位**（用户决定：保留漫画文字，不配音） |
 | eggSmall | egg-small.mp3 | 单次 | call @ p=0.55、tablecall @ p=0.5（"我在这儿……"） | **空位**（同上） |
 | steps | footsteps-loop.mp3（7.56 s 循环） | 循环，主要动作声 | search：离开这一拍接上（@leave−0.08 → @leave，0→0.3），探头格 p5b 落定时（@peek±0.04）停下；eggcall：妈妈转身后由远到近 0→0.15、低通 700→3000 Hz；return：0.15→0.3、低通开到 16 kHz，回到碗前停下（audio-map 的 ramps / lowpass） | 已接入（未试听） |
@@ -43,6 +45,16 @@
 | eggCall | egg-call.mp3 | 单次 | eggcall @ p=0.25（"妈！这里！"，画面 p5d） | **空位**（同上） |
 
 旧版 9 段节拍表（`/`、`/dev/beats`）里与新故事同名的场景（opening/chop/stirfry/sauce/catch）也会套用上表的值；其余旧场景 notice/spatula/serve/ending 沿用 beats.json 原值。
+
+## 动作声跟画面（2026-11-14 晚）
+
+用户要求：滚动让镜头进入，动作和声音随后按真实时间一起播放；不能画面停了声音继续，也不能停滚就断。所以切菜、下锅、翻炒、调汁、淋汁、放碗、开场蛋跳都改成**前景事件触发**（`kitchen:oneshot` / `kitchen:action` / `comic:panel`，见 useKitchenAudio.ts 文件头），触发时刻由 PanelPerf / ComicLayer / Egg 的动画时间轴决定；对应的滚动触发和整段循环已去掉，同一动作不会响两遍。前景没派发事件时这些声音保持静音（不退回滚动触发）。接蛋 catch 仍按 @eggOnSpatula：蛋的飞行本身由滚动驱动，所以声音也跟滚动。
+
+## 接触声对齐（2026-11-14 晚第二轮）
+
+接触声从文件里"接触之前"的位置跳过（ONESHOTS.skip），让主要撞击落在事件后约 10 ms：chop-hit 0.030 s、catch 0.044 s、egg-rice 0.020 s、egg-hop 0.006 s、bowl-down 0.055 s，开头 3 ms 淡入防咔哒。
+校准实测（录音器注入 3 kHz 校准音对齐时钟，首尾漂移 < 3.5 ms；测的是混音器输出，不含扬声器设备延迟，Chrome 报告 outputLatency 27 ms + baseLatency 5 ms）：
+切菜刀碰案板在接触帧绘制前 1–4 ms（接触帧在事件后约 15.5 ms 绘制，撞击在事件后 12–14 ms）；catch 7 ms、egg-rice 9 ms、bowl-down 13 ms、egg-hop 6–11 ms。之前报告的 75–110 ms 主要是录音器时钟偏移（约 75 ms）+ chop-hit 刀碰案板在文件第 42 ms，不是混音器的延迟。
 
 ## 客观测量（2026-11-14，全部**未经人耳试听**）
 
