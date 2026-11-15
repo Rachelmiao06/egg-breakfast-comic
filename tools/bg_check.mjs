@@ -36,6 +36,12 @@ const profile = mkdtempSync(join(tmpdir(), "bg-check-"));
 const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
   "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--no-first-run", "--hide-scrollbars", "--mute-audio", "about:blank",
 ], { stdio: "ignore" });
+// 防止 Chrome 残留：退出、中断、出错都要关，并设总超时自毁
+const killChrome = () => { try { chrome.kill("SIGTERM"); } catch {} };
+process.on("exit", killChrome);
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => { killChrome(); process.exit(1); });
+process.on("uncaughtException", (e) => { console.error(e); killChrome(); process.exit(1); });
+setTimeout(() => { console.error("watchdog: 超过 10 分钟，强制退出"); killChrome(); process.exit(1); }, 10 * 60 * 1000).unref();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let list;
 for (let i = 0; i < 150; i++) { try { list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json(); if (list.some((t) => t.type === "page")) break; } catch {} await sleep(200); }
