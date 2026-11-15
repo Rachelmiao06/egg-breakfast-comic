@@ -19,6 +19,10 @@ import { REPLAY_EVENT } from "@/lib/replay";
  * 时间轴在 Lenis 的每帧 scroll 回调里更新；此时不再注册 window scroll 监听，保证只有一套。
  * smooth = false：原生滚动（旧版对比用）。
  */
+/** 一次甩出去的距离上限（vh）；读带格内动画的格子时用更小的上限 */
+const THROW_VH = 100;
+const THROW_READING_VH = 45;
+
 export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
   const { beats, setTimeline } = useScene();
   const last = useRef({ index: -1, p: -1 });
@@ -76,6 +80,22 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
         smoothWheel: true,
         syncTouch: false, // 触屏保留系统原生惯性
         anchors: true,
+        // 单次"甩"出去的距离上限（2026-11-15 用户：随便划两下，格子进得快出得也快，格内动画还没看到就过去了）：
+        // 已经排队等着滚的距离超过上限时，同方向的新滚轮增量不再累加（吞掉，同时挡住浏览器原生滚动）。
+        // 平时最多一次甩出 THROW_VH；正在读带格内动画的格子（节拍表有 readS，进入/停留阶段）时更紧，只能一小段一小段地走。
+        // 这不是吸附也不是劫持：用户随时可以继续滚，只是一次甩不过一整段故事。
+        virtualScroll: ({ deltaY, event }) => {
+          const l = lenis;
+          if (!l || deltaY === 0) return true;
+          const vhPx = window.innerHeight / 100;
+          const ahead = l.targetScroll - l.animatedScroll;
+          if (Math.sign(ahead) !== Math.sign(deltaY)) return true; // 反向永远放行（马上能掉头）
+          const cur = locate(l.animatedScroll / vhPx, beats);
+          const reading = (cur.beat as { readS?: number }).readS && (cur.phase === "enter" || cur.phase === "hold");
+          if (Math.abs(ahead) < (reading ? THROW_READING_VH : THROW_VH) * vhPx) return true;
+          if (event.cancelable) event.preventDefault();
+          return false;
+        },
       });
       lenis.on("scroll", () => {
         if (raf) cancelAnimationFrame(raf);

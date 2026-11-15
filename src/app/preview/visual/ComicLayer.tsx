@@ -209,7 +209,10 @@ const hOf = (p: PanelSpec, w: number, vw: number, vh: number) => ((w * vw) / 100
  */
 function fitPlaces(list: PanelSpec[], vw: number, vh: number, bottom: number): Record<string, Place> {
   const k = Math.min(1.6, Math.max(1, 1.6 / (vw / vh)));
-  const base = list.map((p) => ({ p, x: 50 + (p.x + p.w / 2 - 50) * k - (p.w * k) / 2, y: p.y, w: p.w * k }));
+  // 整组按 k 放大时，纵向位置也要绕本组中心同比例放大（原来只放大宽度，y 不动，格子变高就压到下面的格子上：2026-11-15 宽屏截图里两格叠在一起）
+  const top0 = Math.min(...list.map((p) => p.y)), bot0 = Math.max(...list.map((p) => p.y + hOf(p, p.w, vw, vh)));
+  const cy0 = (top0 + bot0) / 2;
+  const base = list.map((p) => ({ p, x: 50 + (p.x + p.w / 2 - 50) * k - (p.w * k) / 2, y: cy0 + (p.y - cy0) * k, w: p.w * k }));
   let minY = Infinity, maxY = -Infinity, minX = Infinity, maxX = -Infinity;
   for (const b of base) {
     minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y + hOf(b.p, b.w, vw, vh));
