@@ -205,10 +205,10 @@ export function trajFoot(T: EggTraj, s: number): Pt {
   const k = clamp01(s);
   const { L, M, E, R, C } = T;
   if (k <= T.sM) {
-    // L → M：超人式的一条弧线（不是抛物线跳）：起步沿水平掠过去，随后顺势转弯向上，到 M 时正好竖直向上，
-    // 与 M → E 的竖直上升速度方向连续。二次贝塞尔，控制点 = (M.x, L.y)
+    // L → M：超人式的一条上卷弧线（不平飞、不是抛物线跳）：起步就斜着向上，随后越转越竖，到 M 时正好竖直向上，
+    // 与 M → E 的竖直上升速度方向连续。二次贝塞尔，控制点 = (M.x, M.y + FLY_F·(L.y − M.y))（FLY_F 越小起步越陡）
     const u = k / T.sM, e = flyEase(u);
-    const C = { x: M.x, y: L.y };
+    const C = { x: M.x, y: M.y + FLY_F * (L.y - M.y) };
     return { x: (1 - e) ** 2 * L.x + 2 * (1 - e) * e * C.x + e * e * M.x, y: (1 - e) ** 2 * L.y + 2 * (1 - e) * e * C.y + e * e * M.y };
   }
   if (k <= T.sE) { const u = (k - T.sM) / (T.sE - T.sM); return { x: M.x + (E.x - M.x) * u, y: M.y + (E.y - M.y) * u }; }
@@ -217,15 +217,17 @@ export function trajFoot(T: EggTraj, s: number): Pt {
   return { x: R.x + (C.x - R.x) * u, y: R.y + (C.y - R.y) * u * u };
 }
 /** 平飞段的参数：匀速为主，起步和收尾各缓一点 */
+const FLY_F = 0.1;
 const flyEase = (u: number) => u * u * (3 - 2 * u) * 0.35 + u * 0.65;
 function trajPose(T: EggTraj, s: number): Pose {
   const f = trajFoot(T, s);
   const u = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
-  // 平飞（L → M）：身体顺着弧线的切线倾斜（头朝前，起步近乎水平、最多 80°，转弯后逐渐回正到竖直），起飞瞬间从 0 缓入
+  // 平飞（L → M）：身体顺着弧线的切线倾斜（头朝前，起步斜向上、最多 80°，转弯后逐渐回正到竖直），起飞瞬间从 0 缓入
   let lean = 0;
   if (s < T.sM) {
     const v = s / T.sM, e = flyEase(v);
-    const tx = (1 - e) * (T.M.x - T.L.x), ty = e * (T.M.y - T.L.y); // 切线 ∝ (1−e)(C−L) + e(M−C)，C = (M.x, L.y)
+    const cy = T.M.y + FLY_F * (T.L.y - T.M.y);
+    const tx = (1 - e) * (T.M.x - T.L.x), ty = (1 - e) * (cy - T.L.y) + e * (T.M.y - cy); // 切线 ∝ (1−e)(C−L) + e(M−C)
     const ang = Math.max(-80, Math.min(80, (Math.atan2(tx, -ty) * 180) / Math.PI));
     const q = Math.min(1, v / 0.1);
     lean = ang * q * q * (3 - 2 * q);
