@@ -211,7 +211,7 @@ function hopBetween(A: Pt, B: Pt, t: number, scaleA: number, scaleB: number, lif
  */
 export function trajFoot(T: EggTraj, s: number): Pt {
   const k = clamp01(s);
-  const { L, M, E, R, C } = T;
+  const { L, M, R, C } = T;
   if (k <= T.sM) {
     // L → M：抛物线（用户要的就是抛物线，不是平飞）：x 匀速、y 在 L → M 的直线上再叠一个向上的拱（4u(1−u)·H），
     // 身体顺着切线倾斜（见 trajPose）
