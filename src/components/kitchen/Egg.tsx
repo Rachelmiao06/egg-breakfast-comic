@@ -97,8 +97,16 @@ export const HANDOFF = { straighten: [0, 0.35], panelIn: [0.47, 0.5], swap: 0.5,
  * box：表情图在蛋的布局框（eggSize，脚底 = 底边中点）里的位置和大小（场景像素）。表情图的身体姿态和透明边距
  * 与原图不同时用它把图里的接触点放到脚底、外轮廓宽度对齐原图；不给就和原图一样铺满布局框。
  */
-export type EggFaces = { fly?: string | null; rest?: string | null; box?: { left: number; top: number; width: number; height: number } };
-type Face = "base" | "fly" | "rest";
+export type EggFaces = {
+  fly?: string | null;
+  rest?: string | null;
+  box?: { left: number; top: number; width: number; height: number };
+  /** 超人飞行姿势（朝右上；水平镜像后用于 L → M → E 的抛物线）：图、摆放框（蛋布局框像素）、镜像轴（质心，图内百分比） */
+  soar?: string | null;
+  soarBox?: { left: number; top: number; width: number; height: number };
+  soarPivot?: [number, number];
+};
+type Face = "base" | "fly" | "rest" | "soar";
 export type EggTraj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number };
 const span = (v: number, [a, b]: readonly [number, number]) => clamp01((v - a) / (b - a));
 export const DEFAULT_EGG_ANCHORS: EggAnchors = {
@@ -218,6 +226,8 @@ export function trajFoot(T: EggTraj, s: number): Pt {
   return { x: R.x + (C.x - R.x) * u, y: R.y + (C.y - R.y) * u * u };
 }
 /** 平飞段的参数：匀速为主，起步和收尾各缓一点 */
+/** 抛物线飞行时身体倾斜的倍数：超人姿势图本身已朝飞行方向倾斜，切线只再叠加一部分 */
+const LEAN = 0.35;
 /** 抛物线拱高（场景像素）：随水平距离，至少 40 */
 const flyArch = (T: EggTraj) => 40 + 0.25 * Math.abs(T.M.x - T.L.x);
 function trajPose(T: EggTraj, s: number): Pose {
@@ -230,7 +240,7 @@ function trajPose(T: EggTraj, s: number): Pose {
     const tx = T.M.x - T.L.x, ty = T.M.y - T.L.y - 4 * (1 - 2 * v) * flyArch(T);
     const ang = Math.max(-80, Math.min(80, (Math.atan2(tx, -ty) * 180) / Math.PI));
     const sm = (q: number) => { const c = clamp01(q); return c * c * (3 - 2 * c); };
-    lean = ang * sm(v / 0.1) * (1 - sm((v - 0.85) / 0.15));
+    lean = LEAN * ang * sm(v / 0.1) * (1 - sm((v - 0.85) / 0.15));
   }
   return { x: f.x - REST.x, y: f.y - REST.y, scale: T.scaleL + (T.scaleC - T.scaleL) * u, rotation: T.tiltC * u + lean };
 }
@@ -379,6 +389,8 @@ function createJumpController(env: JumpEnv) {
       st.stepT = now;
     }
     const p = trajPose(T, x);
+    // 腾空：L → M → E（出画前）用超人飞行姿势，之后（R → C，朝妈妈下落）换回 fly 图
+    env.live.current.setFace(x < T.sE && !env.live.current.reduced ? "soar" : "fly");
     gsap.set(w, { x: p.x, y: p.y, scale: p.scale, rotation: p.rotation, transformOrigin: "50% 100%", overwrite: true });
     dotAt(p.x + REST.x, p.y + REST.y);
   };
@@ -550,11 +562,12 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   // ---- 表情：直接切换（不做交叉淡化，任何时刻只显示一张脸） ----
   // fly：接蛋飞行途中（滚动控制）；rest：由落铲那一次真实时间事件在压缩到底时切换，不跟滚动快慢走；其余用原图
   const faceNow = useRef<Face>("base");
+  const soarImgRef = useRef<HTMLImageElement>(null);
   const restArmed = useRef(false); // 本次落铲事件已切到 rest
   const setFace = (f: Face) => {
     const want: Face = f !== "base" && !faces?.[f] ? "base" : f;
     faceNow.current = want;
-    const els: [Face, HTMLImageElement | null][] = [["base", baseImgRef.current], ["fly", flyImgRef.current], ["rest", restImgRef.current]];
+    const els: [Face, HTMLImageElement | null][] = [["base", baseImgRef.current], ["fly", flyImgRef.current], ["rest", restImgRef.current], ["soar", soarImgRef.current]];
     for (const [k, el] of els) if (el) el.style.visibility = k === want ? "visible" : "hidden";
   };
   const onSpatula = P.station === "spatula";
@@ -803,6 +816,10 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           {faces?.fly && (
             // eslint-disable-next-line @next/next/no-img-element
             <img ref={flyImgRef} src={faces.fly} alt="" draggable={false} className={`absolute select-none ${faces.box ? "" : "inset-0 h-full w-full"}`} style={{ visibility: "hidden", maxWidth: "none", ...faces.box }} />
+          )}
+          {faces?.soar && faces.soarBox && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img ref={soarImgRef} src={faces.soar} alt="" draggable={false} className="absolute select-none" style={{ visibility: "hidden", maxWidth: "none", ...faces.soarBox, transform: "scaleX(-1)", transformOrigin: `${faces.soarPivot?.[0] ?? 50}% ${faces.soarPivot?.[1] ?? 50}%` }} />
           )}
           {faces?.rest && (
             // eslint-disable-next-line @next/next/no-img-element

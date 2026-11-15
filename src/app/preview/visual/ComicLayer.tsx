@@ -144,7 +144,7 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
 }
 
 /**
- * 蛋从漫画格右上角后面偷偷、慢慢探出头（egg-peek.webp = egg-on-panel 去掉手臂、只留上 70%，底边是平切的，
+ * 蛋从漫画格右上角后面偷偷、慢慢探出头（egg-peek.webp = pose-set-v2 05-peeking/variant-01（偷看、眼睛朝右；tools/prepare_poses.py 抠图并去掉底部小手），底边是平切的，
  * 所以必须一直藏在格子后面：最高探到蛋图底边刚好在格子上沿以下）。画格有 overflow: hidden，所以蛋是格子旁边的独立元素
  * （DOM 里排在格子前面 = 画在格子后面），位置按格子的 pos / dy 算（vw / vh）。
  * 纵深：① 蛋在墙上的投影（drop-shadow，蛋离开墙面一点）；② 格子在蛋身上的投影（同一张图压暗、按高度渐隐，
@@ -152,7 +152,7 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
  * 探头：向右倾 PEEK.tilt 度（身体朝角外探），0 → 探出 1.8 s 缓出，离场 0.3 s 缩回；探出后轻微起伏。
  */
 const PERCH_PANEL = "p1b"; // bag 段右侧小格：上方没有别的格子，蛋有地方；也就是“袋子”那格
-const PEEK = { cx: 0.64, width: 0.62, aspect: 900 / 493, tilt: 6, sink: 0.045 };
+const PEEK = { cx: 0.64, width: 0.5, aspect: 1.5651, tilt: 6, sink: 0.045 };
 function PerchEgg({ pos, dy, show }: { pos: Place; dy: number; show: boolean }) {
   const eggH = (pos.w * PEEK.width) / PEEK.aspect; // 蛋高（vw）
   const rest = 100 - (PEEK.sink * pos.w * 100) / eggH; // 探出后的 translateY 百分比（蛋底边下沉 sink·格宽）

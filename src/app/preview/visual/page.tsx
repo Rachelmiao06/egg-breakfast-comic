@@ -146,7 +146,7 @@ function StageV2() {
             </>
           }
         >
-          <KitchenCharacters eggAnchors={anchors} eggFaces={eggFacesFor(cfg)} direct />
+          <KitchenCharacters eggAnchors={anchors} eggFaces={{ ...eggFacesFor(cfg), soar: BG.anchors.eggSoar.src, soarBox: BG.anchors.eggSoar.box, soarPivot: BG.anchors.eggSoar.pivot as [number, number] }} direct />
         </KitchenScene>
       </div>
       <SearchBackdrop />

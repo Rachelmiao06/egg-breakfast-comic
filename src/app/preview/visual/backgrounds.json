@@ -440,6 +440,21 @@
     "climbDy": 100,
     "climbLift": 150
    }
+  },
+  "eggSoar": {
+   "src": "/assets/scene/egg-soar.webp",
+   "box": {
+    "left": -37.0,
+    "top": -36.1,
+    "width": 487.1,
+    "height": 487.1
+   },
+   "pivot": [
+    48.05,
+    47.14
+   ],
+   "lean": 0.35,
+   "note": "超人飞行姿势（tools/prepare_poses.py 从 pose-set-v2/03-super-flight/variant-02 抠出并和原蛋按面积、质心对齐；box = 蛋布局框像素）。画面朝右上，页面里按质心水平镜像，用于篮沿 → 妈妈视线点（L → M → E）；之后接蛋下落（R → C）换回 fly 图。姿势本身已有倾斜，轨迹切线的倾斜只叠加 lean 倍"
   }
  },
  "eggPath": {
