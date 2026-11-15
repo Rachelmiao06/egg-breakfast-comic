@@ -11,7 +11,10 @@
  * activePanel / progress / flight / serve 由 derive(timeline) 推导，本组件不写任何共享状态，也不播放声音。
  * reducedMotion：只淡入淡出，不位移、不漂浮。
  */
+import { useEffect, useRef } from "react";
+import gsap from "gsap";
 import { envelope, phaseProgress } from "@/lib/beats";
+import { getScrollVelocity } from "@/lib/scroll-velocity";
 import { MOM_PANELS } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 
@@ -25,27 +28,61 @@ const PANELS: { id: keyof typeof MOM_PANELS; className: string }[] = [
   { id: "sauce", className: "left-[6%] bottom-[12%] sm:left-[10%]" },
 ];
 
+/** 缓动：进入减速（power3.out），退出加速（power2.in）——对应 docs/SCROLL-DESIGN.md 3.2 */
+const easeOut3 = (x: number) => 1 - Math.pow(1 - x, 3);
+const easeIn2 = (x: number) => x * x;
+
 const FONT = '"PingFang SC","Hiragino Sans GB",system-ui,sans-serif';
 
 export default function ComicScroll() {
   const { timeline: t, reducedMotion } = useScene();
+  const root = useRef<HTMLDivElement>(null);
+
+  // 跟手余韵：滚动速度映射成最多 ±0.8° 的倾角，停手后随速度衰减回正；直接写 DOM，不触发 React 重渲染
+  useEffect(() => {
+    if (reducedMotion) return;
+    const tilt = (time: number) => {
+      void time;
+      const el = root.current;
+      if (!el) return;
+      const deg = Math.max(-0.8, Math.min(0.8, getScrollVelocity() * 0.012));
+      el.style.setProperty("--tilt", `${deg.toFixed(3)}deg`);
+    };
+    gsap.ticker.add(tilt);
+    return () => gsap.ticker.remove(tilt);
+  }, [reducedMotion]);
 
   return (
-    <div aria-label="comic" className="pointer-events-none fixed inset-0 z-10">
+    <div ref={root} aria-label="comic" className="pointer-events-none fixed inset-0 z-10">
       <style>{`@keyframes comic-panel-float{from{transform:translateY(-3px)}to{transform:translateY(3px)}}`}</style>
 
       {PANELS.map(({ id, className }) => {
-        const env = envelope(t, id);
-        if (env <= 0) return null;
+        const raw = envelope(t, id);
+        if (raw <= 0) return null;
+        const entering = t.beat.id === id && t.phase === "enter";
+        const exiting = t.beat.id === id && t.phase === "exit";
+        // 进入：先快后慢；退出：先慢后快
+        const env = entering ? easeOut3(raw) : exiting ? 1 - easeIn2(1 - raw) : raw;
         const img = MOM_PANELS[id];
         // 进入阶段从下方 28px 上浮到位；退出阶段再上飘 16px
-        const rise = reducedMotion || t.beat.id !== id ? 0 : t.phase === "enter" ? (1 - t.phaseP) * 28 : t.phase === "exit" ? -t.phaseP * 16 : 0;
+        const inP = entering ? 1 - easeOut3(t.phaseP) : 0; // 1 → 0
+        const outP = exiting ? easeIn2(t.phaseP) : 0; // 0 → 1
+        const rise = reducedMotion ? 0 : inP * 56 - outP * 40;
+        const scale = reducedMotion ? 1 : 1 - inP * 0.06 + outP * 0.03;
+        const blur = reducedMotion ? 0 : inP * 6 + outP * 4;
+        const rot = reducedMotion ? 0 : inP * (id === "stirfry" ? 1.6 : -1.6) + outP * (id === "stirfry" ? -0.8 : 0.8);
         return (
           <div
             key={id}
             data-panel={id}
             className={`absolute ${className} max-w-[min(88vw,620px)]`}
-            style={{ height: "min(70svh, 620px)", opacity: env, transform: `translateY(${rise}px)`, willChange: "opacity, transform" }}
+            style={{
+              height: "min(70svh, 620px)",
+              opacity: env,
+              transform: `translate3d(0, ${rise.toFixed(2)}px, 0) rotate(calc(${rot.toFixed(3)}deg + var(--tilt, 0deg))) scale(${scale.toFixed(4)})`,
+              filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined,
+              willChange: "opacity, transform, filter",
+            }}
           >
             <div
               data-panel-float
