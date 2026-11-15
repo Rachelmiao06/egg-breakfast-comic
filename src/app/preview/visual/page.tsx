@@ -99,6 +99,7 @@ function StageV2() {
     tableAt,
     tableWait: tableAt.hear,
     eggAtTable: eggAtTableFor(cfg),
+    hideDuring: vp.portrait ? undefined : "bag", // bag 段蛋趴在 p1b 的上沿（ComicLayer PerchEgg），桌上的蛋让位；竖屏没有位置，不换
     // 高跳之后的空中站点：画面上缘之外、铲面右上方（接蛋时从这里落到铲面）
     // 高跳轨迹 P(s)：L（右侧桌面）→ M（妈妈视线相遇点）→ E（出画）→ R（铲面右上方、catch 取景上缘外）→ C（铲面接触点）（eggPath.trajectoryFor，docs/EGG-JUMP.md）
     traj: trajectoryFor(cfg, vp, camAt(gOf("hear", 0.6), vp.w, vp.h), catchView(vp.w, vp.h), tableAt.hear),

@@ -50,6 +50,8 @@ export type EggAnchors = {
   spatulaLand: Pt;
   bowlLand: Pt;
   eggAtTable: number;
+  /** 可选：这一段（beat id）桌上的蛋让位给漫画格上的趴蛋（ComicLayer PerchEgg）：进入阶段淡出、停留隐藏、退出阶段淡回 */
+  hideDuring?: string;
   /** 可选：深色墨线描边（蛋图自己的轮廓是金色细线，和背景里胡萝卜、葱的深棕黑描边不是一个画风）；px 是蛋图原始像素（随蛋缩放） */
   ink?: { color: string; px: number };
   eggOnSpatula: number;
@@ -286,6 +288,7 @@ function plan(t: Timeline, beats: Beat[], a0: EggAnchors): Plan {
         return { pose: hopBetween(from, to, k, a.eggAtTable * (from.d ?? 1), a.eggAtTable * (to.d ?? 1), 42 * Math.min(from.d ?? 1, to.d ?? 1), to.x > from.x ? 7 : -7), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest };
       }
       const P = base("table", b.egg === "ready" ? "ready" : "table", Z.eggOnTable);
+      if (a.hideDuring && b.id === a.hideDuring) P.opacity = t.phase === "enter" ? 1 - clamp01(t.phaseP / 0.5) : t.phase === "exit" ? clamp01((t.phaseP - 0.4) / 0.6) : 0;
       P.rest = rest;
       P.landing = "table"; // 换站后第一次停下：一次落地回弹（同一站上来回滚动不重播）
       if (b.egg === "ready") P.settle = exiting; // 环境段：桌沿蓄力（真实时间：压低、左右扭、准备跳），离开前收住
