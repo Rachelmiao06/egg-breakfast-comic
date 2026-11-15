@@ -56,7 +56,9 @@ export type Puffs = {
   /** 整团被鼠标推开：半径（屏幕像素）、最大位移（原格像素） */
   push: { radius: number; px: number };
 };
-export type IdleLayer = Wave | Sway | Puffs;
+/** 一次性缩回：进入阅读位 delay 秒后，部件绕支点转一点、缩小、淡出（像蛋把手收回身体里），之后一直保持；离开阅读位才复原 */
+export type Tuck = { kind: "tuck"; id: string; pivot: [number, number]; delay: number; duration: number; rotate: number; scale: number };
+export type IdleLayer = Wave | Sway | Puffs | Tuck;
 export type IdleSpec = {
   /** 原格像素尺寸 */
   canvas: [number, number];
@@ -85,6 +87,23 @@ export const IDLE: Record<string, IdleSpec> = {
     canvas: [479, 349],
     base: true,
     layers: [{ kind: "wave", id: "arm", pivot: [296, 184], amp: 12, swings: 4, swing: 0.27, rest: [1.8, 2.8], first: 0.5 }],
+  },
+  // 担心格：妈妈喊"蛋黄都流出来了"时，蛋举着的小手慢慢缩回身体里（不再挥手，情绪对得上）
+  p6d: {
+    canvas: [987, 360],
+    base: true,
+    layers: [{ kind: "tuck", id: "arm", pivot: [483, 255], delay: 1.1, duration: 0.9, rotate: 35, scale: 0.15 }],
+  },
+  // 墙上架子的藤蔓：整串叶子绕盆沿的支点轻摆（周期 4.9 / 5.6 秒，和卧室的不同步）
+  p5a: {
+    canvas: [475, 474],
+    base: true,
+    layers: [{ kind: "sway", id: "vine", pivot: [115, 50], home: [135, 120], amp: 1.5, period: 4.9, phase: 0.4, lean: 0.05, maxLean: 2, push: { radius: 240, deg: 2.4, dir: -1 } }],
+  },
+  p5f: {
+    canvas: [478, 500],
+    base: true,
+    layers: [{ kind: "sway", id: "vine", pivot: [75, 45], home: [100, 110], amp: 1.6, period: 5.6, phase: 1.9, lean: 0.05, maxLean: 2, push: { radius: 240, deg: 2.4, dir: -1 } }],
   },
   // 卧室：窗帘轻摆（上端钉在窗帘杆上）、两盆植物更小的摆。周期互不相同（6.3 / 5.2 / 4.4 / 3.7 秒）
   p5c: {

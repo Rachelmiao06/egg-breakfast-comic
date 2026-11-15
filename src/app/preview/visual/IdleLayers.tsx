@@ -64,6 +64,10 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
       if (L.kind === "wave") {
         gsap.set(el, { transformOrigin: origin(L.pivot) });
         stops.push(runWave(L, el));
+      } else if (L.kind === "tuck") {
+        gsap.set(el, { transformOrigin: origin(L.pivot) });
+        const t = gsap.to(el, { rotation: L.rotate, scale: L.scale, opacity: 0, duration: L.duration, delay: L.delay, ease: "power2.in" });
+        stops.push(() => t.kill());
       } else if (L.kind === "sway") {
         gsap.set(el, { transformOrigin: origin(L.pivot) });
         sways.push({ L, el, x: 0, v: 0 });
@@ -111,6 +115,7 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
       // 落回静止姿态（= 原格）：热气团直接隐藏，其余缓缓收回
       for (const el of touched) {
         if (el.dataset.kind === "puffs") { el.querySelectorAll("[data-puff]").forEach((p) => gsap.set(p, { opacity: 0 })); gsap.set(el, { x: 0 }); }
+        else if (el.dataset.kind === "tuck") gsap.set(el, { rotation: 0, scale: 1, opacity: 1 });
         else gsap.to(el, { rotation: 0, duration: 0.35, ease: "power2.out", overwrite: true });
       }
     };
@@ -148,7 +153,7 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
           );
         }
         // eslint-disable-next-line @next/next/no-img-element
-        return <img key={L.id} ref={refFor(L.id)} src={layerSrc(k, L.id)} alt="" draggable={false} className={imgCls} style={{ willChange: "transform" }} />;
+        return <img key={L.id} ref={refFor(L.id)} data-kind={L.kind} src={layerSrc(k, L.id)} alt="" draggable={false} className={imgCls} style={{ willChange: "transform" }} />;
       })}
     </div>
   );

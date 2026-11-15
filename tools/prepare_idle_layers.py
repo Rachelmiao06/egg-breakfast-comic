@@ -38,6 +38,18 @@ SPEC = {
         dict(id="arm", poly=[(308, 130), (316, 124), (330, 122), (343, 126), (348, 136), (346, 148), (338, 153), (327, 157), (318, 172), (308, 187), (300, 192), (291, 184), (290, 174), (305, 155), (309, 146), (308, 138)],
              fade=((296, 184), (312, 160), 9)),
     ]),
+    # 担心格：蛋举着的小手（妈妈在喊"蛋黄都流出来了"，蛋不该还在挥手）；网页里手臂缩回蛋身
+    "p6d": dict(parts=[
+        dict(id="arm", poly=[(488, 231), (497, 229), (504, 233), (505, 241), (500, 246), (496, 250), (491, 257), (485, 259), (481, 254), (482, 249), (489, 244), (487, 237)],
+             fade=((483, 255), (493, 245), 5)),
+    ]),
+    # 植物（第二批；p1a 的植物压在花盆和柜子前面，抠掉后补不出像样的底，没做）：多边形只给大范围，真正的叶子形状由颜色筛出来（叶子饱和、色相偏黄绿；背景奶油色 / 淡绿墙饱和度低；木头和盆沿色相偏橙）
+    "p5a": dict(parts=[
+        dict(id="vine", color=True, poly=[(98, 10), (130, 8), (170, 30), (172, 110), (168, 232), (100, 232), (98, 130), (90, 100), (98, 70), (92, 40)]),
+    ]),
+    "p5f": dict(parts=[
+        dict(id="vine", color=True, poly=[(62, 15), (95, 5), (125, 35), (135, 75), (138, 206), (75, 206), (80, 130), (72, 95), (68, 60), (60, 40)]),
+    ]),
     # 卧室：左右窗帘（上端钉在窗帘杆上，下摆摆）、两盆植物
     "p5c": dict(parts=[
         dict(id="curtainL", poly=[(206, 29), (250, 28), (251, 60), (246, 100), (240, 125), (236, 138), (233, 150), (238, 170), (240, 196), (212, 198), (208, 175), (213, 150), (214, 138), (209, 120), (206, 80)]),
@@ -54,6 +66,16 @@ def mask_from_poly(shape, poly, feather=0.8):
     cv2.fillPoly(big, [np.array(poly, np.int32) * SS], 255)
     m = cv2.resize(big, (w, h), interpolation=cv2.INTER_AREA).astype(np.float32) / 255
     return cv2.GaussianBlur(m, (0, 0), feather)
+
+
+def leaf_mask(rgb):
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    h, sat, v = hsv[..., 0].astype(int), hsv[..., 1].astype(int), hsv[..., 2].astype(int)
+    green = (h >= 24) & (h <= 62)
+    m = (green & (sat > 105)) | (green & (v < 120) & (sat > 60))
+    m = cv2.morphologyEx(m.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    m = cv2.dilate(m, np.ones((3, 3), np.uint8), iterations=2)  # 把叶子外圈的浅色描边 / 抗锯齿带上
+    return cv2.GaussianBlur(m.astype(np.float32), (0, 0), 0.7)
 
 
 def lines_mask(rgb, bbox, thr, exclude_mask):
@@ -82,6 +104,8 @@ def run(key, spec, preview):
     for p in spec["parts"]:
         if "poly" in p:
             m = mask_from_poly(rgb.shape, p["poly"])
+            if p.get("color"):
+                m = m * leaf_mask(rgb)
             if "fade" in p:
                 m = m * fade_ramp(rgb.shape, p["fade"])
             masks[p["id"]] = m
