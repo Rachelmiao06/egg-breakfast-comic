@@ -18,7 +18,7 @@ import type { Beat, Timeline } from "@/lib/beats";
 import musicMap from "./music-map.json";
 
 const DIR = "/assets/audio/music/";
-export const STEM_NAMES = ["home-pad", "home-pluck", "home-bass", "home-drums", "home-melody", "home-sparkle", "tender", "curious", "empty"] as const;
+export const STEM_NAMES = ["jazz", "home-pad", "home-pluck", "home-bass", "home-drums", "home-melody", "home-sparkle", "tender", "curious", "empty"] as const;
 type Stem = (typeof STEM_NAMES)[number];
 type At = number | string;
 type MusicRamp = { sound: string; from: number; to: number; start: At; end: At };
@@ -39,7 +39,7 @@ const STINGER_SOUNDS = ["missing-q", "catch-chord", "yolk-ooze", "punch-dum", "e
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
 const LEVEL_TC = 0.35;
 /** 配乐总线整体电平（相对 stem 的 -20 LUFS；各场景电平再乘它） */
-const BUS = 0.8;
+const BUS = 0.9;
 /** 音乐事件（也算"音效"，要比配乐大：不经配乐总线，直接进输出，所以不吃 BUS 的衰减） */
 const STINGER_TRIM = 1.0;
 /** 人声（语气词）直接进输出，不经过配乐总线（总线 0.6 会让它低于配乐床约 2 dB，听不出来——2026-11-15 用户反馈）；相对电平再乘它 */

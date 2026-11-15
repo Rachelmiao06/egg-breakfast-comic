@@ -15,6 +15,9 @@ const CREDITS = [
   { title: "Stir fry 07", author: "LG", url: "https://freesound.org/people/LG/sounds/77923/", use: "配菜落锅" },
   { title: "Pouring oil (SoundAction 072)", author: "alexarje", url: "https://freesound.org/people/alexarje/sounds/721754/", use: "淋汁" },
 ];
+/** 背景音乐（CC BY 3.0，要求署名）：Kevin MacLeod，incompetech.com */
+const MUSIC_CREDIT = { title: "Jazz Brunch", author: "Kevin MacLeod", url: "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700074" };
+const CC_BY_3 = "https://creativecommons.org/licenses/by/3.0/";
 const CC_BY = "https://creativecommons.org/licenses/by/4.0/";
 
 export default function SoundToggle() {
@@ -60,6 +63,10 @@ export default function SoundToggle() {
             </li>
           ))}
         </ul>
+        <p className="mt-1.5">
+          背景音乐：<a href={MUSIC_CREDIT.url} target="_blank" rel="noopener noreferrer" className="underline decoration-ink/30 underline-offset-2">“{MUSIC_CREDIT.title}”</a>，作者 {MUSIC_CREDIT.author}（incompetech.com），
+          <a href={CC_BY_3} target="_blank" rel="noopener noreferrer" className="underline decoration-ink/30 underline-offset-2">CC BY 3.0</a>，已裁剪并做成循环、调整响度。
+        </p>
         <p className="mt-1.5 text-ink/60">其余音效来自 Freesound（CC0）、Pixabay、Mixkit 的免费素材。</p>
       </div>
     )}
