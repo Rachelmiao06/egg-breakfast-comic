@@ -77,6 +77,36 @@ function FlightGuides({ wait, apexY, easeX }: { wait: Pt; apexY: number; easeX: 
   );
 }
 
+/** 镜头取景参考点（backgrounds.json cameraFrames，?frames=1）：备菜站点、L → 眼睛高度 → M → E 的弧线、R → C（铲面落点） */
+function CameraFrameGuides() {
+  const { cfg } = useSlots();
+  const F = cfg.narrow ? BG.cameraFrames.portrait : BG.cameraFrames.landscape;
+  const C = landPoint(cfg.scene.catch);
+  const [L, M, E, R] = [F.L, F.M, F.E, F.R];
+  const q = (a: number[], c: number[], b: number[]) => `M ${a[0]} ${a[1]} Q ${c[0]} ${c[1]} ${b[0]} ${b[1]}`;
+  const dot = (p: number[], label: string, color: string) => (
+    <g key={label}>
+      <circle cx={p[0]} cy={p[1]} r={11} fill={color} />
+      <text x={p[0] + 16} y={p[1] + 7} fill={color} fontSize={26} fontFamily="monospace" fontWeight="bold">{label}</text>
+    </g>
+  );
+  return (
+    <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width={1} height={1} style={{ zIndex: 97 }}>
+      <line x1={0} y1={F.eyeY} x2={1536} y2={F.eyeY} stroke="#8e44ad" strokeWidth={2} strokeDasharray="10 8" />
+      <text x={20} y={F.eyeY - 8} fill="#8e44ad" fontSize={20} fontFamily="monospace">妈妈眼睛高度（建议）</text>
+      <path d={q(L, [L[0], M[1] - 80], M)} fill="none" stroke="#c0392b" strokeWidth={5} />
+      <path d={q(M, [M[0] - 20, M[1] - 200], E)} fill="none" stroke="#c0392b" strokeWidth={5} strokeDasharray="14 8" />
+      <path d={q(R, [R[0], C.y - 120], [C.x, C.y])} fill="none" stroke="#16a085" strokeWidth={5} />
+      {F.stations.map((p, i) => dot(p, `站点${i + 1}`, "#2a7fd4"))}
+      {dot(L, "L", "#c0392b")}
+      {dot(M, "M", "#c0392b")}
+      {dot(E, "E", "#c0392b")}
+      {dot(R, "R", "#16a085")}
+      {dot([C.x, C.y], "C", "#16a085")}
+    </svg>
+  );
+}
+
 function Guides({ wait }: { wait: Pt }) {
   const { cfg } = useSlots();
   const T = BG.table;
@@ -124,6 +154,7 @@ function Stage() {
   const { cfg } = useSlots();
   const fg = useParam("fg") !== "0";
   const guides = useParam("guides") !== null;
+  const frames = useParam("frames") !== null;
   const clean = useParam("clean") !== null;
   const debug = useParam("debug") !== null;
   const g = gNow(t);
@@ -160,6 +191,7 @@ function Stage() {
               <Paper />
               {fg && <ScenePanels debug={debug} flow />}
               {guides && <Guides wait={wait} />}
+              {frames && <CameraFrameGuides />}
               {guides && <FlightGuides wait={wait} apexY={anchors.flightApexY} easeX={anchors.flightEaseX} />}
             </>
           }
