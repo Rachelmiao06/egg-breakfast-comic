@@ -331,7 +331,7 @@ function usePaperTilt(ref: React.RefObject<HTMLDivElement | null>, enabled: bool
 function FlowLayer() {
   const { timeline: t, beats, reducedMotion } = useScene();
   const tiltRef = useRef<HTMLDivElement>(null);
-  usePaperTilt(tiltRef, !reducedMotion);
+  usePaperTilt(tiltRef, false); // 2026-11-15 用户：每次滑动格子都先漂一下，不真实 → 关掉（滚动 / 镜头 / 鼠标都不再让纸面倾斜）
   const vp = useViewport();
   const perf = usePerfEnabled() && !reducedMotion; // 格内表演：减少动态效果或 ?perf=0 时用原静态格
   const g = t.index + t.p;
@@ -440,7 +440,7 @@ function FlowLayer() {
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : <FlowPanel push={perf ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
+          : <FlowPanel push={false ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
         const perch = p.key === PERCH_PANEL && !vp.portrait;
         return (

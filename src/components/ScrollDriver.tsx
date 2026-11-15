@@ -21,8 +21,8 @@ import { scrollHeld } from "@/lib/scroll-gate";
  * smooth = false：原生滚动（旧版对比用）。
  */
 /** 一次甩出去的距离上限（vh）；读带格内动画的格子时用更小的上限 */
-const THROW_VH = 100;
-const THROW_READING_VH = 45;
+const THROW_VH = 80;
+const THROW_READING_VH = 40;
 
 /** 读格门的位置：当前段"停留"结束处（px）。格内动画没播完（scrollHeld）时，故事不能越过它 */
 function gatePx(beats: { lengthVh: number; phases: { enter: number; action: number; hold: number } }[], scrollPx: number) {
@@ -86,9 +86,9 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
     if (smooth && !reduce) {
       // 手感：滚轮/触控板经过一层长尾的指数缓动（duration 1.25s，expo-out），停手后慢慢"滑停"，不是线性跟随
       lenis = new Lenis({
-        duration: 1.25,
+        duration: 1.5,
         easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
-        wheelMultiplier: 0.8,
+        wheelMultiplier: 0.55,
         touchMultiplier: 1.4,
         smoothWheel: true,
         syncTouch: false, // 触屏保留系统原生惯性

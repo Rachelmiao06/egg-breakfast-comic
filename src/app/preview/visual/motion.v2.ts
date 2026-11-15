@@ -18,6 +18,8 @@ type Raw = Partial<Beat> & { id: string; n: number; title: string; lengthVh: num
  * 不吸附、不劫持滚动，只是让该慢的地方滚动距离更长；慢滚、停住、倒滚都不受影响。
  */
 export const BRISK_VH_PER_S = 45;
+/** 全部段落的滚动距离倍数：>1 = 整体更慢（同样的手势走得更少） */
+export const LEN_SCALE = 1.35;
 const readableWindow = (ph: Beat["phases"]) => ph.enter + ph.action + ph.hold + 0.12 * ph.exit - ph.enter * 0.9;
 export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as Raw[]).map((b) => ({
   phases: { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 },
@@ -30,9 +32,9 @@ export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as
   audio: b.audio ?? { loops: {}, fades: [], oneshots: [] },
 })).map((b) => {
   const r = (b as unknown as Raw).readS;
-  if (!r) return b;
-  const need = Math.ceil((r * BRISK_VH_PER_S) / readableWindow(b.phases));
-  return need > b.lengthVh ? { ...b, lengthVh: need } : b;
+  const need = r ? Math.ceil((r * BRISK_VH_PER_S) / readableWindow(b.phases)) : 0;
+  // 整体放慢（2026-11-15 用户：还是太快）：每一段的滚动距离 × LEN_SCALE，读格下限先算再放大
+  return { ...b, lengthVh: Math.round(Math.max(b.lengthVh, need) * LEN_SCALE) };
 }) as (Beat & { camera: string })[];
 
 export const BG = bg;
