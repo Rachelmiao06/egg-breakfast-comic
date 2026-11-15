@@ -67,12 +67,13 @@ def process(page: Image.Image, box) -> Image.Image:
     alpha[rim] = np.minimum(alpha[rim], a_rim[rim])
     rgb[rim] = ink
     rgba = np.dstack([np.clip(rgb, 0, 255), alpha * 255]).astype(np.uint8)
-    return trim_frame(Image.fromarray(rgba, "RGBA"))
+    return trim_frame(Image.fromarray(rgba, "RGBA"))  # (图, 框)
 
 
-def trim_frame(im: Image.Image, keep: int = 6) -> Image.Image:
-    """只留一圈干净的黑边：框外纸边、圆角、抗锯齿毛边全部裁掉，框线统一成 keep 像素的纯黑矩形。
-    每条边从不透明区域边缘往里数，连续的深色像素就是框线（含外缘毛边），多出 keep 的部分切掉。"""
+def trim_frame(im: Image.Image, extra: int = 2):
+    """把手绘黑框整圈裁掉，画面直接到边（页面再统一画纸边，见 docs/PAPER-WORLD.md）。
+    每条边从不透明区域边缘往里数，连续的深色像素就是框线（含外缘毛边）；再多切 extra 像素吃掉内侧暗晕。
+    返回 (裁好的图, 裁切框)；裁切框相对未裁的单格，叠在格子上的补丁图要用同一个框裁（tools/trim_patches.py）。"""
     a = np.asarray(im).astype(int)
     opaque = a[..., 3] > 128
     ys, xs = np.where(opaque)
@@ -82,30 +83,27 @@ def trim_frame(im: Image.Image, keep: int = 6) -> Image.Image:
         n = 0
         while n < len(line_dark) and line_dark[n]: n += 1
         return n
-    cy, cx = (y0 + y1) // 2, (x0 + x1) // 2
-    # 取中间 1/3 的多条扫描线的中位数，避开角落和圆角
     ty = np.linspace(y0 + (y1 - y0) // 3, y1 - (y1 - y0) // 3, 9).astype(int)
     tx = np.linspace(x0 + (x1 - x0) // 3, x1 - (x1 - x0) // 3, 9).astype(int)
     l = int(np.median([run(dark[y, x0:x1]) for y in ty]))
     r = int(np.median([run(dark[y, x0:x1][::-1]) for y in ty]))
     t = int(np.median([run(dark[y0:y1, x]) for x in tx]))
     b = int(np.median([run(dark[y0:y1, x][::-1]) for x in tx]))
-    # 外圈（含抗锯齿毛边）切掉，只留 keep 像素纯黑框
-    box = (x0 + max(0, l - keep), y0 + max(0, t - keep), x1 - max(0, r - keep), y1 - max(0, b - keep))
+    box = (int(x0 + l + extra), int(y0 + t + extra), int(x1 - r - extra), int(y1 - b - extra))
     out = im.crop(box)
     arr = np.asarray(out).copy(); arr[..., 3] = 255   # 裁完后整格不透明
-    # 最外 keep 像素统一涂成同一种墨色：框线外缘残留的浅色毛边、没有画框的边（画面被页面裁掉处）都变成一圈干净黑边
-    ink = np.array([30, 20, 14], np.uint8)
-    arr[:keep, :, :3] = ink; arr[-keep:, :, :3] = ink; arr[:, :keep, :3] = ink; arr[:, -keep:, :3] = ink
-    return Image.fromarray(arr, "RGBA")
+    return Image.fromarray(arr, "RGBA"), box
 
 
 if __name__ == "__main__":
     pages = {}
+    TRIM = {}
     for key, v in MAN.items():
         if ONLY and key not in ONLY: continue
         page = pages.setdefault(v["page"], Image.open(f"{SRC}/{v['page']}").convert("RGB"))
-        im = process(page, tuple(v["box"]))
+        im, tbox = process(page, tuple(v["box"]))
+        TRIM[key] = {"old_size": v["size"], "box": tbox}
         im.save(f"{OUT}/{key}.webp", lossless=False, quality=92, alpha_quality=100, method=6)
         a = np.asarray(im)[..., 3]
         print(key, im.size, "transparent %.1f%%" % ((a == 0).mean() * 100))
+    json.dump(TRIM, open("tools/panel_trim.json", "w"), indent=1)

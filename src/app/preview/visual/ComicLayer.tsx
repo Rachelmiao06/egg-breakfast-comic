@@ -137,7 +137,7 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
     <Placeholder label={p.label ?? ""} />
   );
   return (
-    <div className="absolute" style={style}>
+    <div className="panel-frame absolute" style={{ ...style, boxShadow: PAPER_SHADOW }}>
       {p.from === "seam" ? <SeamPanel progress={seamProgress}>{content}</SeamPanel> : content}
     </div>
   );
@@ -375,7 +375,7 @@ function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelS
   const stable = q >= 0.42;
   if (q < -0.05) return null;
   return (
-    <div className="absolute left-1/2 top-1/2" style={{ width: wPx, aspectRatio: `${aspect}`, transform: `translate(-50%, calc(-50% + ${(1 - k) * 7}vh))`, opacity: k }}>
+    <div className="panel-frame absolute left-1/2 top-1/2" style={{ width: wPx, aspectRatio: `${aspect}`, transform: `translate(-50%, calc(-50% + ${(1 - k) * 7}vh))`, opacity: k }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
       {/* 眼神僵住：三个点之前不眨眼，最后一个点之后约 1.2 秒才眨第一下 */}
@@ -470,7 +470,7 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
 function FlowPanel({ p, pos, dy, blink = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
-    <div className="absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
+    <div className="panel-frame absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
       {p.src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />

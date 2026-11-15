@@ -17,6 +17,7 @@ import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import { SearchBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, gOf, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
+import PaperFrameTexture from "./PaperFrameTexture";
 import { HEAR_EVENT } from "./PanelPerf";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, trajectoryFor, wanderTableFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
@@ -260,6 +261,7 @@ export default function VisualPreviewPage() {
   const cfg = v1 ? (vp.portrait ? mobileSlots(base, vp.w, vp.h) : base) : fitSlotsV2(base, vp.w, vp.h);
   return (
     <SlotContext.Provider value={{ cfg, setCfg }}>
+      <PaperFrameTexture />
       <Versioned />
     </SlotContext.Provider>
   );

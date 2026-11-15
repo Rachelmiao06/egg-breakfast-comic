@@ -63,14 +63,14 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
     : {};
   const handNode =
     hand && hb && handIn > 0 && t.beat.id === "handoff" ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={hand.src}
-        alt=""
-        draggable={false}
-        className="pointer-events-none absolute select-none"
-        style={{ left: hb[0], top: hb[1], width: hb[2], height: hb[3], zIndex: Z.mom + 2, opacity: handOp, ...eggHole }}
-      />
+      <div
+        className="panel-frame pointer-events-none absolute"
+        style={{ left: hb[0], top: hb[1], width: hb[2], height: hb[3], zIndex: Z.mom + 2, opacity: handOp }}
+      >
+        {/* 挖蛋遮罩只作用在图片上，纸边和纸纹始终完整 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={hand.src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={eggHole} />
+      </div>
     ) : null;
   if (k <= 0) return handNode;
   const [x, y, w, h] = slot.box;
@@ -79,7 +79,7 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
   return (
     <>
       <div
-        className="pointer-events-none absolute"
+        className="panel-frame pointer-events-none absolute"
         style={{ left: x, top: y, width: w, height: h, zIndex: flow ? Z.catchPanel : Z.mom, opacity: flow ? 1 : Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * (flow ? 560 : 70)}px)` }}
       >
         {slot.src ? (
