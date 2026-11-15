@@ -31,7 +31,7 @@
 | chopHit | chop-hit.mp3（0.26 s） | 单次，**由前景动画逐刀触发**（window 事件 `kitchen:oneshot`，detail.sound = "chopHit"） | chop 段落刀接触的那一帧，每刀一次（前景三刀）；电平 0.5 = 原来循环里每一刀 | 已接入（未试听） |
 | stirfryIn | stirfry-in.mp3（1.6 s，2026-11-14 换成"食材落锅 + 短暂滋啦"） | 单次，**由前景事件触发**（kitchen:oneshot stirfryIn） | p2d 第 2 帧（木铲把菜推下、落进锅；格子进入阅读位置后约 0.68 s）；去掉了 stirfry @0.22 的滚动触发 | 已接入（未试听） |
 | stirfryStir | stirfry-stir.mp3（3.2 s） | 一段动作，kitchen:action stirfry | **暂时静音**（2026-11-14 晚第二轮：p2e 翻炒格是静态图，没有可见的翻炒动作，不放连续刮锅声；audio-map cues.muted）。翻炒动画到位后从 muted 移回 cues.action | 文件保留，未接入 |
-| sauceStir | sauce-stir.mp3（2.6 s；旧的 sauce-stir-loop.mp3 循环不再加载） | 一段动作，**由前景事件开始 / 停止**（kitchen:action sauceStir） | p3a 两圈开始时响（约 0.31 s）、两圈转完（约 1.56 s）收住；离开时 0.2 s 淡出；电平 0.3 | 已接入（未试听） |
+| sauceStir | sauce-stir.mp3（2.6 s；旧的 sauce-stir-loop.mp3 循环不再加载） | 一段动作，**由前景事件开始 / 停止**（kitchen:action sauceStir） | p3a 两圈开始时响（约 0.31 s）、两圈转完（约 1.56 s）收住；离开时 0.2 s 淡出；电平 0.4（2026-11-14 集成会话从 0.3 调高：真实录音里碰碗峰值与切菜相当） | 已接入（未试听） |
 | pop | pop.mp3（0.28 s） | 单次 | hear @ p=0.35（"啵！"，播放电平 0.5） | 已接入（2026-11-14，未试听） |
 | catch | catch.mp3（0.6 s） | 单次 | catch @ actionEnd（动作阶段结束 = 蛋落到空锅铲；v1 节拍 p=0.78，v2 p=0.80） | 已接入 |
 | eggHop | egg-hop.mp3（0.18 s） | 单次，**由 Egg 落回锅面那一帧触发**（kitchen:oneshot eggHop，surface = "pan"） | 开场蛋在锅里跳：每次落地一声很软的"噗"，两次至少隔 1.8 s，音高 ±6%、电平 ±1.5 dB 轻微变化；桌面上的跳不出声；电平 0.16 | 已接入（2026-11-14，未试听） |
