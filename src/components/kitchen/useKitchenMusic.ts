@@ -36,6 +36,8 @@ const LEVEL_TC = 0.35;
 const BUS = 0.6;
 /** 音乐事件整体再轻一点（2026-11-15 用户：乐器声太明显） */
 const STINGER_TRIM = 0.8;
+/** 人声（语气词）直接进输出，不经过配乐总线（总线 0.6 会让它低于配乐床约 2 dB，听不出来——2026-11-15 用户反馈）；相对电平再乘它 */
+const VOICE_GAIN = 1.4;
 /** 前景动作声响起时配乐的避让：压到 0.5（约 -6 dB），0.3 s 后以 0.25 s 的时间常数回来 */
 const DUCK_TO = 0.5, DUCK_HOLD_S = 0.3, DUCK_RELEASE_TC = 0.25;
 /** 蛋的五声音阶（相对 C5 的变速）：C D E G A */
@@ -218,8 +220,8 @@ class MusicEngine {
     if (!buf || !this.audible || this.ctx.state !== "running") return false;
     const src = this.ctx.createBufferSource();
     src.buffer = buf; src.playbackRate.value = rate;
-    const g = this.ctx.createGain(); g.gain.value = gain * STINGER_TRIM;
-    src.connect(g).connect(this.bus);
+    const g = this.ctx.createGain(); g.gain.value = voice ? gain * VOICE_GAIN * this.userGain : gain * STINGER_TRIM;
+    src.connect(g).connect(voice ? this.ctx.destination : this.bus);
     src.onended = () => { src.disconnect(); g.disconnect(); };
     src.start();
     if (voice) this.onDuck(buf.duration * 1000 + 150, 0.55); // 人声说话时配乐退到后面
