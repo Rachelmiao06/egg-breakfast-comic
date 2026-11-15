@@ -12,7 +12,7 @@
  */
 import gsap from "gsap";
 import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
-import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
+import { COMIC_PANEL_EVENT, KITCHEN_ACTION_EVENT, KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
 
 type Place = { x: number; y: number; w: number };
@@ -29,6 +29,13 @@ export const HEAR_CUE = { eyesMs: 500, puzzMs: 1300 } as const;
 export const HEAR_EVENT = "comic:hear";
 const hearSignal = (phase: "start" | "stop" | "reset") => window.dispatchEvent(new CustomEvent(HEAR_EVENT, { detail: { phase } }));
 const P = "/assets/comic-v3/perf/";
+/**
+ * 声音事件（kitchen-audio 2026-11-14）：声音跟格内动作走，由混音器 useKitchenAudio 接收。
+ * shot = 接触的那一帧（kitchen:oneshot）；action = 一段动作的开始 / 停止（kitchen:action）；panel = 格子进入 / 离开阅读位置（comic:panel）。
+ */
+const shot = (sound: string) => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound } }));
+const action = (name: string, phase: "start" | "stop") => window.dispatchEvent(new CustomEvent(KITCHEN_ACTION_EVENT, { detail: { name, phase } }));
+const panelSignal = (key: string, phase: "start" | "stop" | "reset") => window.dispatchEvent(new CustomEvent(COMIC_PANEL_EVENT, { detail: { key, phase } }));
 
 export function usePerfEnabled() {
   return useSyncExternalStore(
@@ -177,20 +184,33 @@ const CORNS = [
   { src: "p2d-corn1", pile: 75.6, fall: 17.5 }, // 原位置顶边 59% / 底边 73.4%
   { src: "p2d-corn3", pile: 79.6, fall: 15 }, // 原位置顶边 65.7% / 底边 79.2%
 ] as const;
+/** 下锅格的声音时刻（秒，从时间轴开始算）：第一粒玉米越过菜堆顶线 = 落锅声；第二批落完 = 开始翻炒（木铲推菜） */
+const STIRFRY_SND = { delay: 0.25, land: 0.46, stir: 1.25 + 0.12 + 0.46 };
 export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const corns = useRef<(HTMLImageElement | null)[]>([]);
   const tl = useRef<gsap.core.Timeline | null>(null);
+  const stirring = useRef(false);
   const els = () => corns.current.filter(Boolean) as HTMLImageElement[];
+  const stirStart = () => { stirring.current = true; action("stirfry", "start"); };
+  const stirStop = () => { if (stirring.current) { stirring.current = false; action("stirfry", "stop"); } };
   /** 硬复位：回到原格（玉米在空中原位置） */
-  const reset = () => { tl.current?.kill(); tl.current = null; gsap.set(els(), { yPercent: 0, xPercent: 0, rotation: 0, opacity: 1 }); flag(false); };
-  /** 离场：直接落到终态（玉米已入锅、看不见），不再动 */
-  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; gsap.set(els(), { opacity: 0 }); flag(false); };
+  const reset = () => { tl.current?.kill(); tl.current = null; stirStop(); gsap.set(els(), { yPercent: 0, xPercent: 0, rotation: 0, opacity: 1 }); flag(false); };
+  /** 离场：直接落到终态（玉米已入锅、看不见），不再动；翻炒声淡出 */
+  const stop = () => { stirStop(); if (!tl.current) return; tl.current.kill(); tl.current = null; gsap.set(els(), { opacity: 0 }); flag(false); };
   const play = () => {
     const list = els();
-    if (!list.length) return;
+    if (!animate || !list.length) {
+      // 静态格（减少动态效果 / ?perf=0）：画面不动，落锅声和翻炒声按动画相同的时刻响
+      tl.current?.kill();
+      const s = gsap.timeline({ delay: STIRFRY_SND.delay, onComplete: () => { tl.current = null; } });
+      s.call(() => shot("stirfryIn"), [], STIRFRY_SND.land).call(stirStart, [], STIRFRY_SND.stir);
+      tl.current = s;
+      return;
+    }
     reset();
     flag(true);
-    const t = gsap.timeline({ delay: 0.25, onComplete: () => { tl.current = null; flag(false); } });
+    const t = gsap.timeline({ delay: STIRFRY_SND.delay, onComplete: () => { tl.current = null; flag(false); stirStart(); } });
+    t.call(() => shot("stirfryIn"), [], STIRFRY_SND.land); // 第一粒玉米落进菜堆的那一刻：落锅声 + 短暂滋啦
     const drop = (at: number, from: number) => {
       list.forEach((el, i) => {
         const t0 = at + i * 0.12;
@@ -204,7 +224,7 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
     drop(1.25, -6); // 第二批：从铲边稍高处出现
     tl.current = t;
   };
-  useStage(q, stage, animate, play, stop, reset);
+  useStage(q, stage, true, play, stop, reset); // 静态格也走同一套规则（只放声音）
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -237,26 +257,37 @@ export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; po
     if (arm.current) arm.current.style.transform = `translate(${(Math.cos(a) - 1) * SAUCE.r * 100}%, ${Math.sin(a) * SAUCE.ry * 100}%)`;
     if (swirl.current) swirl.current.style.transform = `scale(1, ${SAUCE.k}) rotate(${rot}deg) scale(1, ${1 / SAUCE.k})`;
   };
-  const reset = () => { tl.current?.kill(); tl.current = null; st.current = { a: 0, rot: 0 }; apply(); flag(false); };
-  /** 离场：停在当前酱面角度，手回到原位（0.15 秒） */
+  const stirring = useRef(false);
+  const stirStart = () => { stirring.current = true; action("sauceStir", "start"); };
+  const stirStop = () => { if (stirring.current) { stirring.current = false; action("sauceStir", "stop"); } };
+  const reset = () => { tl.current?.kill(); tl.current = null; stirStop(); st.current = { a: 0, rot: 0 }; apply(); flag(false); };
+  /** 离场：停在当前酱面角度，手回到原位（0.15 秒）；搅拌声淡出 */
   const stop = () => {
+    stirStop();
     if (!tl.current) return;
     tl.current.kill(); tl.current = null;
     gsap.to(st.current, { a: Math.ceil(st.current.a / (2 * Math.PI)) * 2 * Math.PI, duration: 0.15, ease: "power1.out", onUpdate: apply });
     flag(false);
   };
   const play = () => {
+    if (!animate) {
+      // 静态格：画面不动，搅拌声按动画相同的时刻开始、两圈结束时收住
+      tl.current?.kill();
+      tl.current = gsap.timeline({ delay: 0.3, onComplete: () => { tl.current = null; } }).call(stirStart, [], 0).call(stirStop, [], 1.9);
+      return;
+    }
     reset();
     flag(true);
     const o = st.current;
     const turn = 2 * Math.PI;
     const t = gsap.timeline({ delay: 0.3, onUpdate: apply, onComplete: () => { tl.current = null; flag(false); } });
+    t.call(stirStart, [], 0).call(stirStop, [], 1.9); // 声音 = 两圈搅拌：开始转就响，两圈转完收住（余势时安静）
     t.to(o, { a: 2 * turn, duration: 1.9, ease: "sine.inOut" }) // 握勺的手和勺子一起在碗里搅两圈（勺头一直在碗里）
       .to(o, { rot: 140, duration: 1.9, ease: "sine.inOut" }, "<") // 酱面跟着转
       .to(o, { rot: 156, duration: 0.7, ease: "power2.out" }); // 余势，然后停稳
     tl.current = t;
   };
-  useStage(q, stage, animate, play, stop, reset);
+  useStage(q, stage, true, play, stop, reset); // 静态格也走同一套规则（只放声音）
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   const origin = `${SAUCE.cx * 100}% ${SAUCE.cy * 100}%`;
   return (
@@ -274,6 +305,19 @@ export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; po
       </div>
     </div>
   );
+}
+
+/**
+ * 静态格的声音信号：和格内表演同一套 useStage 规则，进入阅读位置派发 comic:panel start，离开派发 stop（只发一次），复位派发 reset。
+ * 混音器只给 audio-map cues.panel 里登记的格子出声（淋汁 p4c、放碗 p4b），其余格子收到也不响。
+ */
+export function PanelCue({ panelKey, q, stage }: { panelKey: string; q: number; stage: Stage }) {
+  const on = useRef(false);
+  const play = () => { on.current = true; panelSignal(panelKey, "start"); };
+  const stop = () => { if (on.current) { on.current = false; panelSignal(panelKey, "stop"); } };
+  const reset = () => { on.current = false; panelSignal(panelKey, "reset"); };
+  useStage(q, stage, true, play, stop, reset);
+  return null;
 }
 
 function StaticImg({ src, pos, aspect, dy }: { src: string; pos: Place; aspect: number; dy: number }) {
