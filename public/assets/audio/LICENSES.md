@@ -50,3 +50,7 @@ Freesound 原文件（wav / flac）需要登录，本轮用的是公开 HQ 预�
 ## 配乐（music/）
 
 `music/` 下 19 个文件（8 条循环 stem + 11 个 stinger）全部由 `tools/music_build.py` 用 numpy / scipy 原创合成，没有任何第三方采样或旋律，不涉及版权和署名；重新渲染：`python3 tools/music_build.py`。编排说明与场景对应见 `docs/SOUND-DESIGN.md`，运行时规则见 `src/components/kitchen/useKitchenMusic.ts`。未经人耳试听。
+
+## 人声语气词（voice/）
+
+`voice/mom-*.mp3` 由 ElevenLabs（eleven_v4，声音 Yating Lin - Relaxed & Spontaneous，库内声音）生成，用户本人账号（免费额度）；原始文件在 `tools/voice_raw/`。**商用 / 公开发布前请核对 ElevenLabs 对应套餐的使用条款**（免费额度通常要求署名、不含商用授权）。

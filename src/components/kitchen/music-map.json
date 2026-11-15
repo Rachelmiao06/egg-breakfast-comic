@@ -7,7 +7,7 @@
     "bloop：这一段里开场蛋每落回锅面一次，马林巴响一个五声音阶的音（蛋的声音就是马林巴）。",
     "全部由 tools/music_build.py 合成，未经人耳试听；整体音乐音量可用 localStorage kitchen.musicGain（默认 1，0 = 关音乐）或网址 ?music=0.6 临时调。"
   ],
-  "voiceAvailable": [],
+  "voiceAvailable": ["mom-sigh", "mom-huh", "mom-hmm-q", "mom-oh", "mom-laugh", "mom-wow"],
   "scenes": {
     "opening": { "stems": {}, "bloop": true },
     "drop": { "stems": { "home-pad": 0.25, "home-pluck": 0.3, "home-sparkle": 0.45 }, "bloop": true },
