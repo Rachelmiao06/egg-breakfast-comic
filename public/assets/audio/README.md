@@ -65,7 +65,6 @@
 | sauce | room 0.2，**无 sizzle**（调汁格开始时 sizzle 已是 0） | p3a 两圈 → sauce-stir；p3b 到位 → veg-bowl，1.2 s 后 bowl-down（gain 0.5，碗轻放） |
 | missing / prejump | 无 sizzle | — |
 | hear / listen / catch | 暂时保持原样 | Egg 起跳 hopTap1 + pop、catch @eggOnSpatula |
-| tablecall | 无 sizzle（原 0.05 删掉） | — |
 
 ## 接触声对齐（2026-11-14 晚第二轮）
 

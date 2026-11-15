@@ -1,6 +1,6 @@
 {
   "_doc": [
-    "【2026-11-15 用户听过后的场景定点，覆盖下面较早的说明】滚动决定每段的底声，前景动画事件决定动作声。油锅声 sizzle 只在开场（0.32，蛋在锅里煎）和炒菜段 stirfry（0.45，热锅下油，进入阶段从 0 升起；翻炒时持续，入锅那一声仍是 p2d 第 2 帧的 stirfryIn；退出阶段降到 0，调汁段进来时已经没有油锅声）；drop 动作阶段随蛋离锅 0.32 → 0，bag 之前收掉。备菜段 bag / idea / chop、调汁段 sauce、missing、prejump、tablecall 都没有 sizzle：备菜段是案板和桌面的声音（逐刀 chopHit + cues.panel 的纸袋、摆菜、放案板、推菜），调汁段是 sauceStir（跟两圈）+ p3b 舀菜进碗、碗轻放。hear / listen / catch 暂时保持原样。全部未经人耳试听。",
+    "【2026-11-15 用户听过后的场景定点，覆盖下面较早的说明】滚动决定每段的底声，前景动画事件决定动作声。油锅声 sizzle 只在开场（0.32，蛋在锅里煎）和炒菜段 stirfry（0.45，热锅下油，进入阶段从 0 升起；翻炒时持续，入锅那一声仍是 p2d 第 2 帧的 stirfryIn；退出阶段降到 0，调汁段进来时已经没有油锅声）；drop 动作阶段随蛋离锅 0.32 → 0，bag 之前收掉。备菜段 bag / idea / chop、调汁段 sauce、missing、prejump 都没有 sizzle：备菜段是案板和桌面的声音（逐刀 chopHit + cues.panel 的纸袋、摆菜、放案板、推菜），调汁段是 sauceStir（跟两圈）+ p3b 舀菜进碗、碗轻放。hear / listen / catch 暂时保持原样。全部未经人耳试听。",
     "按场景编号（节拍表的 id）覆盖每段的 audio 字段，由 useKitchenAudio 读取；表里没有的场景沿用节拍数据里原来的值。同一张表同时适用于 src/app/preview/visual/beats.visual-v2.json（默认动效，19 段，含 drop）和 beats.visual.json（?motion=v1，18 段，无 drop）。",
     "共享事件位置（优先用）：at 写 \"@eggOnSpatula\" / \"@eggOnTable\" / \"@eggInBowl\"，由 src/lib/beats.ts 的 eventAt 换算；蛋的动画（Egg.tsx）读同一个函数，所以声音和画面永远落在同一点，两边都不写死数字。catch 用 @eggOnSpatula（v2 = 0.80，v1 = 0.78）。",
     "单次音效的 at：数字 = 段内进度 0–1；或阶段符号 enterEnd / actionEnd / holdEnd（可带偏移，如 actionEnd-0.02），由混音器按当前节拍表的 phases 换算，这样新旧两版节拍的动作结束点不同也只写一次（catch 落铲 = actionEnd：v1 0.78、v2 0.80）。",
@@ -76,7 +76,6 @@
     "bowl": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
     "yolk": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
     "call": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [ { "sound": "room", "from": 0.2, "to": 0.14, "phase": "hold" } ], "oneshots": [ { "sound": "momCall", "at": 0.25 }, { "sound": "eggSmall", "at": 0.55 } ] },
-    "tablecall": { "loops": { "room": 0.14 }, "fades": [], "oneshots": [] },
     "search": { "roomHz": 4000, "loops": { "room": 0.06 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "steps", "from": 0, "to": 0.3, "start": "@leave-0.08", "end": "@leave" }, { "sound": "steps", "from": 0.3, "to": 0, "start": "@peek-0.04", "end": "@peek+0.04" } ] },
     "eggcall": { "roomHz": 4000, "loops": { "room": 0.08 }, "fades": [], "oneshots": [ { "sound": "eggCall", "at": 0.25 } ], "ramps": [ { "sound": "steps", "from": 0, "to": 0.15, "start": "enterEnd", "end": 1 } ], "lowpass": [ { "sound": "steps", "fromHz": 700, "toHz": 3000, "start": "enterEnd", "end": 1 } ] },
     "return": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [], "ramps": [ { "sound": "steps", "from": 0.15, "to": 0.3, "start": 0, "end": "enterEnd-0.06" }, { "sound": "steps", "from": 0.3, "to": 0, "start": "enterEnd-0.02", "end": "enterEnd+0.04" } ], "lowpass": [ { "sound": "steps", "fromHz": 3000, "toHz": 16000, "start": 0, "end": "enterEnd-0.06" } ] },
