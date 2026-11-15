@@ -106,40 +106,53 @@ def fill_rows(img: np.ndarray, hole: np.ndarray, usable: np.ndarray, feather: in
     return out
 
 
-# 蛋是金色细线描边，胡萝卜和葱的深棕黑墨线跟它不是一个画风（2026-11-15 用户：蛋的边不动，蔬菜的边改成跟本色相配的暖色）。
-# 只换大块的墨线（轮廓），小块（眼睛、嘴）保持深色。区域是图片像素 (x0, y0, x1, y1)，颜色 RGB。
-# 取自蛋图外沿（public/assets/scene/egg.webp 边缘像素中位数 ≈ (177,103,14)，深的一半 (167,93,5)）：蛋、葱、胡萝卜描边同一个金棕色
-EGG_INK = (168, 96, 10)
-INK_RECOLOR = [
-    ((1445, 425, 1565, 505), EGG_INK),  # 胡萝卜身子和手
-    ((1445, 320, 1565, 425), EGG_INK),  # 胡萝卜叶子
-    ((1296, 519, 1400, 710), EGG_INK),  # 葱身子
+# 蛋是金棕色细线描边，胡萝卜和葱原来是深棕黑的粗墨线，不是一个画风（2026-11-15 用户：蛋的边不动；蔬菜的描边要和各自本来的颜色相近、粗细和蛋差不多）。
+# 做法：大块的墨线（轮廓，面积 ≥ min_area；眼睛、嘴是小块，保持深色）加粗 1 像素，每个轮廓像素取最近的“非墨线”像素的颜色，
+# 压暗、略加饱和——绿叶的轮廓是深绿，白的葱身是暖棕，橙色胡萝卜是深橙。区域是图片像素 (x0, y0, x1, y1)。
+INK_BOXES = [
+    (1445, 320, 1565, 505),  # 胡萝卜（叶子 + 身子 + 手）
+    (1296, 519, 1400, 710),  # 葱身子
 ]
-LEAVES_PNG = ROOT / "public/assets/bg/friends-scallion-leaves.png"  # 葱叶角色层（tools/prepare_friends.py 生成，这里再换一次墨线色）
-LEAVES_COLOR = EGG_INK
+LEAVES_SRC = ROOT / "source/bg-v3/friends-scallion-leaves.orig.png"  # 葱叶角色层原图（tools/prepare_friends.py 的输出备份）
+LEAVES_PNG = ROOT / "public/assets/bg/friends-scallion-leaves.png"
+INK_DARKEN, INK_SAT = 0.5, 1.4
 
 
-def recolor_ink(rgb: np.ndarray, box: tuple[int, int, int, int], color: tuple[int, int, int], min_area: int = 800) -> np.ndarray:
-    x0, y0, x1, y1 = box
-    sub = rgb[y0:y1, x0:x1].astype(np.float32)
-    lum = cv2.cvtColor(rgb[y0:y1, x0:x1], cv2.COLOR_RGB2GRAY).astype(np.float32)
-    hue = cv2.cvtColor(rgb[y0:y1, x0:x1], cv2.COLOR_RGB2HSV)[..., 0] * 2
-    ink = (lum <= INK) & ~((hue >= 60) & (hue <= 170))  # 绿色的暗块（叶子阴影、补墙的模糊）不是墨线
+def tinted_ink(rgb: np.ndarray, alpha: np.ndarray | None = None, min_area: int = 800) -> np.ndarray:
+    """返回墨线换成“本色深色”后的 rgb（只改大块墨线）。alpha 给了就只看 alpha > 128 的像素（透明背景的角色图）。"""
+    lum = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    hue = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)[..., 0] * 2
+    greenish = (hue >= 60) & (hue <= 170)
+    ink = (lum <= INK) & ~greenish
+    if alpha is not None:
+        ink &= alpha > 128
     lab, n = ndimage.label(ink)
     sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
     keep = np.isin(lab, [i + 1 for i, a in enumerate(sizes) if a >= min_area])
-    near = ndimage.binary_dilation(keep, iterations=2) & ~((hue >= 60) & (hue <= 170))
-    w = np.clip((150 - lum) / 90, 0, 1) * near
-    out = sub * (1 - w[..., None]) + np.array(color, np.float32) * w[..., None]
-    res = rgb.copy()
-    res[y0:y1, x0:x1] = np.clip(out, 0, 255).astype(np.uint8)
-    return res
+    outer = ndimage.binary_dilation(keep, iterations=2)
+    if alpha is not None:
+        outer &= alpha > 0
+    iy, ix = ndimage.distance_transform_edt(outer | (lum <= INK), return_distances=False, return_indices=True)
+    fill = cv2.GaussianBlur(rgb[iy, ix], (7, 7), 0).astype(np.float32)
+    hsv = cv2.cvtColor(fill.astype(np.uint8), cv2.COLOR_RGB2HSV).astype(np.float32)
+    hsv[..., 1] = np.clip(hsv[..., 1] * INK_SAT + 25, 0, 255)
+    hsv[..., 2] = hsv[..., 2] * INK_DARKEN
+    tint = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+    w = cv2.GaussianBlur(outer.astype(np.float32), (3, 3), 0)[..., None]
+    return np.clip(rgb.astype(np.float32) * (1 - w) + tint * w, 0, 255).astype(np.uint8)
 
 
 def soften_ink(rgb: np.ndarray) -> np.ndarray:
-    for box, color in INK_RECOLOR:
-        rgb = recolor_ink(rgb, box, color)
-    return rgb
+    out = rgb.copy()
+    for x0, y0, x1, y1 in INK_BOXES:
+        out[y0:y1, x0:x1] = tinted_ink(rgb[y0:y1, x0:x1])
+    return out
+
+
+def tint_leaves() -> None:
+    a = np.asarray(Image.open(LEAVES_SRC).convert("RGBA"))
+    out = tinted_ink(a[..., :3], a[..., 3])
+    Image.fromarray(np.dstack([out, a[..., 3]])).save(LEAVES_PNG, optimize=True)
 
 
 def classify(rgb: np.ndarray) -> tuple[np.ndarray, dict]:
@@ -257,6 +270,7 @@ def main() -> None:
     # 每个像素只属于一张切片（按位置硬分），透明度都来自整体羽化后的同一张 alpha，所以切片之间没有接缝
     # （各自羽化再叠会在分界线上露出底下的墙，是一条亮线）
     rgb = soften_ink(rgb)
+    tint_leaves()
     yy, xx = np.mgrid[0:H, 0:W]
     full = cv2.GaussianBlur(objects.astype(np.float32), (3, 3), 0)
     part = full > 0

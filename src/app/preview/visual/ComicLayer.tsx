@@ -149,7 +149,7 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
  * （DOM 里排在格子前面 = 画在格子后面），位置按格子的 pos / dy 算（vw / vh）。
  * 纵深：① 蛋在墙上的投影（drop-shadow，蛋离开墙面一点）；② 格子在蛋身上的投影（同一张图压暗、按高度渐隐，
  *   贴着格子上沿最深）——两层一起，蛋和后面的背景就分开了。
- * 探头：向右倾 PEEK.tilt 度（身体朝角外探），0 → 探出 1.8 s 缓出，离场 0.3 s 缩回；探出后轻微起伏。
+ * 探头：向右倾 PEEK.tilt 度（身体朝角外探），0 → 探出 1.4 s 缓出（格子可见 55% 就开始，不等入场结束），离场 0.3 s 缩回；探出后轻微起伏。
  */
 const PERCH_PANEL = "p1b"; // bag 段右侧小格：上方没有别的格子，蛋有地方；也就是“袋子”那格
 const PEEK = { cx: 0.64, width: 0.5, aspect: 1.5651, tilt: 6, sink: 0.045 };
@@ -171,7 +171,7 @@ function PerchEgg({ pos, dy, show }: { pos: Place; dy: number; show: boolean }) 
         transformOrigin: "50% 100%",
         opacity: show ? 1 : 0,
         transition: show
-          ? "transform 1.8s cubic-bezier(0.22, 0.8, 0.28, 1), opacity 0.5s ease-out"
+          ? "transform 1.4s cubic-bezier(0.22, 0.8, 0.28, 1), opacity 0.4s ease-out"
           : "transform 0.3s ease-in, opacity 0.25s ease-in 0.1s",
       }}
     >
@@ -403,7 +403,7 @@ function FlowLayer() {
         const perch = p.key === PERCH_PANEL && !vp.portrait;
         return (
           <Fragment key={p.key}>
-            {perch && <PerchEgg pos={pos} dy={dy} show={stage.entered && !stage.leaving} />}
+            {perch && <PerchEgg pos={pos} dy={dy} show={stage.vis > 0.55 && !stage.leaving} />}
             {wrap ? <div style={wrap}>{panel}</div> : panel}
             <PanelSignal k={p.key} q={q} stage={stage} />
           </Fragment>
