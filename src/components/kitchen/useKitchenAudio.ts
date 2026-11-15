@@ -29,8 +29,12 @@
  *   停在原地不重复，倒滚不播。audio-map 里 oncePerVisit 的段（listen）每进入一次只播一次：段内倒滚再前进不重播，
  *   回到这一段开始之前才重新允许。
  * - audio-map 的扩展：ramps（段内定时的电平斜坡）和 lowpass（段内定时的低通，目前给 steps 由远到近），见 MappedBeat。
- * - 动画逐帧触发的单次音效（目前只有切菜格的 chopHit）：监听 window 事件 "kitchen:oneshot"（detail.sound），收到就播一次。
+ * - 动画逐帧触发的单次音效（切菜格的 chopHit、结尾三个点的 hopTap1/2/3）：监听 window 事件 "kitchen:oneshot"（detail.sound），收到就播一次。
  *   解码成 AudioBuffer，每次新建 BufferSource，快速连刀可以重叠；静音、未解锁（AudioContext 未 running）、后台时丢弃不补播。
+ *   detail 可选 rate（播放速度，0.5–2，音高跟着变）和 gain（在登记电平上再乘一个 0–1），结尾三个点用它做"音高逐个下降"。
+ * - 隔着画框：room 也挂一个低通。audio-map 每段可写 roomHz（该段停留时 room 的截止频率），没写 = 全开。
+ *   漫画格在场的段压到 2.5 kHz 左右（像隔着一层纸听厨房），没有漫画格的环境段（prejump / listen / tablecall）和开场全开；
+ *   换段时在进入阶段内按对数频率从上一段的值渐变到本段的值（和 loopLevels 的进入渐变同一个规则）。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { eventAt, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
@@ -96,10 +100,10 @@ type MapLowpass = { sound: string; fromHz: number; toHz: number; start: At; end:
  * oncePerVisit：这一段的单次音效"每进入一次只播一次"。段内倒滚再前进不重播；只有时间轴回到这一段开始之前
  * （例如回到上一段）之后才重新允许。只给需要的段打开（listen 的画外轻跳）；其它段保持"倒滚后再前进可以再播"。
  */
-type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: At }[]; ramps?: MapRamp[]; lowpass?: MapLowpass[]; oncePerVisit?: boolean };
+type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: At }[]; ramps?: MapRamp[]; lowpass?: MapLowpass[]; oncePerVisit?: boolean; roomHz?: number };
 type Ramp = { sound: LoopSound; from: number; to: number; start: number; end: number };
 /** 带声音分支扩展字段的节拍（ramps / lowpass 已换算成段内进度） */
-export type MappedBeat = Beat & { mapRamps?: Ramp[]; mapLowpass?: Ramp[]; mapOncePerVisit?: boolean };
+export type MappedBeat = Beat & { mapRamps?: Ramp[]; mapLowpass?: Ramp[]; mapOncePerVisit?: boolean; mapRoomHz?: number };
 const SCENE_AUDIO = (audioMap as { scenes: Record<string, MapScene> }).scenes;
 /**
  * 触发点符号：enterEnd / actionEnd / holdEnd（= 该段进入 / 动作 / 停留阶段的结束处），可带偏移，如 "actionEnd-0.02"。
@@ -155,7 +159,7 @@ export function withAudioMap(beats: Beat[]): MappedBeat[] {
     const mapRamps = resolveRamps(m.ramps, "ramps");
     const mapLowpass = resolveRamps(m.lowpass?.map((l) => ({ sound: l.sound, from: l.fromHz, to: l.toHz, start: l.start, end: l.end })), "lowpass");
     for (const r of mapRamps) loops[r.sound] = r.to; // 排过序：最后一条的 to 留下
-    return { ...b, audio: { loops, fades, oneshots }, mapRamps, mapLowpass, mapOncePerVisit: m.oncePerVisit === true };
+    return { ...b, audio: { loops, fades, oneshots }, mapRamps, mapLowpass, mapOncePerVisit: m.oncePerVisit === true, mapRoomHz: typeof m.roomHz === "number" ? m.roomHz : undefined };
   });
 }
 function warnOnce(msg: string) {
@@ -180,6 +184,17 @@ export function mappedLevels(t: Timeline, base: Record<LoopSound, number>): Reco
   const out = { ...base };
   for (const s of LOOP_SOUNDS) { const v = rampValue(b.mapRamps, s, t.p); if (v !== null) out[s] = v; }
   return out;
+}
+/**
+ * room 的低通截止频率（隔着画框）：本段 roomHz（没写 = 全开），进入阶段按对数频率从上一段渐变过来。
+ * null = 全开（不滤波）。
+ */
+export function roomCutoffHz(t: Timeline, beats: MappedBeat[]): number | null {
+  const hzOf = (b: MappedBeat | undefined) => b?.mapRoomHz ?? LOWPASS_OPEN;
+  const cur = hzOf(beats[t.index]);
+  const prev = t.index > 0 ? hzOf(beats[t.index - 1]) : cur;
+  const hz = t.phase === "enter" ? Math.exp(Math.log(prev) + (Math.log(cur) - Math.log(prev)) * t.phaseP) : cur;
+  return hz >= LOWPASS_OPEN ? null : hz;
 }
 /** 滚动位置（vh），用来判断一次更新跨了多远 */
 function posVh(t: Timeline, beats: Beat[]) {
@@ -212,8 +227,8 @@ const SLEW_PER_SEC = 2.5;
 const TICK_MS = 50;
 /** sizzle 低通：远（flight 0）→ 近（flight 1）；全开 = 不起作用 */
 const LOWPASS_FAR = 1500, LOWPASS_NEAR = 16000, LOWPASS_OPEN = 20000;
-/** 挂低通的循环声：sizzle（跟随蛋的飞行）、steps（audio-map 的 lowpass 规则，脚步由远到近） */
-const LOWPASS_SOUNDS: readonly string[] = ["sizzle", "steps"];
+/** 挂低通的循环声：sizzle（跟随蛋的飞行）、steps（audio-map 的 lowpass 规则，脚步由远到近）、room（audio-map 的 roomHz，隔着画框） */
+const LOWPASS_SOUNDS: readonly string[] = ["sizzle", "steps", "room"];
 
 type Channel = {
   name: string;
@@ -383,12 +398,14 @@ class KitchenMixer {
 
   /** 页面事件：前景动画在落刀那一帧派发 */
   private onShotEvent = (e: Event) => {
-    const name = (e as CustomEvent<{ sound?: unknown }>).detail?.sound;
+    const detail = (e as CustomEvent<{ sound?: unknown; rate?: unknown; gain?: unknown }>).detail;
+    const name = detail?.sound;
     if (typeof name !== "string" || !(name in ONESHOTS)) {
       warnOnce(`${KITCHEN_ONESHOT_EVENT}: 未登记的声音 ${String(name)}`);
       return;
     }
-    this.fire(name as ShotSound);
+    const num = (v: unknown, lo: number, hi: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined);
+    this.fire(name as ShotSound, { rate: num(detail?.rate, 0.5, 2), gain: num(detail?.gain, 0, 1) });
   };
 
   private stopVoices() {
@@ -470,7 +487,7 @@ class KitchenMixer {
    * - 有解码好的 AudioBuffer（事件触发的 chopHit）：每次新建 BufferSource，允许快速连续触发、彼此重叠。
    * - 其它：同一音效只有一个 <audio>，重触发 = 从头重放，不叠加。
    */
-  fire(name: ShotSound) {
+  fire(name: ShotSound, opts?: { rate?: number; gain?: number }) {
     const ch = this.shots[name];
     if (!ch || !this.soundOn || this.hidden) return; // 空位或不可播
     const buf = this.buffers[name];
@@ -479,7 +496,8 @@ class KitchenMixer {
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
       const g = this.ctx.createGain();
-      g.gain.value = ONESHOTS[name].volume;
+      g.gain.value = ONESHOTS[name].volume * (opts?.gain ?? 1);
+      if (opts?.rate) src.playbackRate.value = opts.rate;
       const pan = ONESHOTS[name].pan;
       const panner = pan !== undefined && pan !== 0 && typeof this.ctx.createStereoPanner === "function" ? this.ctx.createStereoPanner() : null;
       if (panner && pan !== undefined) { panner.pan.value = pan; src.connect(g).connect(panner).connect(this.ctx.destination); }
@@ -544,6 +562,7 @@ export function useKitchenAudio() {
     const b = timeline.beat as MappedBeat;
     const hz = rampValue(b.mapLowpass, "steps", timeline.p);
     mixer.current?.setLowpass("steps", hz);
+    mixer.current?.setLowpass("room", roomCutoffHz(timeline, beats));
   }, [timeline, beats]);
 
   // 单次音效：向下滚动越过节拍表里的触发点时播一次
