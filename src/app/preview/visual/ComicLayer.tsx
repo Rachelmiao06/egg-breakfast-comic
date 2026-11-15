@@ -9,6 +9,9 @@ import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
 import { ChopPanel, HearPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled } from "./PanelPerf";
+import { BLINK_PANELS, BlinkLayer, ClosingBlink } from "./Blink";
+import FrameReact from "./FrameReact";
+import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -272,7 +275,7 @@ function FlowLayer() {
     }
   }
   return (
-    <div className="pointer-events-none fixed inset-0 z-10">
+    <div data-comic-flow className="pointer-events-none fixed inset-0 z-10">
       {visible.map((p) => {
         const q = g - index[p.beat];
         if (p.role === "closeup") return <CloseupShot key={p.key} p={p} q={q} portrait={vp.portrait} vw={vp.w} reducedMotion={reducedMotion} seconds={beats[index[p.beat]].seconds} />;
@@ -292,16 +295,18 @@ function FlowLayer() {
         // 格内表演的触发看格子在屏幕上的真实状态：入场结束、可见比例、是否开始离场（竖屏整列上移时也成立）
         const topVh = pos.y + dy;
         const stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh), entered: q >= s1 - 0.02, leaving: q > e0 };
+        const reading = perf && stage.entered && !stage.leaving && stage.vis >= 0.9; // 静止读格：妈妈的脸格才会眨眼
         const panel =
           p.key === "p2b" ? <ChopPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : <FlowPanel p={p} pos={pos} dy={dy} />;
+          : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
         return <Fragment key={p.key}>{panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
       })}
       <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} aspect={vp.w / vp.h} />
+      {perf && <FrameReact />}
     </div>
   );
 }
@@ -360,6 +365,7 @@ function SoundText({ g, index, beats, portrait, aspect }: { g: number; index: Re
  */
 function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelSpec; q: number; portrait: boolean; vw: number; reducedMotion: boolean; seconds: Record<string, number> }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
+  const perfOn = usePerfEnabled();
   const nativeW = 515; // p6f.webp 原始宽度
   // 结尾的妈妈反应是三个大画面之一：最多放大到原图 1.4 倍，避免发虚
   const wPx = portrait ? Math.min(vw * 0.9, nativeW * 1.4) : Math.min(vw * 0.52, nativeW * 1.4);
@@ -370,6 +376,8 @@ function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelS
     <div className="absolute left-1/2 top-1/2" style={{ width: wPx, aspectRatio: `${aspect}`, transform: `translate(-50%, calc(-50% + ${(1 - k) * 7}vh))`, opacity: k }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
+      {/* 眼神僵住：三个点之前不眨眼，最后一个点之后约 1.2 秒才眨第一下 */}
+      <ClosingBlink stable={stable} enabled={!reducedMotion && perfOn} afterMs={((seconds.dotDelay ?? 0.5) + 2 * (seconds.dotGap ?? 0.6) + 1.2) * 1000} />
       {stable && <Dots key="dots" instant={reducedMotion} delay={seconds.dotDelay ?? 0.5} gap={seconds.dotGap ?? 0.6} portrait={portrait} />}
     </div>
   );
@@ -388,6 +396,16 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
     const ids = [0, 1, 2].map((i) => window.setTimeout(() => setN(i + 1), (delay + i * gap) * 1000));
     return () => ids.forEach((id) => window.clearTimeout(id));
   }, [instant, delay, gap]);
+  // 三个点各配一下"嗒"：和接蛋前画外的三下轻跳是同一组声音，音高逐个降低；声音比点早约 80 ms（先听见，再看见）。
+  // 减少动态效果时点一次出齐，但声音仍按同样的节奏响（和切菜格的做法一致）；静音、未解锁、后台时混音器自己丢弃。
+  useEffect(() => {
+    const TAP = [{ rate: 1, gain: 1 }, { rate: 0.89, gain: 0.85 }, { rate: 0.79, gain: 0.7 }];
+    const ids = TAP.map((t, i) => window.setTimeout(
+      () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: `hopTap${i + 1}`, ...t } })),
+      Math.max(0, (delay + i * gap) * 1000 - 80),
+    ));
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [delay, gap]);
   const size = portrait ? "4vw" : "clamp(14px, 1.35vw, 22px)";
   return (
     <div
@@ -405,7 +423,7 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
   );
 }
 
-function FlowPanel({ p, pos, dy }: { p: PanelSpec; pos: Place; dy: number }) {
+function FlowPanel({ p, pos, dy, blink = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
     <div className="absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)` }}>
@@ -415,6 +433,7 @@ function FlowPanel({ p, pos, dy }: { p: PanelSpec; pos: Place; dy: number }) {
       ) : (
         <Placeholder label={p.label ?? ""} />
       )}
+      {blink !== null && <BlinkLayer panelKey={p.key} active={blink} />}
     </div>
   );
 }

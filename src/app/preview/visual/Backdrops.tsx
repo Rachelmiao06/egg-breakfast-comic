@@ -20,10 +20,12 @@
  * 不画第二只蛋或锅；占位只用平涂色块，说明文字只在 ?debug=1 显示。
  * 导出名 Paper / SearchBackdrop。
  */
-import { useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
+import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import { Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import { BG, curve, gNow } from "./motion.v2";
+import { HEAR_EVENT } from "./PanelPerf";
 import { useViewport } from "./viewport";
 import { useSlots } from "./slots";
 import { eggAtTableFor, tableWaitFor } from "./eggPath";
@@ -105,11 +107,49 @@ export function Paper() {
  * 按原比例铺在 reading.box（场景像素），台面前缘对齐桌沿线，台面就是蛋站立和放碗的桌面；竖屏用竖版。
  * 两条零高度标记线（data-bg-line="top" / "edge"）= 台面后缘 / 前缘，给无头检查量“蛋脚底在桌面上”。
  */
+/**
+ * 围观群众：酱油瓶、糖罐、葱听见前景的动静，半拍之后各自"一惊"——以脚底（原有的旋转支点）为原点短暂放大约 4% 再回落。
+ * 只放大不位移，所以不会露出被补过的底图；用单独的 scale 属性做，不碰滚动在控制的 rotate。
+ * 听的是：切菜每一刀（chopHit）→ 葱；"啵"（点蛋，或 hear 格妈妈抬眼 / 蛋起跳）→ 糖罐、酱油瓶；
+ * 接蛋前画外的轻跳 / 结尾三个点的嗒（hopTap）→ 酱油瓶。没有声音，也不加对白。减少动态效果时不做。
+ */
+function useFriendReactions(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const ids: number[] = [];
+    const startle = (id: string, delay: number) => {
+      ids.push(window.setTimeout(() => {
+        document.querySelector<HTMLElement>(`[data-actor="${id}"]`)?.animate(
+          [{ scale: "1" }, { scale: "1.045", offset: 0.3 }, { scale: "0.992", offset: 0.65 }, { scale: "1" }],
+          { duration: 340, easing: "ease-out" },
+        );
+      }, delay));
+    };
+    const onShot = (e: Event) => {
+      const s = (e as CustomEvent<{ sound?: string }>).detail?.sound ?? "";
+      if (s === "chopHit") startle("scallion-leaves", 140);
+      else if (s === "pop") { startle("jar", 100); startle("soy", 210); }
+      else if (/^hopTap[123]$/.test(s)) startle("soy", 120);
+    };
+    const onHear = (e: Event) => {
+      if ((e as CustomEvent<{ phase?: string }>).detail?.phase === "start") { startle("jar", 420); startle("soy", 560); }
+    };
+    window.addEventListener(KITCHEN_ONESHOT_EVENT, onShot);
+    window.addEventListener(HEAR_EVENT, onHear);
+    return () => {
+      ids.forEach((id) => window.clearTimeout(id));
+      window.removeEventListener(KITCHEN_ONESHOT_EVENT, onShot);
+      window.removeEventListener(HEAR_EVENT, onHear);
+    };
+  }, [enabled]);
+}
+
 function ReadingKitchen({ reveal }: { reveal: number }) {
   const R = BG.reading;
   const vp = useViewport();
   const { timeline: t, reducedMotion } = useScene();
   const { cfg } = useSlots();
+  useFriendReactions(!reducedMotion);
   const portrait = !!R.srcPortrait && vp.w / vp.h < R.portraitBelow;
   const [x, y, w, h] = portrait ? R.boxPortrait : R.box;
   const c = portrait ? R.counterPortrait : R.counter;

@@ -66,7 +66,7 @@ type EventSound = "chopHit" | "eggHop" | "stirfryStir" | "sauceStir" | "eggRice"
 type ShotSound = OneShotSound | EventSound;
 const EVENT_SOUNDS: readonly EventSound[] = ["chopHit", "eggHop", "stirfryStir", "sauceStir", "eggRice"];
 /** 解码成 AudioBuffer 播放：每次触发新建节点，快速连续触发可以重叠，并可以带声像、可以单独淡出 */
-const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3", "eggHop", "stirfryIn", "stirfryStir", "sauceStir", "pour", "bowlDown", "eggRice", "catch"];
+const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3", "eggHop", "stirfryIn", "stirfryStir", "sauceStir", "pour", "bowlDown", "eggRice", "catch", "pop"];
 export const KITCHEN_ONESHOT_EVENT = "kitchen:oneshot";
 /** 前景一段动作的开始 / 停止：detail = { name, phase: "start" | "stop" } */
 export const KITCHEN_ACTION_EVENT = "kitchen:action";
@@ -133,10 +133,10 @@ type MapLowpass = { sound: string; fromHz: number; toHz: number; start: At; end:
  * oncePerVisit：这一段的单次音效"每进入一次只播一次"。段内倒滚再前进不重播；只有时间轴回到这一段开始之前
  * （例如回到上一段）之后才重新允许。只给需要的段打开（listen 的画外轻跳）；其它段保持"倒滚后再前进可以再播"。
  */
-type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: At }[]; ramps?: MapRamp[]; lowpass?: MapLowpass[]; oncePerVisit?: boolean };
+type MapScene = Omit<SceneAudio, "oneshots"> & { oneshots: { sound: string; at: At }[]; ramps?: MapRamp[]; lowpass?: MapLowpass[]; oncePerVisit?: boolean; roomHz?: number };
 type Ramp = { sound: LoopSound; from: number; to: number; start: number; end: number };
 /** 带声音分支扩展字段的节拍（ramps / lowpass 已换算成段内进度） */
-export type MappedBeat = Beat & { mapRamps?: Ramp[]; mapLowpass?: Ramp[]; mapOncePerVisit?: boolean };
+export type MappedBeat = Beat & { mapRamps?: Ramp[]; mapLowpass?: Ramp[]; mapOncePerVisit?: boolean; mapRoomHz?: number };
 const SCENE_AUDIO = (audioMap as { scenes: Record<string, MapScene> }).scenes;
 /**
  * 触发点符号：enterEnd / actionEnd / holdEnd（= 该段进入 / 动作 / 停留阶段的结束处），可带偏移，如 "actionEnd-0.02"。
@@ -160,6 +160,8 @@ export function resolveAt(b: Beat, at: number | string): number | null {
 /** 真正有文件的声音；其余为空位 */
 const AVAILABLE = new Set<string>((audioMap as { available: string[] }).available);
 const warned = new Set<string>();
+/** 事件 detail 里的数值：有限数才用，夹在 [lo, hi]；否则 undefined */
+const num = (v: unknown, lo: number, hi: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined);
 /** 用 audio-map.json 覆盖节拍表每段的 audio；检查声音名是否已登记（没登记的忽略并在开发期提示一次） */
 export function withAudioMap(beats: Beat[]): MappedBeat[] {
   return beats.map((b): MappedBeat => {
@@ -192,7 +194,7 @@ export function withAudioMap(beats: Beat[]): MappedBeat[] {
     const mapRamps = resolveRamps(m.ramps, "ramps");
     const mapLowpass = resolveRamps(m.lowpass?.map((l) => ({ sound: l.sound, from: l.fromHz, to: l.toHz, start: l.start, end: l.end })), "lowpass");
     for (const r of mapRamps) loops[r.sound] = r.to; // 排过序：最后一条的 to 留下
-    return { ...b, audio: { loops, fades, oneshots }, mapRamps, mapLowpass, mapOncePerVisit: m.oncePerVisit === true };
+    return { ...b, audio: { loops, fades, oneshots }, mapRamps, mapLowpass, mapOncePerVisit: m.oncePerVisit === true, mapRoomHz: typeof m.roomHz === "number" ? m.roomHz : undefined };
   });
 }
 function warnOnce(msg: string) {
@@ -211,6 +213,17 @@ function rampValue(rs: Ramp[] | undefined, sound: LoopSound, p: number): number 
   return v;
 }
 /** loopLevels 的结果再套上本段的 ramps */
+/**
+ * room 的低通截止频率（隔着画框，claude/blink-callback）：本段 roomHz（没写 = 全开），进入阶段按对数频率从上一段渐变过来。
+ * null = 全开（不滤波）。
+ */
+export function roomCutoffHz(t: Timeline, beats: MappedBeat[]): number | null {
+  const hzOf = (b: MappedBeat | undefined) => b?.mapRoomHz ?? LOWPASS_OPEN;
+  const cur = hzOf(beats[t.index]);
+  const prev = t.index > 0 ? hzOf(beats[t.index - 1]) : cur;
+  const hz = t.phase === "enter" ? Math.exp(Math.log(prev) + (Math.log(cur) - Math.log(prev)) * t.phaseP) : cur;
+  return hz >= LOWPASS_OPEN ? null : hz;
+}
 export function mappedLevels(t: Timeline, base: Record<LoopSound, number>): Record<LoopSound, number> {
   const b = t.beat as MappedBeat;
   if (!b.mapRamps?.length) return base;
@@ -246,11 +259,13 @@ const MAX_CROSS_VH = 40;
 
 /** 平滑速度：音量每秒最多变化这么多（满量程），只用于去掉跳变，节奏由节拍表决定 */
 const SLEW_PER_SEC = 2.5;
+/** 点火（claude/blink-callback）：开场点开声音时 sizzle 的升起速度（满量程 / 秒）和持续时间 */
+const IGNITE_RISE_PER_SEC = 0.17, IGNITE_MS = 3200;
 const TICK_MS = 50;
 /** sizzle 低通：远（flight 0）→ 近（flight 1）；全开 = 不起作用 */
 const LOWPASS_FAR = 1500, LOWPASS_NEAR = 16000, LOWPASS_OPEN = 20000;
 /** 挂低通的循环声：sizzle（跟随蛋的飞行）、steps（audio-map 的 lowpass 规则，脚步由远到近） */
-const LOWPASS_SOUNDS: readonly string[] = ["sizzle", "steps"];
+const LOWPASS_SOUNDS: readonly string[] = ["sizzle", "steps", "room"]; // room：audio-map 的 roomHz（隔着画框）
 
 type Channel = {
   name: string;
@@ -292,6 +307,10 @@ class KitchenMixer {
   private lastTick = 0;
   private settled = 0;
   private disposed = false;
+  /** 点火：这个时间之前 sizzle 用很慢的速度升起 */
+  private igniteUntil = 0;
+  /** 有过用户手势（点火的"咔哒"才允许响） */
+  private gestured = false;
 
   constructor(private onAvailable: (ok: boolean) => void) {
     this.root = document.createElement("div");
@@ -402,6 +421,7 @@ class KitchenMixer {
   }
 
   private onGesture = () => {
+    this.gestured = true;
     if (this.ctx && this.ctx.state !== "running") this.ctx.resume().catch(() => {});
     if (this.unlocked) return;
     for (const ch of this.all(this.loops)) {
@@ -428,7 +448,7 @@ class KitchenMixer {
 
   /** 页面事件：前景动画在接触的那一帧派发（落刀、菜落锅、蛋落回锅面） */
   private onShotEvent = (e: Event) => {
-    const d = (e as CustomEvent<{ sound?: unknown; surface?: unknown }>).detail;
+    const d = (e as CustomEvent<{ sound?: unknown; surface?: unknown; rate?: unknown; gain?: unknown; pan?: unknown }>).detail;
     const name = d?.sound;
     if (typeof name !== "string" || !(name in ONESHOTS)) {
       warnOnce(`${KITCHEN_ONESHOT_EVENT}: 未登记的声音 ${String(name)}`);
@@ -442,17 +462,18 @@ class KitchenMixer {
       if (this.fire("eggHop", { rate: 0.94 + Math.random() * 0.12, gain: Math.pow(10, (Math.random() * 3 - 1.5) / 20) })) this.lastHop = now;
       return;
     }
-    this.fire(name as ShotSound);
+    // detail 可选 rate（0.5–2）、gain（0–2，乘在登记电平上）、pan（-1…1，覆盖登记值）：结尾三个点逐个降调、切菜声像跟着格子、点蛋的"啵"随机音高
+    this.fire(name as ShotSound, { rate: num(d?.rate, 0.5, 2), gain: num(d?.gain, 0, 2), pan: num(d?.pan, -1, 1) });
   };
 
   /** 前景一段动作开始 / 停止（翻炒、调汁） */
   private onActionEvent = (e: Event) => {
-    const d = (e as CustomEvent<{ name?: unknown; phase?: unknown }>).detail;
+    const d = (e as CustomEvent<{ name?: unknown; phase?: unknown; pan?: unknown }>).detail;
     if (typeof d?.name === "string" && CUES.muted?.includes(d.name)) return; // 刻意静音的动作（例如静态翻炒格）
     const sound = typeof d?.name === "string" ? CUES.action[d.name] : undefined;
     if (!sound || !(sound in ONESHOTS)) { warnOnce(`${KITCHEN_ACTION_EVENT}: 未登记的动作 ${String(d?.name)}`); return; }
     const tag = `action:${String(d!.name)}`;
-    if (d!.phase === "start") { this.fadeTag(tag, 0.05); if (this.fire(sound as ShotSound, { tag })) this.actionStart.set(tag, performance.now()); }
+    if (d!.phase === "start") { this.fadeTag(tag, 0.05); if (this.fire(sound as ShotSound, { tag, pan: num(d!.pan, -1, 1) })) this.actionStart.set(tag, performance.now()); }
     // 刚开始就停（快速滚过格子）：60 ms 收掉，不留一小截声音
     else this.fadeTag(tag, performance.now() - (this.actionStart.get(tag) ?? -Infinity) < QUICK_STOP_MS ? 0.06 : ACTION_FADE_S);
   };
@@ -507,11 +528,14 @@ class KitchenMixer {
 
   private tick = () => {
     const now = performance.now();
-    const step = ((now - this.lastTick) / 1000) * SLEW_PER_SEC;
+    const dt = (now - this.lastTick) / 1000;
+    const step = dt * SLEW_PER_SEC;
     this.lastTick = now;
     for (const ch of this.all(this.loops)) {
       const target = this.soundOn && !this.hidden && ch.ok ? ch.target : 0;
-      const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), step);
+      // 点火：sizzle 在 igniteUntil 之前每秒最多升 0.17（0.45 的目标约 3 秒升满）
+      const st = ch.name === "sizzle" && now < this.igniteUntil ? dt * IGNITE_RISE_PER_SEC : step;
+      const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), st);
       const level = Math.min(1, Math.max(0, v));
       if (level !== ch.level) this.apply(ch, level);
       if (target > 0 && ch.el.paused && !ch.priming && (this.unlocked || !this.gestureNeeded)) this.play(ch);
@@ -528,14 +552,28 @@ class KitchenMixer {
   }
   private triedOnce = false;
 
-  setSoundOn(on: boolean) {
+  /** ignite：这次"开"发生在开场段，要有点火的感觉（需要此前有过用户手势） */
+  setSoundOn(on: boolean, ignite = false) {
+    const was = this.soundOn;
     this.soundOn = on;
+    if (on && !was && ignite && this.gestured && !this.hidden) this.ignite();
     if (!on) {
       this.stopVoices();
       for (const ch of this.all(this.shots)) {
         if (!ch.el.paused) { ch.el.pause(); ch.el.currentTime = 0; }
       }
     }
+  }
+
+  /** 灶火点着：两下升调的"咔哒"，sizzle 随后慢慢升起（tick 里按 igniteUntil 放慢升速） */
+  private ignite() {
+    this.igniteUntil = performance.now() + IGNITE_MS;
+    const go = () => {
+      this.fire("hopTap2", { rate: 1.55, gain: 1.8, pan: 0 });
+      window.setTimeout(() => this.fire("hopTap1", { rate: 2, gain: 1.5, pan: 0 }), 120);
+    };
+    if (this.ctx && this.ctx.state !== "running") this.ctx.resume().then(go).catch(() => {});
+    else go();
   }
 
   /** 蛋的飞行进度 → sizzle 低通截止频率（null = 全开） */
@@ -567,7 +605,7 @@ class KitchenMixer {
    * - 有解码好的 AudioBuffer（事件触发的 chopHit）：每次新建 BufferSource，允许快速连续触发、彼此重叠。
    * - 其它：同一音效只有一个 <audio>，重触发 = 从头重放，不叠加。
    */
-  fire(name: ShotSound, opts: { rate?: number; gain?: number; tag?: string } = {}): boolean {
+  fire(name: ShotSound, opts: { rate?: number; gain?: number; tag?: string; pan?: number } = {}): boolean {
     const ch = this.shots[name];
     if (!ch || !this.soundOn || this.hidden) return false; // 空位或不可播
     const buf = this.buffers[name];
@@ -584,7 +622,7 @@ class KitchenMixer {
         g.gain.setValueAtTime(0, now);
         g.gain.linearRampToValueAtTime(vol, now + SKIP_FADE_S);
       } else g.gain.value = vol;
-      const pan = ONESHOTS[name].pan;
+      const pan = opts.pan ?? ONESHOTS[name].pan;
       const panner = pan !== undefined && pan !== 0 && typeof this.ctx.createStereoPanner === "function" ? this.ctx.createStereoPanner() : null;
       if (panner && pan !== undefined) { panner.pan.value = pan; src.connect(g).connect(panner).connect(this.ctx.destination); }
       else src.connect(g).connect(this.ctx.destination);
@@ -645,7 +683,9 @@ export function useKitchenAudio() {
     return () => { m.dispose(); mixer.current = null; };
   }, []);
 
-  useEffect(() => { mixer.current?.setSoundOn(soundOn); }, [soundOn]);
+  const indexRef = useRef(0);
+  useEffect(() => { indexRef.current = rawTimeline.index; }, [rawTimeline.index]);
+  useEffect(() => { mixer.current?.setSoundOn(soundOn, indexRef.current === 0); }, [soundOn]);
   useEffect(() => { mixer.current?.setFlight(flight); }, [flight]);
 
   // 目标音量：完全由节拍表推导
@@ -655,6 +695,7 @@ export function useKitchenAudio() {
     const b = timeline.beat as MappedBeat;
     const hz = rampValue(b.mapLowpass, "steps", timeline.p);
     mixer.current?.setLowpass("steps", hz);
+    mixer.current?.setLowpass("room", roomCutoffHz(timeline, beats));
   }, [timeline, beats]);
 
   // 单次音效：向下滚动越过节拍表里的触发点时播一次

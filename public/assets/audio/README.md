@@ -135,3 +135,9 @@
 - 切后台：全部 paused；后台期间滚过触发点不播；回前台只恢复循环声。
 - 后台恢复不补播（素材会话在真实 Chrome 里报的缺陷，已修）：后台里 rAF 停止、时间轴不更新，回前台时时间轴一次跳过后台滚过的距离。现在 visibilitychange→visible 时先把"上一次时间轴"重同步到当前滚动位置再放行。复现脚本（rAF 排队模拟后台，catch p=0.5 → 后台 scrollTo bowl p=0.6 → 恢复）：恢复后 catch / bowlDown 触发计数保持 0，只有 room 播放；之后真实滚动 bowl 0.1→0.5 触发 bowlDown 一次。真实最小化窗口的复测由素材会话的录制脚本做。
 - 未测：iOS 真机、Safari 桌面版。
+
+
+## 隔着画框、声像、点火、结尾三下嗒（2026-11-14，未试听）
+
+见 `docs/PAPER-WORLD.md`。声音相关的数值：`audio-map.json` 每段的 `roomHz`；tablecall 的 sizzle 0.05；closeup 的 room 退到 0.04；
+`kitchen:oneshot` 事件的 rate / gain / pan；`kitchen:pan` 事件（搅汁循环声的声像）；点火常量 `IGNITE_RISE_PER_SEC` / `IGNITE_MS`。
