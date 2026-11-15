@@ -102,8 +102,9 @@ function StageV2() {
     traj: trajectoryFor(cfg, vp, camAt(gOf("hear", 0.6), vp.w, vp.h), catchView(vp.w, vp.h), tableAt.hear),
     // hear：前景表演开始（HEAR_EVENT start，与妈妈抬眼同一时刻）时蓄力 0.25 s，0.35 s 内冲出画面上缘；回到该段 beforeQ 之前才复位
     // 起跳表演：HEAR_EVENT start（与妈妈抬眼同一时刻）下蹲 0.15 s、上升 0.4 s 到 M；显示参数用 ω 18/s 的临界阻尼弹簧跟随；
-    // hear 退出 q 0.85 → listen q 0.2 滚动把蛋从 M 带到 E（listen 停留之前完全出画）
-    jump: { event: HEAR_EVENT, crouch: 0.15, rise: 0.4, omega: 18, mToE: [0.85, 0.2] as [number, number] },
+    // hear 退出 q 0.85 → listen q 0.12 滚动把蛋从 M 带到 E（listen 停留 q 0.2 之前留出余量，快速拖过时弹簧也来得及把蛋带出画）
+    // hear q 0.5 → 0.85 滚动把蛋从 L 带到 M（表演先到 M 时不起作用；没触发表演就快速拖过时，蛋提前离开 L）
+    jump: { event: HEAR_EVENT, crouch: 0.15, rise: 0.4, omega: 18, mToE: [0.85, 0.12] as [number, number], lToM: 0.5 },
     // 环境段 tablecall：饭桌上的碗（后景会话提供碗；这里只给蛋的脚底点和大小）
     bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
     eggInBowl: BG.anchors.eggInTableBowl,

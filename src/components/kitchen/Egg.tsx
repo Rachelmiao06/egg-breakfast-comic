@@ -74,9 +74,10 @@ export type EggAnchors = {
   /**
    * 可选：高跳的表演和跟随。event 的 detail.phase：start = 起跳（只在蛋确实在 L、每次进入一次时响应）；reset = 表演参数回 0
    * （蛋按弹簧落回 L）；stop 不处理（离场阶段每帧都会发）。crouch / rise 为秒；omega 为弹簧角频率（1/s）；
-   * mToE = [leap 段 q, air 段 q]：滚动把蛋从 M 带到 E 的区间。
+   * mToE = [leap 段 q, air 段 q]：滚动把蛋从 M 带到 E 的区间；lToM = leap 段 q：从这里到 mToE[0]，滚动把蛋从 L 带到 M
+   * （表演已经把蛋带到 M 时取 max 不起作用；没触发表演就快速拖过时，蛋提前沿曲线离开 L，listen 停留之前已经出画）。
    */
-  jump?: { event: string; crouch: number; rise: number; omega: number; mToE: [number, number] };
+  jump?: { event: string; crouch: number; rise: number; omega: number; mToE: [number, number]; lToM: number };
 };
 
 /**
@@ -401,7 +402,8 @@ function createJumpController(env: JumpEnv) {
     else {
       // 临界阻尼弹簧（精确解）：位置和速度都连续
       // 滚动已经要求蛋出画（目标越过 E）而蛋还没出去：弹簧加快追上（快速拖过时 listen 停留阶段画面里不留蛋），仍然连续
-      const w0 = lv.jump.omega * (tgt >= T.sE && st.x < T.sE ? 2.5 : 1), d = st.x - tgt, e = Math.exp(-w0 * dt);
+      // 滚动带着走、蛋落后较多时也加快一些（起跳表演自己的上升不加速，免得起跳一下猛冲）
+      const w0 = lv.jump.omega * (tgt >= T.sE && st.x < T.sE ? 3.5 : st.scroll - st.x > 0.08 ? 2 : 1), d = st.x - tgt, e = Math.exp(-w0 * dt);
       const nd = (d + (st.v + w0 * d) * dt) * e;
       st.v = (st.v - w0 * (st.v + w0 * d) * dt) * e;
       st.x = tgt + nd;
@@ -473,18 +475,19 @@ function vhAt(beats: Beat[], i: number, q: number) {
   return v + beats[i].lengthVh * q;
 }
 /**
- * 高跳轨迹的滚动参数 s_滚动（纯由时间轴算）：leap 段 mToE[0] 之前为 0 → 到 air 段 mToE[1] 从 sM 走到 sE →
+ * 高跳轨迹的滚动参数 s_滚动（纯由时间轴算）：leap 段 lToM 之前为 0 → 到 mToE[0] 从 0 走到 sM → 到 air 段 mToE[1] 从 sM 走到 sE →
  * 到接蛋段动作开始从 sE 走到 sR（画外）→ 动作阶段（共享事件 eggTravel）从 sR 走到 1 → 之后为 1
  */
-function scrollParam(t: Timeline, beats: Beat[], T: EggTraj, mToE: [number, number]) {
+function scrollParam(t: Timeline, beats: Beat[], T: EggTraj, mToE: [number, number], lToM: number) {
   const hi = beats.findIndex((b) => b.egg === "leap"), ai = beats.findIndex((b) => b.egg === "air");
   const ci = beats.findIndex((b, i) => i > ai && b.egg === "flight");
   if (hi < 0 || ai < 0 || ci < 0) return 0;
   const cur = vhAt(beats, t.index, t.p);
-  const a0 = vhAt(beats, hi, mToE[0]), a1 = vhAt(beats, ai, mToE[1]);
+  const l0 = vhAt(beats, hi, lToM), a0 = vhAt(beats, hi, mToE[0]), a1 = vhAt(beats, ai, mToE[1]);
   const tr = eggTravel(beats[ci]);
   const b1 = vhAt(beats, ci, tr?.start ?? 0.22), c1 = vhAt(beats, ci, tr?.land ?? 0.8);
-  if (cur < a0) return 0;
+  if (cur < l0) return 0;
+  if (cur < a0) return (T.sM * (cur - l0)) / (a0 - l0);
   if (cur < a1) return T.sM + ((T.sE - T.sM) * (cur - a0)) / (a1 - a0);
   if (cur < b1) return T.sE + ((T.sR - T.sE) * (cur - a1)) / (b1 - a1);
   if (cur < c1) return T.sR + ((1 - T.sR) * (cur - b1)) / (c1 - b1);
@@ -505,7 +508,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const a: EggAnchors = useMemo(() => ({ ...DEFAULT_EGG_ANCHORS, ...anchors }), [aKey]);
   const P = plan(timeline, beats, a);
-  const sScroll = a.traj && a.jump ? scrollParam(timeline, beats, a.traj, a.jump.mToE) : 0;
+  const sScroll = a.traj && a.jump ? scrollParam(timeline, beats, a.traj, a.jump.mToE, a.jump.lToM) : 0;
   const trail = useSyncExternalStore(() => () => {}, trailOn, () => false);
 
   // ---- 表情：直接切换（不做交叉淡化，任何时刻只显示一张脸） ----
