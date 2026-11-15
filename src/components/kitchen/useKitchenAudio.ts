@@ -105,7 +105,8 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number; 
   eggHop: { file: "egg-hop.mp3", volume: 0.16, skip: 0.006 },
   // 蛋被铲子放到饭上（p4b）：比落铲更闷的一声 plop（和 catch 同一原档的第二声，2.5 kHz 低通）。"碗放到桌上"另用 bowlDown（p4e）
   eggRice: { file: "egg-rice.mp3", volume: 0.4, skip: 0.02 },
-  // 备菜段的案板 / 桌面声（2026-11-15，用户：备菜段没有滋啦，要明显的案板声），都由 comic:panel 到位触发，见 audio-map cues.panel
+  // 备菜段 / 调汁段静态格的动作声：2026-11-15 用户修正后**不接入**（静态格里没有正在发生的动作）。文件和这里的登记保留，
+  // 不在 audio-map available 里、不加载；等这些格有了放菜 / 舀菜的动作帧，再加进 available 和 cues.panel
   bagRustle: { file: "bag-rustle.mp3", volume: 0.3 }, // p1a 俯身拿购物袋：纸袋窸窣
   bagDown: { file: "bag-down.mp3", volume: 0.45, skip: 0.2 }, // p1b 购物袋放到台面上：从 0.2 s 开始，落台面在约 0.1 s
   vegTable: { file: "veg-table.mp3", volume: 0.45, skip: 0.05 }, // p1d 把菜摆到桌上：三下轻的木头碰触
