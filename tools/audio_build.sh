@@ -110,7 +110,7 @@ build() {
                       # → 12 s 循环，旋转 0.8 s、交叉淡化 0.4 s
       loop_seam "$RAW/stirfry-stir.mp3" "$wav" 15.5 27.5 0.8 0.4; finalize "$wav" "$out" 10 192k loop ;;
     sauce-stir-loop)  # 原档 18.81 s，前 0.8 s 静音；取 [0.80, 18.70]（两端都在勺声间隙里）→ 17.7 s 循环
-      loop_seam "$raw" "$wav" 0.80 18.70 0.6 0.2;    finalize "$wav" "$out" 3 192k loop ;;
+      loop_seam "$raw" "$wav" 0.80 18.70 0.6 0.2;    finalize "$wav" "$out" 10 192k loop ;;
     stirfry-in-water) # 旧版下锅声（水滴进热锅的一声爆发，没有食材落锅）：原档 7.9 s，起音 0.88 s；取 [0.86, 2.66]，尾部 0.7 s 淡出 → 1.8 s。
                       # 2026-11-14 起不再加载，保留可重做
       out="$OUT/alt/stirfry-in-water.mp3"; mkdir -p "$OUT/alt"

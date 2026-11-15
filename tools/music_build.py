@@ -502,6 +502,17 @@ def stinger_ooze():
     return render_once([(0.0, y, 0.0, 1.0)], 0.12, 0.8, 0.4)
 
 
+def stinger_shh():
+    """酱油瓶的"嘘——"：竖起手指叫大家小声。气声（带通噪声），轻、软、有一点呼气的起落，不是人声合成 """
+    d = 1.1
+    t = tt(d)
+    n = bandpass(RNG.standard_normal(len(t)), 2200, 8500)
+    env = np.minimum(1, t / 0.14) ** 1.5 * np.exp(-np.maximum(t - 0.35, 0) / 0.28)
+    tone = lowpass(RNG.standard_normal(len(t)), 900, 2) * 0.25  # 一点点低频的"嘴形"
+    y = (n + tone) * env * (0.85 + 0.15 * np.sin(2 * np.pi * 4.5 * t))
+    return render_once([(0.0, y, 0.0, 1.0)], 0.1, 0.6, 0.3)
+
+
 def stinger_bloop():
     return render_once([(0.0, marimba(72, 1.0, 0.9), 0.0, 1.0)], 0.12, 0.7, 1.2)
 
@@ -509,7 +520,7 @@ def stinger_bloop():
 STINGERS = {
     # 2026-11-15 用户：突然很多"叮叮叮"的游戏音效很奇怪。去掉钟琴 / 马林巴的小事件（idea-ding、handoff-bell、yolk-cascade、
     # mom-call、egg-small、egg-call、egg-bloop）；它们的函数留在上面，需要时再加回这张表。人声语气词（voice/）接管这些位置。
-    "missing-q": stinger_missing, "catch-chord": stinger_catch, "yolk-ooze": stinger_ooze,
+    "missing-q": stinger_missing, "catch-chord": stinger_catch, "yolk-ooze": stinger_ooze, "bottle-shh": stinger_shh,
     "punch-dum": stinger_punch, "cricket": stinger_cricket, "end-hold": stinger_end,
 }
 

@@ -22,20 +22,20 @@ export const STEM_NAMES = ["home-pad", "home-pluck", "home-bass", "home-melody",
 type Stem = (typeof STEM_NAMES)[number];
 type At = number | string;
 type MusicRamp = { sound: string; from: number; to: number; start: At; end: At };
-type MusicStinger = { sound: string; at: At; gain?: number; rate?: number };
+type MusicStinger = { sound: string; at: At; gain?: number; rate?: number; pan?: number };
 type MusicScene = { stems: Partial<Record<Stem, number>>; ramps?: MusicRamp[]; stingers?: MusicStinger[]; bloop?: boolean };
 const SCENES = (musicMap as unknown as { scenes: Record<string, MusicScene> }).scenes;
 /** 妈妈的语气词（真人录音，见 docs/VOICE.md）：music-map.json 的 voiceAvailable 里列出的才加载，没列的保持静音、不发请求 */
 const VOICE_DIR = "/assets/audio/voice/";
 const VOICE_AVAILABLE = ((musicMap as unknown as { voiceAvailable?: string[] }).voiceAvailable ?? []).filter((n) => /^[a-z0-9-]+$/.test(n));
-const STINGER_SOUNDS = ["missing-q", "catch-chord", "yolk-ooze", "punch-dum", "end-hold", "cricket"] as const;
+const STINGER_SOUNDS = ["missing-q", "catch-chord", "yolk-ooze", "bottle-shh", "punch-dum", "end-hold", "cricket"] as const;
 
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
 const LEVEL_TC = 0.35;
 /** 配乐总线整体电平（相对 stem 的 -20 LUFS；各场景电平再乘它） */
-const BUS = 0.6;
-/** 音乐事件整体再轻一点（2026-11-15 用户：乐器声太明显） */
-const STINGER_TRIM = 0.8;
+const BUS = 0.4;
+/** 音乐事件（也算"音效"，要比配乐大：不经配乐总线，直接进输出，所以不吃 BUS 的衰减） */
+const STINGER_TRIM = 1.0;
 /** 人声（语气词）直接进输出，不经过配乐总线（总线 0.6 会让它低于配乐床约 2 dB，听不出来——2026-11-15 用户反馈）；相对电平再乘它 */
 const VOICE_GAIN = 1.4;
 /** 前景动作声响起时配乐的避让：压到 0.5（约 -6 dB），0.3 s 后以 0.25 s 的时间常数回来 */
@@ -214,15 +214,17 @@ class MusicEngine {
 
   setBloop(on: boolean) { this.bloop = on; }
 
-  stinger(name: string, gain = 0.5, rate = 1) {
+  stinger(name: string, gain = 0.5, rate = 1, pan = 0) {
     const voice = this.buffers["v-" + name];
     const buf = this.buffers["st-" + name] ?? voice;
     if (!buf || !this.audible || this.ctx.state !== "running") return false;
     const src = this.ctx.createBufferSource();
     src.buffer = buf; src.playbackRate.value = rate;
-    const g = this.ctx.createGain(); g.gain.value = voice ? gain * VOICE_GAIN * this.userGain : gain * STINGER_TRIM;
-    src.connect(g).connect(voice ? this.ctx.destination : this.bus);
-    src.onended = () => { src.disconnect(); g.disconnect(); };
+    const g = this.ctx.createGain(); g.gain.value = (voice ? gain * VOICE_GAIN : gain * STINGER_TRIM) * this.userGain;
+    const panner = pan !== 0 && typeof this.ctx.createStereoPanner === "function" ? this.ctx.createStereoPanner() : null;
+    if (panner) { panner.pan.value = Math.max(-1, Math.min(1, pan)); src.connect(g).connect(panner).connect(this.ctx.destination); }
+    else src.connect(g).connect(this.ctx.destination);
+    src.onended = () => { src.disconnect(); g.disconnect(); panner?.disconnect(); };
     src.start();
     if (voice) this.onDuck(buf.duration * 1000 + 150, 0.55); // 人声说话时配乐退到后面
     this.fired += 1;
@@ -318,7 +320,7 @@ export function useKitchenMusic({ getCtx, soundOn, timeline, beats, resolveAt }:
     if (crossed.length === 0) return;
     if (prev && Math.abs(posVh(timeline, beats) - posVh(prev, beats)) > MAX_CROSS_VH) return; // 拖滚动条 / 跳转：全部跳过
     const s = crossed[crossed.length - 1];
-    engine.current?.stinger(s.sound, s.gain, s.rate);
+    engine.current?.stinger(s.sound, s.gain, s.rate, s.pan);
   }, [timeline, soundOn, beats, resolveAt]);
 
   // 回到前台：后台期间越过的触发点不补播

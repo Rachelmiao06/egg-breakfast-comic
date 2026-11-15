@@ -69,7 +69,7 @@
     "idea": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
     "chop": { "roomHz": 2500, "loops": { "room": 0.2 }, "fades": [], "oneshots": [] },
     "stirfry": { "roomHz": 2500, "loops": { "room": 0.15, "stirfry": 1.0 }, "fades": [], "oneshots": [] },
-    "sauce": { "roomHz": 2500, "loops": { "room": 0.15, "sauce": 0.9 }, "fades": [], "oneshots": [] },
+    "sauce": { "roomHz": 2500, "loops": { "room": 0.15, "sauce": 1.0 }, "fades": [], "oneshots": [] },
     "missing": { "roomHz": 2500, "loops": { "room": 0.25 }, "fades": [], "oneshots": [] },
     "prejump": { "loops": { "room": 0.22 }, "fades": [], "oneshots": [] },
     "hear": { "roomHz": 2500, "loops": { "room": 0.18 }, "fades": [], "oneshots": [] },

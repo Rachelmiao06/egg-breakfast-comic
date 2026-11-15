@@ -11,7 +11,9 @@
     "2026-11-15：idea 第二格（「先炒个配菜饭吧」，妈妈笑着）0.6 处一声轻轻满意的「嗯。」(mom-content)，替换掉去掉的「哦！」。",
     "2026-11-15：yolk 段在「哇！」之前加蛋黄流出来的黏稠流动声 yolk-ooze（用户要「蛋流心」的声音；合成的，没有录音，可替换成录音）。",
     "2026-11-15：return 段（妈妈回到碗前，疑惑地看着蛋）0.5 处先用 mom-hmm-q（嗯……？）当「很疑惑」的声音；等新生成的「咦……？」(mom-confused) 到了再换。",
-    "2026-11-15：人声语气词改为直接进输出（不经过配乐总线 0.6），电平 ×1.4（最响的两条峰值 -3.5 dBFS，不能再高），之前比配乐只高约 2 dB 听不出来；yolk-ooze 0.9 → 1.2。"
+    "2026-11-15：人声语气词改为直接进输出（不经过配乐总线 0.6），电平 ×1.4（最响的两条峰值 -3.5 dBFS，不能再高），之前比配乐只高约 2 dB 听不出来；yolk-ooze 0.9 → 1.2。",
+    "2026-11-15 混音层次（用户：所有音效都要比背景音大）：配乐总线 BUS 0.6 → 0.4；音乐事件（stinger）和人声都不经配乐总线、直接进输出；catch 段配乐 ×0.7；yolk-ooze 0.6。用 ffmpeg 估算：各段配乐床约 -29.5 ~ -40 LUFS，持续效果声（滋滋 / 翻炒 / 搅拌）约 -24.5 ~ -27.5 LUFS，人声约 -16 LUFS，事件 -19 ~ -23 LUFS；前景动作声一响配乐再压 6 dB。",
+    "2026-11-15：酱油瓶（竖起手指的小角色，在画面左边）的「嘘——」bottle-shh（轻、气声、声像偏左）：listen 段 0.35（接蛋前画外轻跳，大家屏息）和 closeup 开头（替换原来的低长音 end-hold）。合成的气声，不是人声；换成真人「嘘」录音只需替换 music/st-bottle-shh.mp3。"
   ],
   "voiceAvailable": [
     "mom-sigh",
@@ -134,49 +136,57 @@
     "listen": {
       "stems": {
         "curious": 0.12
-      }
+      },
+      "stingers": [
+        {
+          "sound": "bottle-shh",
+          "at": 0.35,
+          "gain": 0.5,
+          "pan": -0.7
+        }
+      ]
     },
     "catch": {
       "stems": {
-        "home-pad": 0.3,
-        "home-pluck": 0.45,
-        "home-bass": 0.4,
-        "home-melody": 0.45,
-        "home-sparkle": 0.5
+        "home-pad": 0.21,
+        "home-pluck": 0.315,
+        "home-bass": 0.28,
+        "home-melody": 0.315,
+        "home-sparkle": 0.35
       },
       "ramps": [
         {
           "sound": "home-pad",
           "from": 0,
-          "to": 0.3,
+          "to": 0.21,
           "start": "enterEnd",
           "end": "@eggOnSpatula"
         },
         {
           "sound": "home-pluck",
           "from": 0,
-          "to": 0.45,
+          "to": 0.315,
           "start": "enterEnd",
           "end": "@eggOnSpatula"
         },
         {
           "sound": "home-bass",
           "from": 0,
-          "to": 0.4,
+          "to": 0.28,
           "start": "enterEnd",
           "end": "@eggOnSpatula"
         },
         {
           "sound": "home-melody",
           "from": 0,
-          "to": 0.45,
+          "to": 0.315,
           "start": "enterEnd",
           "end": "@eggOnSpatula"
         },
         {
           "sound": "home-sparkle",
           "from": 0,
-          "to": 0.5,
+          "to": 0.35,
           "start": "enterEnd",
           "end": "@eggOnSpatula"
         }
@@ -229,7 +239,7 @@
         {
           "sound": "yolk-ooze",
           "at": "enterEnd+0.03",
-          "gain": 1.2
+          "gain": 0.6
         },
         {
           "sound": "mom-wow",
@@ -336,9 +346,10 @@
       "stems": {},
       "stingers": [
         {
-          "sound": "end-hold",
+          "sound": "bottle-shh",
           "at": 0.12,
-          "gain": 0.4
+          "gain": 0.5,
+          "pan": -0.7
         }
       ]
     },
