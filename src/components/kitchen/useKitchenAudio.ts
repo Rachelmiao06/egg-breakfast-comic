@@ -45,6 +45,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { eventAt, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import audioMap from "./audio-map.json";
+import { REPLAY_EVENT } from "@/lib/replay";
 
 const DIR = "/assets/audio/";
 /** 循环声文件（音量完全由节拍表 audio.loops 决定） */
@@ -338,6 +339,7 @@ class KitchenMixer {
     window.addEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
     window.addEventListener(KITCHEN_ACTION_EVENT, this.onActionEvent);
     window.addEventListener(COMIC_PANEL_EVENT, this.onPanelEvent);
+    window.addEventListener(REPLAY_EVENT, this.onReplay);
     this.lastTick = performance.now();
     this.timer = window.setInterval(this.tick, TICK_MS);
   }
@@ -506,6 +508,16 @@ class KitchenMixer {
     try { v.src.stop(now + fadeS + 0.01); } catch { /* 已结束 */ }
   }
 
+  /** “再看一次”：停掉上一轮还在响的单次音效、动作声和格子定时器；循环声由新的时间轴带回开场电平，声音开关不变 */
+  private onReplay = () => {
+    this.stopVoices();
+    this.actionStart.clear();
+    this.lastHop = -Infinity;
+    for (const ch of this.all(this.shots)) {
+      if (!ch.el.paused) { ch.el.pause(); ch.el.currentTime = 0; }
+    }
+  };
+
   private stopVoices() {
     for (const v of this.voices) { try { v.stop(); } catch { /* 已结束 */ } }
     this.voices.clear();
@@ -657,6 +669,7 @@ class KitchenMixer {
     window.removeEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
     window.removeEventListener(KITCHEN_ACTION_EVENT, this.onActionEvent);
     window.removeEventListener(COMIC_PANEL_EVENT, this.onPanelEvent);
+    window.removeEventListener(REPLAY_EVENT, this.onReplay);
     this.stopVoices();
     for (const ch of [...this.all(this.loops), ...this.all(this.shots)]) {
       ch.el.pause();
