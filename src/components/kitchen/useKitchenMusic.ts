@@ -23,11 +23,15 @@ type Stem = (typeof STEM_NAMES)[number];
 type At = number | string;
 type MusicRamp = { sound: string; from: number; to: number; start: At; end: At };
 type MusicStinger = { sound: string; at: At; gain?: number; rate?: number; pan?: number };
-type MusicScene = { stems: Partial<Record<Stem, number>>; ramps?: MusicRamp[]; stingers?: MusicStinger[]; bloop?: boolean };
+type MusicScene = { stems: Partial<Record<Stem, number>>; ramps?: MusicRamp[]; stingers?: MusicStinger[]; bloop?: boolean; props?: boolean };
 const SCENES = (musicMap as unknown as { scenes: Record<string, MusicScene> }).scenes;
 /** 妈妈的语气词（真人录音，见 docs/VOICE.md）：music-map.json 的 voiceAvailable 里列出的才加载，没列的保持静音、不发请求 */
 const VOICE_DIR = "/assets/audio/voice/";
 const VOICE_AVAILABLE = ((musicMap as unknown as { voiceAvailable?: string[] }).voiceAvailable ?? []).filter((n) => /^[a-z0-9-]+$/.test(n));
+/** 厨房道具的环境声（库内录音，随机轻响，当白噪音质感）：music-map 里 props: true 的段落，每隔 PROP_MIN–PROP_MAX 秒响一个 */
+const PROP_SOUNDS = ["bag-rustle", "veg-board", "board-scrape", "veg-table", "bag-down"] as const;
+const PROP_DIR = "/assets/audio/";
+const PROP_MIN_S = 3.5, PROP_MAX_S = 8, PROP_GAIN = 0.5;
 const STINGER_SOUNDS = ["missing-q", "catch-chord", "yolk-ooze", "punch-dum", "end-hold", "cricket"] as const;
 
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
@@ -37,7 +41,7 @@ const BUS = 0.4;
 /** 音乐事件（也算"音效"，要比配乐大：不经配乐总线，直接进输出，所以不吃 BUS 的衰减） */
 const STINGER_TRIM = 1.0;
 /** 人声（语气词）直接进输出，不经过配乐总线（总线 0.6 会让它低于配乐床约 2 dB，听不出来——2026-11-15 用户反馈）；相对电平再乘它 */
-const VOICE_GAIN = 1.4;
+const VOICE_GAIN = 1.1;
 /** 前景动作声响起时配乐的避让：压到 0.5（约 -6 dB），0.3 s 后以 0.25 s 的时间常数回来 */
 const DUCK_TO = 0.5, DUCK_HOLD_S = 0.3, DUCK_RELEASE_TC = 0.25;
 /** 蛋的五声音阶（相对 C5 的变速）：C D E G A */
@@ -131,6 +135,9 @@ class MusicEngine {
   private lastShh = -Infinity;
   private scene = "";
   private shhTimer = 0;
+  private props = false;
+  private propTimer = 0;
+  private lastProp = "";
   private fired = 0;
   private userGain = 1;
   private duckTimer = 0;
@@ -171,10 +178,10 @@ class MusicEngine {
   }
 
   private async load() {
-    const names = [...STEM_NAMES, ...STINGER_SOUNDS.map((n) => "st-" + n), ...VOICE_AVAILABLE.map((n) => "v-" + n)];
+    const names = [...STEM_NAMES, ...STINGER_SOUNDS.map((n) => "st-" + n), ...VOICE_AVAILABLE.map((n) => "v-" + n), ...PROP_SOUNDS.map((n) => "p-" + n)];
     await Promise.all(names.map(async (n) => {
       try {
-        const r = await fetch((n.startsWith("v-") ? VOICE_DIR + n.slice(2) : DIR + n) + ".mp3");
+        const r = await fetch((n.startsWith("v-") ? VOICE_DIR + n.slice(2) : n.startsWith("p-") ? PROP_DIR + n.slice(2) : DIR + n) + ".mp3");
         if (!r.ok) throw new Error(String(r.status));
         const buf = await this.ctx.decodeAudioData(await r.arrayBuffer());
         if (!this.disposed) this.buffers[n] = buf;
@@ -216,6 +223,39 @@ class MusicEngine {
   }
 
   setBloop(on: boolean) { this.bloop = on; }
+
+  /** 道具环境声：这一段开 / 关（开了之后随机间隔轻响，关了就停） */
+  setProps(on: boolean) {
+    if (on === this.props) return;
+    this.props = on;
+    window.clearTimeout(this.propTimer);
+    if (on) this.scheduleProp(1.2 + Math.random() * 2);
+  }
+
+  private scheduleProp(afterS: number) {
+    this.propTimer = window.setTimeout(() => {
+      if (this.disposed || !this.props) return;
+      if (this.audible && this.ctx.state === "running") {
+        const pool = PROP_SOUNDS.filter((n) => n !== this.lastProp && this.buffers["p-" + n]);
+        const name = pool[Math.floor(Math.random() * pool.length)];
+        const buf = name ? this.buffers["p-" + name] : undefined;
+        if (name && buf) {
+          this.lastProp = name;
+          this.root.dataset.props = String(Number(this.root.dataset.props ?? "0") + 1);
+          this.root.dataset.lastProp = name;
+          const src = this.ctx.createBufferSource();
+          src.buffer = buf; src.playbackRate.value = 0.95 + Math.random() * 0.1;
+          const g = this.ctx.createGain(); g.gain.value = PROP_GAIN * (0.7 + Math.random() * 0.5) * this.userGain;
+          const pan = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+          if (pan) { pan.pan.value = (Math.random() * 2 - 1) * 0.6; src.connect(g).connect(pan).connect(this.ctx.destination); }
+          else src.connect(g).connect(this.ctx.destination);
+          src.onended = () => { src.disconnect(); g.disconnect(); pan?.disconnect(); };
+          src.start();
+        }
+      }
+      this.scheduleProp(PROP_MIN_S + Math.random() * (PROP_MAX_S - PROP_MIN_S));
+    }, afterS * 1000);
+  }
 
   /** 当前场景编号（写在 data-scene 上，useKitchenAudio 据此在结尾特写里不播"嗒"） */
   setScene(id: string) { this.scene = id; this.root.dataset.scene = id; }
@@ -284,6 +324,7 @@ class MusicEngine {
     this.disposed = true;
     window.clearTimeout(this.duckTimer);
     window.clearTimeout(this.shhTimer);
+    window.clearTimeout(this.propTimer);
     document.removeEventListener("visibilitychange", this.onVisibility);
     window.removeEventListener("kitchen:oneshot", this.onShot);
     window.removeEventListener("kitchen:action", this.onDuck);
@@ -327,6 +368,7 @@ export function useKitchenMusic({ getCtx, soundOn, timeline, beats, resolveAt }:
     engine.current?.setLevels(musicLevels(timeline, beats, resolveAt));
     engine.current?.setBloop(SCENES[timeline.beat.id]?.bloop === true);
     engine.current?.setScene(timeline.beat.id);
+    engine.current?.setProps(SCENES[timeline.beat.id]?.props === true);
   }, [timeline, beats, resolveAt]);
 
   // stinger：向下越过触发点时播一次
