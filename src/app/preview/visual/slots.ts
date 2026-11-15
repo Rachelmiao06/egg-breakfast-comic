@@ -28,7 +28,7 @@ export type PanelSlot = {
   hideInFlow?: boolean;
   /** 新版逐格出现时，这一格独占一段（同段只有它）用的位置（vw / vh）；旧版仍用 x / y / w */
   soloPlace?: { x: number; y: number; w: number };
-  /** 竖屏时独占一段的格子用这个位置（vw / vh / vw），不进竖排列；例如 hear 格放在左下，给蛋的高跳留出右侧和上方 */
+  /** 竖屏（手机）时这一格独占一段用的位置（vw / vh），不走 columnPlaces 的大格竖排；例如 hear 的“嗯？”格缩到左下，给蛋的视线相遇点留出右上方 */
   portraitPlace?: { x: number; y: number; w: number };
   /** 段内进场 / 离场的起止（段内 q，与 FlowLayer 默认的 [-0.14+0.05·order, 0.34] / [0.7+0.03·order, 1.14] 同单位）；
    *  离场早于同段其他格的（如 p5a“离开”格）单独排版，离开后不留空位 */
