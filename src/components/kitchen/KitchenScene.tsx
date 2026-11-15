@@ -44,14 +44,14 @@ export default function KitchenScene({
   return (
     <div
       className={`relative h-full w-full ${direct ? "" : "transition-[filter] duration-300"}`}
-      style={{ filter: `contrast(${(1 - 0.22 * dim).toFixed(3)}) brightness(${(1 - 0.05 * dim).toFixed(3)}) saturate(${(1 - 0.18 * dim).toFixed(3)})` }}
+      style={{ filter: `contrast(${(1 - 0.2 * dim).toFixed(3)}) brightness(${(1 - 0.04 * dim).toFixed(3)}) saturate(${(1 - 0.4 * dim).toFixed(3)})` }}
     >
       <SceneStage focus={camera ?? focus} instant={direct}>
         {base ?? <KitchenLayers mouse depth={depth} direct={direct} />}
         {children}
         {foreground}
       </SceneStage>
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-paper" style={{ opacity: 0.12 * dim }} />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-paper" style={{ opacity: 0.2 * dim }} />
     </div>
   );
 }

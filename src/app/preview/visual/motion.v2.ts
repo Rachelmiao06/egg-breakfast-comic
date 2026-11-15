@@ -8,7 +8,17 @@ import bg from "./backgrounds.json";
 import type { Cam } from "./beats.visual";
 import data from "./beats.visual-v2.json";
 
-type Raw = Partial<Beat> & { id: string; n: number; title: string; lengthVh: number; camera: string };
+type Raw = Partial<Beat> & { id: string; n: number; title: string; lengthVh: number; camera: string; readS?: number };
+
+/**
+ * 读格时间下限（2026-11-15 用户：结尾"拉肚子"那格有动画，但滚太快还没看到就滑过去了）。
+ * 格内动画按真实时间播，滚动只决定格子"在不在"。所以每个有格内动画的段在节拍表里写 readS（动画从开始到看清所需的秒数），
+ * 这里按"从容滚动速度" BRISK_VH_PER_S 反推：格子在屏幕上稳定可读的那一段滚动距离 ≥ readS × BRISK，不够就把本段拉长。
+ * 可读窗口 = 入场结束（enter）到开始离场（enter+action+hold 再加格子离场触发点，约 12% 的退出区）。
+ * 不吸附、不劫持滚动，只是让该慢的地方滚动距离更长；慢滚、停住、倒滚都不受影响。
+ */
+export const BRISK_VH_PER_S = 45;
+const readableWindow = (ph: Beat["phases"]) => ph.enter + ph.action + ph.hold + 0.12 * ph.exit - ph.enter * 0.9;
 export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as Raw[]).map((b) => ({
   phases: { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 },
   kitchenDim: [0, 0, 0] as [number, number, number],
@@ -18,7 +28,12 @@ export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as
   pin: (b.pin ?? null) as Beat["pin"],
   egg: (b.egg ?? "loop") as Beat["egg"],
   audio: b.audio ?? { loops: {}, fades: [], oneshots: [] },
-})) as (Beat & { camera: string })[];
+})).map((b) => {
+  const r = (b as unknown as Raw).readS;
+  if (!r) return b;
+  const need = Math.ceil((r * BRISK_VH_PER_S) / readableWindow(b.phases));
+  return need > b.lengthVh ? { ...b, lengthVh: need } : b;
+}) as (Beat & { camera: string })[];
 
 export const BG = bg;
 const idx = (id: string) => V2_BEATS.findIndex((b) => b.id === id);

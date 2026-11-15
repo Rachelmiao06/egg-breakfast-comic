@@ -417,7 +417,7 @@ const DIM = { saturate: 0.68, contrast: 0.9, brightness: 1.02 };
  * text.webp 是整句一张图（1400 宽），按每个字的右边缘做 clip-path 步进裁切；每字的右边缘（原图像素）量自 text.webp 的列投影。
  */
 const P6E_EDGES = [300, 400, 485, 530, 655, 740, 824, 908, 994, 1076, 1120]; // [0] = 一个字都没有；之后依次是 没 事 ， 是 我 拉 肚 子 了 。
-const P6E_TYPE = { start: 0.3, perChar: 0.19 }; // 开始时刻（时间轴秒）、每字秒数（10 字 ≈ 1.9 s）
+const P6E_TYPE = { start: 0.1, perChar: 0.15 }; // 开始时刻（时间轴秒）、每字秒数（10 字 ≈ 1.5 s；2026-11-15 提速：用户滚得快，原来 0.35 s 延迟 + 1.9 s 打字看不完）
 const typed = (n: number) => `inset(0 ${(((1400 - P6E_EDGES[Math.max(0, Math.min(P6E_EDGES.length - 1, Math.round(n)))]) / 1400) * 100).toFixed(2)}% 0 0)`;
 
 export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
@@ -438,12 +438,12 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
   const play = () => {
     reset();
     const st = look.current;
-    const t = gsap.timeline({ delay: 0.35, onUpdate: apply, onComplete: () => { tl.current = null; } });
+    const t = gsap.timeline({ delay: 0.1, onUpdate: apply, onComplete: () => { tl.current = null; } });
     const typeS = P6E_TEXT.length * P6E_TYPE.perChar;
     t.to(st, { dim: 1, duration: 0.6, ease: "power1.inOut" }, 0); // 泡以外轻微降饱和、降对比
     t.to(st, { n: P6E_TEXT.length, duration: typeS, ease: `steps(${P6E_TEXT.length})` }, P6E_TYPE.start); // 逐字打出：一口气、匀速、一次一个字
-    t.to(st, { f2: 1, duration: 1.3, ease: "sine.inOut" }, P6E_TYPE.start + 0.1); // 蛋黄随着第一个字就开始往外淌
-    t.to(st, { f3: 1, duration: 1.7, ease: "sine.inOut" }, P6E_TYPE.start + 0.9); // 边打边淌成一滩，打完字时已基本流开、随后停住
+    t.to(st, { f2: 1, duration: 1.0, ease: "sine.inOut" }, P6E_TYPE.start + 0.05); // 蛋黄随着第一个字就开始往外淌
+    t.to(st, { f3: 1, duration: 1.1, ease: "sine.inOut" }, P6E_TYPE.start + 0.6); // 边打边淌成一滩，打完字时已基本流开、随后停住
     tl.current = t;
     debugTl("p6e", t);
   };

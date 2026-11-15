@@ -77,9 +77,9 @@
     "exit": 0.3
    },
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.25,
+    0.7,
+    0.7
    ],
    "egg": "table",
    "audio": {
@@ -99,9 +99,9 @@
    "lengthVh": 174,
    "pin": "prep",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "table",
    "audio": {
@@ -127,9 +127,9 @@
    "lengthVh": 188,
    "pin": "prep",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "table",
    "audio": {
@@ -147,7 +147,8 @@
     "action": 0,
     "hold": 0.36,
     "exit": 0.3
-   }
+   },
+   "readS": 2
   },
   {
    "id": "stirfry",
@@ -156,9 +157,9 @@
    "lengthVh": 167,
    "pin": "prep",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "table",
    "audio": {
@@ -172,11 +173,12 @@
    },
    "camera": "full",
    "phases": {
-    "enter": 0.34,
+    "enter": 0.26,
     "action": 0,
-    "hold": 0.36,
-    "exit": 0.3
-   }
+    "hold": 0.54,
+    "exit": 0.2
+   },
+   "readS": 3
   },
   {
    "id": "sauce",
@@ -185,9 +187,9 @@
    "lengthVh": 160,
    "pin": "prep",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "table",
    "audio": {
@@ -201,11 +203,12 @@
    },
    "camera": "full",
    "phases": {
-    "enter": 0.34,
+    "enter": 0.26,
     "action": 0,
-    "hold": 0.36,
-    "exit": 0.3
-   }
+    "hold": 0.54,
+    "exit": 0.2
+   },
+   "readS": 2.5
   },
   {
    "id": "missing",
@@ -214,9 +217,9 @@
    "lengthVh": 160,
    "pin": "prep",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.25
    ],
    "egg": "table",
    "audio": {
@@ -396,9 +399,9 @@
     "exit": 0.3
    },
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.25,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -424,9 +427,9 @@
    "lengthVh": 167,
    "pin": "bowl",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -460,9 +463,9 @@
    "lengthVh": 167,
    "pin": "bowl",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -487,9 +490,9 @@
    "lengthVh": 167,
    "pin": "bowl",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.25
    ],
    "egg": "gone",
    "audio": {
@@ -523,9 +526,9 @@
    "lengthVh": 232,
    "pin": "search",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.25,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -555,9 +558,9 @@
    "lengthVh": 167,
    "pin": "search",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.25
    ],
    "egg": "gone",
    "audio": {
@@ -587,9 +590,9 @@
    "lengthVh": 160,
    "pin": "reunion",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.25,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -621,9 +624,9 @@
    "lengthVh": 167,
    "pin": "reunion",
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.25
    ],
    "egg": "gone",
    "audio": {
@@ -654,9 +657,9 @@
     "exit": 0.2
    },
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -675,15 +678,15 @@
    "lengthVh": 167,
    "pin": null,
    "phases": {
-    "enter": 0.3,
+    "enter": 0.25,
     "action": 0,
-    "hold": 0.5,
-    "exit": 0.2
+    "hold": 0.6,
+    "exit": 0.15
    },
    "kitchenDim": [
-    0,
-    0,
-    0
+    0.7,
+    0.7,
+    0.7
    ],
    "egg": "gone",
    "audio": {
@@ -693,7 +696,8 @@
     "fades": [],
     "oneshots": []
    },
-   "camera": "full"
+   "camera": "full",
+   "readS": 2.2
   },
   {
    "id": "closeup",
