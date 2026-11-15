@@ -21,7 +21,9 @@
     "2026-11-15：yolk-ooze 重做（用户：蛋黄流出来的声音几乎听不到）：加入慢放降调的真实倒油录音 + 中频黏稠流动 + 6 个咕噜气泡，时长 2.8 s，增益 0.6 → 1.0（直接进输出）。",
     "2026-11-15：用户觉得「哇！」太像机器人，去掉（yolk 段改成蛋黄流出声之后勺子碰碗的「当当」：sauce-stir，库内录音）；有空档的地方多放厨房道具声：props 扩到 drop / prejump / catch / handoff / recognize / worry / eggcall，间隔 2.5–6 s。",
     "2026-11-15：yolk-ooze 的「咕嘟」气泡再提高（用户）：8 个气泡、约 2.5 倍于其它层，增益 1.0 → 1.2。",
-    "2026-11-15：配乐太轻、几乎听不到（用户：音乐还是要有）——总线 BUS 0.4 → 0.7（+4.9 dB）；配乐床约 -26 ~ -34 LUFS，仍低于持续效果声和房间声，前景动作声一响还会压 6 dB。"
+    "2026-11-15：配乐太轻、几乎听不到（用户：音乐还是要有）——总线 BUS 0.4 → 0.7（+4.9 dB）；配乐床约 -26 ~ -34 LUFS，仍低于持续效果声和房间声，前景动作声一响还会压 6 dB。",
+    "2026-11-15：配乐改成温暖悠闲的爵士（用户：音乐几乎没有，要温暖、滴滴答、悠闲的爵士）：home-pluck = 电钢琴查尔斯顿伴奏，home-bass = 直立贝斯行走低音，新增 home-drums = 叮叮镲 + 脚踩镲 + 刷子的摇摆节奏（滴——滴答）；和弦 Cmaj7 Am7 Fmaj7 G7 / Cmaj7 Em7 Fmaj7 G7，根音与旧 stem 一致；总线 BUS 0.7 → 1.0，各段爵士层电平提高。",
+    "BUS 1.0 → 0.8；stirfry / sauce 爵士层再收一点，免得压过翻炒 / 搅拌声。"
   ],
   "voiceAvailable": [
     "mom-sigh",
@@ -42,18 +44,21 @@
     },
     "drop": {
       "stems": {
-        "home-pad": 0.25,
-        "home-pluck": 0.3,
-        "home-sparkle": 0.45
+        "home-pad": 0.2,
+        "home-pluck": 0.35,
+        "home-sparkle": 0.3,
+        "home-bass": 0.45,
+        "home-drums": 0.5
       },
       "props": true
     },
     "bag": {
       "stems": {
-        "home-pad": 0.3,
-        "home-pluck": 0.35,
-        "home-bass": 0.35,
-        "home-sparkle": 0.15
+        "home-pad": 0.2,
+        "home-pluck": 0.4,
+        "home-bass": 0.5,
+        "home-sparkle": 0.15,
+        "home-drums": 0.5
       },
       "stingers": [
         {
@@ -66,10 +71,11 @@
     },
     "idea": {
       "stems": {
-        "home-pad": 0.28,
-        "home-pluck": 0.35,
-        "home-bass": 0.35,
-        "home-melody": 0.35
+        "home-pad": 0.2,
+        "home-pluck": 0.4,
+        "home-bass": 0.5,
+        "home-melody": 0.3,
+        "home-drums": 0.45
       },
       "stingers": [
         {
@@ -83,27 +89,30 @@
     "chop": {
       "stems": {
         "home-pad": 0.1,
-        "home-pluck": 0.18,
-        "home-bass": 0.24
+        "home-pluck": 0.3,
+        "home-bass": 0.4,
+        "home-drums": 0.35
       },
       "props": true
     },
     "stirfry": {
       "stems": {
         "home-pad": 0.1,
-        "home-pluck": 0.25,
-        "home-bass": 0.28,
-        "home-melody": 0.1,
-        "home-sparkle": 0.08
+        "home-pluck": 0.3,
+        "home-bass": 0.4,
+        "home-melody": 0.15,
+        "home-sparkle": 0.1,
+        "home-drums": 0.4
       },
       "props": true
     },
     "sauce": {
       "stems": {
         "home-pad": 0.15,
-        "home-pluck": 0.2,
-        "home-bass": 0.22,
-        "home-melody": 0.22
+        "home-pluck": 0.3,
+        "home-bass": 0.35,
+        "home-melody": 0.3,
+        "home-drums": 0.3
       },
       "props": true
     },
@@ -164,7 +173,8 @@
         "home-pluck": 0.315,
         "home-bass": 0.28,
         "home-melody": 0.315,
-        "home-sparkle": 0.35
+        "home-sparkle": 0.35,
+        "home-drums": 0.4
       },
       "ramps": [
         {
@@ -201,6 +211,13 @@
           "to": 0.35,
           "start": "enterEnd",
           "end": "@eggOnSpatula"
+        },
+        {
+          "sound": "home-drums",
+          "from": 0,
+          "to": 0.4,
+          "start": "enterEnd",
+          "end": "@eggOnSpatula"
         }
       ],
       "stingers": [
@@ -220,10 +237,11 @@
     "handoff": {
       "stems": {
         "home-pad": 0.35,
-        "home-pluck": 0.5,
-        "home-bass": 0.45,
-        "home-melody": 0.5,
-        "home-sparkle": 0.3
+        "home-pluck": 0.55,
+        "home-bass": 0.55,
+        "home-melody": 0.45,
+        "home-sparkle": 0.3,
+        "home-drums": 0.6
       },
       "stingers": [
         {
@@ -239,7 +257,8 @@
         "home-pad": 0.3,
         "home-pluck": 0.15,
         "home-bass": 0.3,
-        "tender": 0.5
+        "tender": 0.5,
+        "home-drums": 0.2
       },
       "props": true
     },
@@ -248,7 +267,8 @@
         "home-pad": 0.42,
         "home-bass": 0.2,
         "home-sparkle": 0.3,
-        "tender": 0.5
+        "tender": 0.5,
+        "home-drums": 0.2
       },
       "stingers": [
         {
@@ -303,7 +323,8 @@
       "stems": {
         "home-pad": 0.35,
         "home-melody": 0.4,
-        "tender": 0.45
+        "tender": 0.45,
+        "home-drums": 0.2
       },
       "props": true
     },

@@ -342,6 +342,7 @@ class KitchenMixer {
     if (this.total === 0) queueMicrotask(() => onAvailable(false));
     this.hidden = document.visibilityState === "hidden";
     document.addEventListener("visibilitychange", this.onVisibility);
+    window.addEventListener("pointerdown", this.onGesture, { passive: true });
     window.addEventListener("pointerup", this.onGesture, { passive: true });
     window.addEventListener("touchend", this.onGesture, { passive: true });
     window.addEventListener("keydown", this.onGesture, { passive: true });
@@ -355,6 +356,9 @@ class KitchenMixer {
 
   /** 配乐（useKitchenMusic）共用这个 AudioContext */
   get context(): AudioContext | null { return this.ctx; }
+
+  /** 浏览器要求用户手势才允许出声：右下角喇叭按钮在"开着但被拦住"时点一下就走这里（等同于一次手势），不会把声音关掉 */
+  unlock() { this.onGesture(); }
 
   private channel(name: string, kind: "loop" | "oneshot", file: string, loop: boolean): Channel {
     const el = document.createElement("audio");
@@ -678,6 +682,7 @@ class KitchenMixer {
     this.disposed = true;
     window.clearInterval(this.timer);
     document.removeEventListener("visibilitychange", this.onVisibility);
+    window.removeEventListener("pointerdown", this.onGesture);
     window.removeEventListener("pointerup", this.onGesture);
     window.removeEventListener("touchend", this.onGesture);
     window.removeEventListener("keydown", this.onGesture);
@@ -703,12 +708,18 @@ export function useKitchenAudio() {
   const timeline = useMemo<Timeline>(() => ({ ...rawTimeline, beat: beats[rawTimeline.index] ?? rawTimeline.beat }), [rawTimeline, beats]);
   const mixer = useRef<KitchenMixer | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
+  /** AudioContext 是否在出声（false = 被浏览器的自动播放限制拦住，要点一下） */
+  const [ctxRunning, setCtxRunning] = useState(false);
 
   // 固定的一组 <audio>，整个生命周期只创建一次
   useEffect(() => {
     const m = new KitchenMixer(setAvailable);
     mixer.current = m;
-    return () => { m.dispose(); mixer.current = null; };
+    const ctx = m.context;
+    const sync = () => setCtxRunning(ctx?.state === "running");
+    sync();
+    ctx?.addEventListener("statechange", sync);
+    return () => { ctx?.removeEventListener("statechange", sync); m.dispose(); mixer.current = null; };
   }, []);
 
   const indexRef = useRef(0);
@@ -766,5 +777,5 @@ export function useKitchenAudio() {
   // 配乐：同一个 AudioContext、同一个声音开关；规则见 useKitchenMusic.ts / docs/SOUND-DESIGN.md
   useKitchenMusic({ getCtx: () => mixer.current?.context ?? null, soundOn, timeline, beats, resolveAt });
 
-  return { available };
+  return { available, locked: soundOn && !ctxRunning, unlock: () => mixer.current?.unlock() };
 }
