@@ -107,7 +107,7 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number; 
   // 翻炒：木铲在钢锅里推菜、轻刮锅，3.2 s 一段（kitchen:action stirfry）
   stirfryStir: { file: "stirfry-stir.mp3", volume: 0.3 },
   // 调汁：木勺在碗里轻搅、碰碗，2.6 s 一段；前景两圈约 1.25 s，转完时的停止事件把它淡出（kitchen:action sauceStir）
-  sauceStir: { file: "sauce-stir.mp3", volume: 0.3 },
+  sauceStir: { file: "sauce-stir.mp3", volume: 0.4 }, // 2026-11-14 0.3 → 0.4（集成会话）：真实录音里 0.3 时两圈的勺碰碗峰值约 −24.6 dB（切菜 −21、放碗 −20），0.5 时 −19 dB 比切菜还响；0.4 约 −22 dB，略轻于切菜。未试听
   // 接蛋前的声音铺垫（listen）：画外右侧，蛋在桌沿台面上轻跳落下的"嗒"。从 chop 原档里刀碰木案板的三下撞击切出、
   // 1.5 kHz 低通成软的小木头接触声；声像偏右（蛋在画外右侧，hear 格里妈妈也看向右上）；很轻
   hopTap1: { file: "hop-tap-1.mp3", volume: 0.2, pan: 0.6 },
