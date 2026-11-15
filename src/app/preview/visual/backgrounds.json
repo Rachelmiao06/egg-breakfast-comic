@@ -111,7 +111,7 @@
   "status": "已替换。横版缩放 1.05（场景像素 / 图片像素），竖版 0.9；box 由 counter 对齐和可见范围算出",
   "srcBase": "/assets/bg/kitchen-friends-base.webp",
   "planes": {
-   "note": "纵深（横版，tools/prepare_planes.py）。远景层 far = 墙、瓷砖、吊柜、窗（站在台面上的东西按墨线轮廓抠掉、用同一行的墙面镜像补齐；台面后沿以下再多画 EXT 行镜像的墙，只到 img 的高度），相对主体层多一点位移：横向 = 鼠标 × mouse 像素 + 镜头景深 × depth，竖向 = 鼠标 × mouseY + 镜头景深 × depthY + 阅读漂移 × drift 像素（KitchenLayers 发布的 --kl-mouse-* / --kl-depth-* / --kl-drift；对应厨房分层 far 组 amp 1.5 → 5−1.5、f 0.92 → 1−0.92、drift 1 → 6−1）。近景层 near = 整条台面加前脸，加上站在台面上的层板架、罐子、盆栽、菜篮、菜、格纹布、葱（RGBA，裁到最高一行），和小角色、遮挡物一起跟主体层走，是一块刚体，不拉伸、不倾斜，盖在远景层上：台面后沿和物件的轮廓在墙上滑动，这就是纵深，蛋站的台面不动。2026-11-15 先后试过羽化接缝（两份木纹上下错开会叠影）和台面桥（后沿跟远景、前沿跟主体层，中间拉伸，桌子后半截在动，不自然），都弃用。soft 是远景层的预烘软化版，画格在场时叠化进来（Backdrops panelPresence），小角色和窗玻璃同时加 friendsBlur / windowBlur 像素的模糊；windowMouse 是窗玻璃在远景层之上再多的横向鼠标视差（像素）。图片像素。",
+   "note": "纵深（横版，tools/prepare_planes.py）。远景层 far = 墙、瓷砖、吊柜、窗（站在台面上的东西按墨线轮廓抠掉、用同一行的墙面镜像补齐；台面后沿以下再多画 EXT 行镜像的墙，只到 img 的高度），相对主体层多一点位移：横向 = 鼠标 × mouse 像素 + 镜头景深 × depth，竖向 = 鼠标 × mouseY + 镜头景深 × depthY + 阅读漂移 × drift 像素（KitchenLayers 发布的 --kl-mouse-* / --kl-depth-* / --kl-drift；对应厨房分层 far 组 amp 1.5 → 5−1.5、f 0.92 → 1−0.92、drift 1 → 6−1）。近景层 near = 整条台面加前脸，加上站在台面上的层板架、罐子、盆栽、菜篮、菜、格纹布、葱（按颜色分墙和非墙、墨线当边界、碰到区域边的归墙，见工具头部；RGBA，裁到最高一行），和小角色、遮挡物一起跟主体层走，是一块刚体，不拉伸、不倾斜，盖在远景层上：台面后沿和物件的轮廓在墙上滑动，这就是纵深，蛋站的台面不动。2026-11-15 先后试过羽化接缝（两份木纹上下错开会叠影）和台面桥（后沿跟远景、前沿跟主体层，中间拉伸，桌子后半截在动，不自然），都弃用。soft 是远景层的预烘软化版，画格在场时叠化进来（Backdrops panelPresence），小角色和窗玻璃同时加 friendsBlur / windowBlur 像素的模糊；windowMouse 是窗玻璃在远景层之上再多的横向鼠标视差（像素）。图片像素。",
    "far": {
     "src": "/assets/bg/kitchen-friends-far.webp",
     "img": [
@@ -130,9 +130,9 @@
     "src": "/assets/bg/kitchen-friends-near.webp",
     "img": [
      0,
-     115,
+     113,
      1672,
-     826
+     828
     ]
    },
    "soft": {
