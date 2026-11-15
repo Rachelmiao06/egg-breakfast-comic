@@ -20,7 +20,8 @@
  * 不画第二只蛋或锅；占位只用平涂色块，说明文字只在 ?debug=1 显示。
  * 导出名 Paper / SearchBackdrop。
  */
-import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
+import gsap from "gsap";
+import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { Beat, Timeline } from "@/lib/beats";
 import { Z } from "@/lib/scene";
@@ -190,14 +191,31 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
   const L = portrait ? LS.lightPortrait : LS.light;
   const lx = L.from[0] + (L.to[0] - L.from[0]) * lp, ly = L.from[1] + (L.to[1] - L.from[1]) * lp;
   const lpct = (b: number[]) => ({ left: `${(b[0] / liw) * 100}%`, top: `${(b[1] / lih) * 100}%`, width: `${(b[2] / liw) * 100}%`, height: `${(b[3] / lih) * 100}%` });
-  // 纵深（reading.planes，横版拆层时）：远景平面（墙、层板、菜篮、小角色、窗）比主体层少动（只在横向：切缝在横木纹上，竖向错位会在羽化带里叠影），
-  // 近景平面（台面前半）和蛋一起动；
+  // 纵深（reading.planes，横版拆层时）：远景层（墙、窗、层板、菜篮、小角色，连同它们在台面上的底座）比主体层少动；
+  // 台面桥是整条台面：后沿跟远景层、前沿（蛋站的地方）跟主体层，中间按比例拉伸 / 倾斜，远近之间没有缝。
   // 画格在场时远景软化（预烘的软化版叠化进来，小角色和窗玻璃加一点模糊）。竖版没有拆层，保持单张。
   const PL = !portrait && actors.length ? R.planes : null;
   const farSoft = PL && !reducedMotion ? panelPresence(t, beats) : 0;
-  const farShift = PL
-    ? `calc(var(--kl-mouse-x, 0) * ${PL.far.mouse}px + var(--kl-depth-x, 0px) * ${PL.far.depth}) calc(var(--kl-mouse-y, 0) * ${PL.far.mouseY}px)`
-    : undefined;
+  const farRef = useRef<HTMLDivElement>(null);
+  const bandRef = useRef<HTMLImageElement>(null);
+  // 桥的高度（场景像素）：台面后沿到前沿；位移也按场景像素，所以拉伸比例 = 1 − dy / 桥高，倾斜 = −dx / 桥高
+  const bridgeH = (R.counter.imgFrontY - R.counter.imgBackY) * (w / iw);
+  const bandOrigin = `0 ${(((R.counter.imgFrontY - R.counter.imgBackY) / (PL?.band.img[3] ?? 1)) * 100).toFixed(3)}%`;
+  useEffect(() => {
+    if (!PL) return;
+    const root = document.documentElement.style;
+    const num = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
+    const tick = () => {
+      const far = farRef.current, band = bandRef.current;
+      if (!far || !band) return;
+      const dx = num("--kl-mouse-x") * PL.far.mouse + num("--kl-depth-x") * PL.far.depth;
+      const dy = num("--kl-mouse-y") * PL.far.mouseY + num("--kl-depth-y") * PL.far.depthY + num("--kl-drift") * PL.far.drift;
+      far.style.translate = `${dx.toFixed(2)}px ${dy.toFixed(2)}px`;
+      band.style.transform = `matrix(1, 0, ${(-dx / bridgeH).toFixed(5)}, ${(1 - dy / bridgeH).toFixed(5)}, 0, 0)`;
+    };
+    gsap.ticker.add(tick);
+    return () => gsap.ticker.remove(tick);
+  }, [PL, bridgeH]);
   const blur = (px: number): CSSProperties | undefined => (PL && farSoft > 0.01 ? { filter: `blur(${(px * farSoft).toFixed(2)}px)` } : undefined);
   const actorEls = actors.map((a) => {
     const deg = reducedMotion ? 0 : Math.min(a.range[1], Math.max(a.range[0], bgCurve(a.curve as CurveName, g)));
@@ -268,8 +286,11 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
     >
       {PL ? (
         <>
-          {/* 远景平面：墙、瓷砖、窗、层板、菜篮（站在台面后沿的东西都在这里）、小角色；比主体层少动 */}
-          <div data-plane="far" className="absolute inset-0" style={{ translate: farShift }}>
+          {/* 台面桥：整条台面加前脸。后沿跟远景层位移、前沿跟主体层（蛋站在前沿附近），中间拉伸 / 倾斜（ticker 写 transform） */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img ref={bandRef} data-plane="band" src={PL.band.src} alt="" draggable={false} className="absolute select-none" style={{ ...pct(PL.band.img), transformOrigin: bandOrigin, willChange: "transform" }} />
+          {/* 远景层：墙、瓷砖、窗、层板、菜篮、小角色，连同它们在台面上的底座（画在台面桥之上）；比主体层少动（ticker 写 translate） */}
+          <div ref={farRef} data-plane="far" className="absolute inset-0" style={{ willChange: "translate" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={PL.far.src} alt="" draggable={false} className="absolute select-none" style={pct(PL.far.img)} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -277,11 +298,6 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
             {actorEls}
             {windowEls}
             {occluderEls}
-          </div>
-          {/* 近景平面：台面前半（上沿羽化接到远景的台面上），蛋站在这里，和主体层一起动 */}
-          <div data-plane="near" className="absolute inset-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={PL.near.src} alt="" draggable={false} className="absolute select-none" style={pct(PL.near.img)} />
           </div>
         </>
       ) : (
