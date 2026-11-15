@@ -502,21 +502,21 @@ def stinger_ooze():
         pour = None
     y = np.zeros(len(t))
     if pour is not None:
-        n_ = min(len(y), len(pour)); y[:n_] += 0.9 * pour[:n_]
+        n_ = min(len(y), len(pour)); y[:n_] += 0.6 * pour[:n_]
     # 2 黏稠湿润的流动：中频带通噪声 + 缓慢起伏
     n = bandpass(RNG.standard_normal(len(t)), 350, 2600)
     wob = lowpass(RNG.standard_normal(len(t)), 5, 2)
     wob = 0.55 + 0.45 * wob / (np.abs(wob).max() + 1e-9)
     env = (1 - np.exp(-t / 0.1)) * np.exp(-np.maximum(t - 1.7, 0) / 0.5)
-    y += n * wob * env * 0.8
-    # 3 咕噜气泡：上滑的短音，频率各不同
-    for bt, f0 in ((0.05, 320), (0.4, 240), (0.75, 300), (1.05, 220), (1.4, 280), (1.8, 200)):
-        tb = tt(0.16)
-        f = f0 * (1 + 1.6 * tb / 0.16)
+    y += n * wob * env * 0.5
+    # 3 咕嘟气泡（用户：咕嘟咕嘟咕嘟要更大声）：8 个，音量是其它层的约 2.5 倍，频率稍低、更"咕"，衰减长一点
+    for bt, f0 in ((0.05, 300), (0.35, 230), (0.62, 280), (0.9, 210), (1.15, 260), (1.45, 200), (1.75, 240), (2.05, 190)):
+        tb = tt(0.22)
+        f = f0 * (1 + 1.5 * tb / 0.22)
         ph = 2 * np.pi * np.cumsum(f) / SR
-        b = np.sin(ph) * np.exp(-tb / 0.05) * (1 - np.exp(-tb / 0.002))
+        b = (np.sin(ph) + 0.35 * np.sin(2 * ph)) * np.exp(-tb / 0.07) * (1 - np.exp(-tb / 0.002))
         i = int(bt * SR)
-        y[i:i + len(b)] += 0.9 * b
+        y[i:i + len(b)] += 2.2 * b
     return render_once([(0.0, y, 0.0, 1.0)], 0.12, 0.8, 0.4)
 
 

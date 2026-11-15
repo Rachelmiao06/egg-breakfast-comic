@@ -31,7 +31,9 @@ const VOICE_AVAILABLE = ((musicMap as unknown as { voiceAvailable?: string[] }).
 /** 厨房道具的环境声（库内录音，随机轻响，当白噪音质感）：music-map 里 props: true 的段落，每隔 PROP_MIN–PROP_MAX 秒响一个 */
 const PROP_SOUNDS = ["bag-rustle", "veg-board", "board-scrape", "veg-table", "bag-down"] as const;
 const PROP_DIR = "/assets/audio/";
-const PROP_MIN_S = 3.5, PROP_MAX_S = 8, PROP_GAIN = 0.5;
+const PROP_MIN_S = 2.5, PROP_MAX_S = 6, PROP_GAIN = 0.5;
+/** 只给 music-map 的 stinger 点名用、不进随机池的道具声（勺子碰碗的"当当"、碗放桌上） */
+const PROP_CUE_ONLY = ["sauce-stir", "bowl-down"] as const;
 const STINGER_SOUNDS = ["missing-q", "catch-chord", "yolk-ooze", "punch-dum", "end-hold", "cricket"] as const;
 
 /** 电平平滑时间常数（秒）：慢一点，换景像混音台推子，不像开关 */
@@ -178,7 +180,7 @@ class MusicEngine {
   }
 
   private async load() {
-    const names = [...STEM_NAMES, ...STINGER_SOUNDS.map((n) => "st-" + n), ...VOICE_AVAILABLE.map((n) => "v-" + n), ...PROP_SOUNDS.map((n) => "p-" + n)];
+    const names = [...STEM_NAMES, ...STINGER_SOUNDS.map((n) => "st-" + n), ...VOICE_AVAILABLE.map((n) => "v-" + n), ...PROP_SOUNDS.map((n) => "p-" + n), ...PROP_CUE_ONLY.map((n) => "p-" + n)];
     await Promise.all(names.map(async (n) => {
       try {
         const r = await fetch((n.startsWith("v-") ? VOICE_DIR + n.slice(2) : n.startsWith("p-") ? PROP_DIR + n.slice(2) : DIR + n) + ".mp3");
@@ -262,7 +264,7 @@ class MusicEngine {
 
   stinger(name: string, gain = 0.5, rate = 1, pan = 0) {
     const voice = this.buffers["v-" + name];
-    const buf = this.buffers["st-" + name] ?? voice;
+    const buf = this.buffers["st-" + name] ?? voice ?? this.buffers["p-" + name];
     if (!buf || !this.audible || this.ctx.state !== "running") return false;
     const src = this.ctx.createBufferSource();
     src.buffer = buf; src.playbackRate.value = rate;
