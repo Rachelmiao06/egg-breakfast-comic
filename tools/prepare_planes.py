@@ -108,23 +108,27 @@ def fill_rows(img: np.ndarray, hole: np.ndarray, usable: np.ndarray, feather: in
 
 # 蛋是金色细线描边，胡萝卜和葱的深棕黑墨线跟它不是一个画风（2026-11-15 用户：蛋的边不动，蔬菜的边改成跟本色相配的暖色）。
 # 只换大块的墨线（轮廓），小块（眼睛、嘴）保持深色。区域是图片像素 (x0, y0, x1, y1)，颜色 RGB。
+# 取自蛋图外沿（public/assets/scene/egg.webp 边缘像素中位数 ≈ (177,103,14)，深的一半 (167,93,5)）：蛋、葱、胡萝卜描边同一个金棕色
+EGG_INK = (168, 96, 10)
 INK_RECOLOR = [
-    ((1445, 425, 1565, 505), (176, 96, 38)),  # 胡萝卜身子和手：焦橙
-    ((1445, 320, 1565, 425), (118, 142, 52)),  # 胡萝卜叶子：橄榄绿
-    ((1296, 519, 1400, 710), (150, 132, 78)),  # 葱身子：暖金棕
+    ((1445, 425, 1565, 505), EGG_INK),  # 胡萝卜身子和手
+    ((1445, 320, 1565, 425), EGG_INK),  # 胡萝卜叶子
+    ((1296, 519, 1400, 710), EGG_INK),  # 葱身子
 ]
 LEAVES_PNG = ROOT / "public/assets/bg/friends-scallion-leaves.png"  # 葱叶角色层（tools/prepare_friends.py 生成，这里再换一次墨线色）
-LEAVES_COLOR = (118, 142, 52)
+LEAVES_COLOR = EGG_INK
 
 
 def recolor_ink(rgb: np.ndarray, box: tuple[int, int, int, int], color: tuple[int, int, int], min_area: int = 800) -> np.ndarray:
     x0, y0, x1, y1 = box
     sub = rgb[y0:y1, x0:x1].astype(np.float32)
     lum = cv2.cvtColor(rgb[y0:y1, x0:x1], cv2.COLOR_RGB2GRAY).astype(np.float32)
-    lab, n = ndimage.label(lum <= INK)
+    hue = cv2.cvtColor(rgb[y0:y1, x0:x1], cv2.COLOR_RGB2HSV)[..., 0] * 2
+    ink = (lum <= INK) & ~((hue >= 60) & (hue <= 170))  # 绿色的暗块（叶子阴影、补墙的模糊）不是墨线
+    lab, n = ndimage.label(ink)
     sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
     keep = np.isin(lab, [i + 1 for i, a in enumerate(sizes) if a >= min_area])
-    near = ndimage.binary_dilation(keep, iterations=2)
+    near = ndimage.binary_dilation(keep, iterations=2) & ~((hue >= 60) & (hue <= 170))
     w = np.clip((150 - lum) / 90, 0, 1) * near
     out = sub * (1 - w[..., None]) + np.array(color, np.float32) * w[..., None]
     res = rgb.copy()

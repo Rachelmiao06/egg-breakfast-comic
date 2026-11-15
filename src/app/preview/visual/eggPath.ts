@@ -147,7 +147,8 @@ export function wanderPointsFor(cfg: SlotConfig, view: View & { s?: number }): P
   });
   // 第三站：能放进镜头就换成菜篮边沿上的支点（横版拆层才有道具切片），否则留在台面上
   const Pc = Wd.perch;
-  const perchHi = view.x1 - Wd.margin - reserve - w / 2;
+  // 边沿在半空，不挡右下角声音按钮，所以不留 reserve；蛋心离镜头右缘留 10 + 0.35 个蛋宽就行（半个蛋探出一点也是站在边沿上）
+  const perchHi = view.x1 - 10 - w * 0.35;
   if (!portrait && perchHi >= Pc.minX) pts[2] = { x: Math.round(Math.min(Pc.x, perchHi, Pc.maxX)), y: Pc.y, d: Pc.d };
   return pts;
 }
