@@ -7,7 +7,8 @@
     "bloop：这一段里开场蛋每落回锅面一次，马林巴响一个五声音阶的音（蛋的声音就是马林巴）。",
     "全部由 tools/music_build.py 合成，未经人耳试听；整体音乐音量可用 localStorage kitchen.musicGain（默认 1，0 = 关音乐）或网址 ?music=0.6 临时调。",
     "2026-11-15：去掉钟琴 / 马林巴的小事件（idea-ding、handoff-bell、yolk-cascade、mom-call、egg-small、egg-call）和开场的 egg-bloop，用户觉得突然很多游戏音效；保留 missing-q、catch-chord（改成指弹 + 垫音）、punch-dum、cricket、end-hold。",
-    "2026-11-15：idea 段去掉「哦！」(mom-aha)——第二格妈妈已经笑着说「先炒个配菜饭吧」，再来一声惊喜的「哦！」显得奇怪（用户）。文件 voice/mom-aha.mp3 保留，位置待定。"
+    "2026-11-15：idea 段去掉「哦！」(mom-aha)——第二格妈妈已经笑着说「先炒个配菜饭吧」，再来一声惊喜的「哦！」显得奇怪（用户）。文件 voice/mom-aha.mp3 保留，位置待定。",
+    "2026-11-15：idea 第二格（「先炒个配菜饭吧」，妈妈笑着）0.6 处一声轻轻满意的「嗯。」(mom-content)，替换掉去掉的「哦！」。"
   ],
   "voiceAvailable": [
     "mom-sigh",
@@ -18,7 +19,8 @@
     "mom-wow",
     "mom-hum",
     "mom-aha",
-    "mom-ah"
+    "mom-ah",
+    "mom-content"
   ],
   "scenes": {
     "opening": {
@@ -57,6 +59,11 @@
         {
           "sound": "mom-hum",
           "at": 0.4,
+          "gain": 0.9
+        },
+        {
+          "sound": "mom-content",
+          "at": 0.6,
           "gain": 0.9
         }
       ]
