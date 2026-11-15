@@ -145,7 +145,7 @@ export function IdleStack({ k, src, active }: { k: string; src: string; active: 
                       width: `${(L.size / (x1 - x0)) * 100}%`,
                       aspectRatio: "1",
                       opacity: 0,
-                      background: "radial-gradient(circle, rgba(255,252,244,1) 0%, rgba(255,250,238,0.75) 55%, rgba(255,250,238,0) 100%)",
+                      background: "radial-gradient(circle, rgba(255,252,244,0.9) 0%, rgba(255,250,238,0.5) 38%, rgba(255,250,238,0.16) 68%, rgba(255,250,238,0) 100%)",
                     }}
                   />
                 ))}

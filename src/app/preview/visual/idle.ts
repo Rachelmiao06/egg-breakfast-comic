@@ -122,7 +122,7 @@ export const IDLE: Record<string, IdleSpec> = {
     base: false,
     layers: [
       {
-        kind: "puffs", id: "steam", box: [95, 60, 190, 312], fromBottom: 6, rise: 620, size: 150, alpha: 0.85,
+        kind: "puffs", id: "steam", box: [95, 60, 190, 312], fromBottom: 6, rise: 620, size: 130, alpha: 0.6,
         puffs: [
           { x: 60, dur: 6.2, delay: 0, drift: -40 },
           { x: 25, dur: 7.4, delay: 1.1, drift: 30 },
