@@ -37,8 +37,9 @@ body {
    ::before = PaperTexture shader 烘出的纸纹（--paper-tex，见 PaperFrameTexture.tsx），multiply 只叠在纸边环上，
    纸边有纤维颗粒，画面保持原样（叠在整格上会让画面发糙）。没有纹理（--paper-tex: none）时就是平整的奶油色。 */
 .panel-frame {
-  --pf-w: max(6px, 0.6vw);
-  --pf-r: max(10px, 1.1vw);
+  --pf-w: max(3px, 0.28vw);
+  --pf-r: max(7px, 0.7vw);
+  --pf-ink: #2b2118;
   --sheen: calc(50% + var(--kl-mouse-x, 0) * 38%);
   border-radius: var(--pf-r);
   overflow: hidden;
@@ -74,12 +75,13 @@ body {
     linear-gradient(112deg, transparent calc(var(--sheen) - 16%), rgba(255, 250, 236, 0.22) var(--sheen), transparent calc(var(--sheen) + 16%)),
     radial-gradient(130% 100% at 12% 0%, rgba(255, 248, 228, 0.16), transparent 62%);
   box-shadow:
-    inset 0 0 0 var(--pf-w) #fbf3e2,
-    inset 0 0 0 calc(var(--pf-w) + 1px) rgba(120, 82, 46, 0.28);
+    inset 0 0 0 var(--pf-w) var(--pf-ink);
 }
 .panel-frame::before {
   /* 纸纹只落在纸边上（不碰画面）：整格铺纹理，再用「整个盒子 − 内容盒」的遮罩只留下边框环；
      内容盒的圆角 = 外圆角 − 边宽，和 ::after 的奶油边内缘一致。 */
+  /* 2026-11-15：纸边的纸纹带灰紫色，改成深棕墨线框（--pf-ink），不再叠纸纹 */
+  display: none;
   content: "";
   position: absolute;
   inset: 0;
