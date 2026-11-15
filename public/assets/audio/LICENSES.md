@@ -46,3 +46,7 @@ Freesound 原文件（wav / flac）需要登录，本轮用的是公开 HQ 预�
 - "Pouring oil (SoundAction 072)" by alexarje (Alexander Refsum Jensenius) — https://freesound.org/people/alexarje/sounds/721754/ — CC BY 4.0 — 裁切、高通、淡入淡出、响度处理（pour.mp3）
 
 许可原文：https://creativecommons.org/licenses/by/4.0/ 。网页上的署名：声音按钮左边的「音效致谢」按钮，点开列出标题、作者、来源链接、许可链接和"已裁剪并调整响度"（SoundToggle.tsx，2026-11-14 晚）。
+
+## 配乐（music/）
+
+`music/` 下 19 个文件（8 条循环 stem + 11 个 stinger）全部由 `tools/music_build.py` 用 numpy / scipy 原创合成，没有任何第三方采样或旋律，不涉及版权和署名；重新渲染：`python3 tools/music_build.py`。编排说明与场景对应见 `docs/SOUND-DESIGN.md`，运行时规则见 `src/components/kitchen/useKitchenMusic.ts`。未经人耳试听。

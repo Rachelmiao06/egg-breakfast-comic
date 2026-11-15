@@ -46,6 +46,7 @@ import { eventAt, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type L
 import { useScene } from "@/lib/scene-context";
 import audioMap from "./audio-map.json";
 import { REPLAY_EVENT } from "@/lib/replay";
+import { useKitchenMusic } from "./useKitchenMusic";
 
 const DIR = "/assets/audio/";
 /** 循环声文件（音量完全由节拍表 audio.loops 决定） */
@@ -351,6 +352,9 @@ class KitchenMixer {
     this.lastTick = performance.now();
     this.timer = window.setInterval(this.tick, TICK_MS);
   }
+
+  /** 配乐（useKitchenMusic）共用这个 AudioContext */
+  get context(): AudioContext | null { return this.ctx; }
 
   private channel(name: string, kind: "loop" | "oneshot", file: string, loop: boolean): Channel {
     const el = document.createElement("audio");
@@ -755,6 +759,9 @@ export function useKitchenAudio() {
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [rawBeats]);
+
+  // 配乐：同一个 AudioContext、同一个声音开关；规则见 useKitchenMusic.ts / docs/SOUND-DESIGN.md
+  useKitchenMusic({ getCtx: () => mixer.current?.context ?? null, soundOn, timeline, beats, resolveAt });
 
   return { available };
 }
