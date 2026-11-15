@@ -5,6 +5,7 @@
  * 叠三层不同大小、不同速度的纹理，各自往上、往旁边慢慢漂；上面比下面稀，再盖一层均匀的薄雾，所以整屏都有雾感。
  * 强度（0–1）= max(位置包络, √翻炒声音量 / full)：位置包络在进入炒菜段之前就开始升（不等声音爬到一半才看得见），
  * 声音包络保证声音在哪里，雾就在哪里；强度本身再被平滑（升得快、退得也快：滚到下一页雾就散），滚动抖动不会让雾闪。
+ * 层级（2026-11-15）：雾在漫画格（z-10）下面，只罩厨房；格子是主角，墨线和对白不能被雾盖住。
  * 一个全屏 Canvas（半分辨率，本来就是软的），不接收指针。减少动态效果或 ?perf=0 时不渲染。所有数字都在 STEAM 里。
  */
 import gsap from "gsap";
@@ -250,5 +251,5 @@ export default function StirSteam() {
     return () => { gsap.ticker.remove(tick); window.removeEventListener("resize", fit); ctx.clearRect(0, 0, c.width, c.height); };
   }, [reducedMotion, perf]);
 
-  return <canvas ref={cv} aria-hidden className="pointer-events-none fixed inset-0 z-[12] h-full w-full" />;
+  return <canvas ref={cv} aria-hidden className="pointer-events-none fixed inset-0 z-[9] h-full w-full" />;
 }

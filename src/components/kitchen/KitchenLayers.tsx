@@ -25,6 +25,7 @@
  *   transform: translate(var(--kl-mid-x, 0px), var(--kl-mid-y, 0px))
  * (--kl-mid-s carries the tiny edge-cover scale around (768, 600) if exactness matters).
  */
+import { parallaxGain } from "@/lib/calm";
 import gsap from "gsap";
 import { useEffect, useRef, useState } from "react";
 import sprites from "@/lib/kitchen-layers.json";
@@ -117,8 +118,9 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
       const L = live.current;
       shown += (L.progress - shown) * (L.reducedMotion || L.direct ? 1 : ease(4, dt));
       const k = ease(4.5, dt);
-      m.x += ((L.useMouse ? m.tx : 0) - m.x) * k;
-      m.y += ((L.useMouse ? m.ty : 0) - m.y) * k;
+      const pg = parallaxGain();
+      m.x += ((L.useMouse ? m.tx * pg : 0) - m.x) * k;
+      m.y += ((L.useMouse ? m.ty * pg : 0) - m.y) * k;
 
       // 镜头景深位移也做平滑，避免滚动时一顿一顿
       dz.x += (L.depth.x - dz.x) * (L.reducedMotion || L.direct ? 1 : ease(6, dt));
@@ -128,8 +130,8 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
       let counterVars: [number, number] = [0, 0];
       for (const g of ["far", "counter", "mid", "front"] as const) {
         const [amp, drift] = MOTION[g];
-        const tx = -m.x * amp + (1 - DEPTH[g]) * dz.x;
-        const ty = -m.y * amp * 0.6 - drift * shown + (1 - DEPTH[g]) * dz.y;
+        const tx = -m.x * amp + (1 - DEPTH[g]) * dz.x * pg;
+        const ty = -m.y * amp * 0.6 - drift * shown + (1 - DEPTH[g]) * dz.y * pg;
         // smallest scale around (ORIGIN_X, ORIGIN_Y) that keeps every canvas edge covered
         const s =
           1 +

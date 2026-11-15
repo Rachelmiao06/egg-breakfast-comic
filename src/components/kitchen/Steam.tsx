@@ -2,6 +2,7 @@
 /** 水壶嘴慢慢冒出的一点蒸汽（Canvas，柔和的奶白水彩团，最多十来团，很淡）。 */
 import { useRef } from "react";
 import { ANCHORS, Z } from "@/lib/scene";
+import { ambientGain } from "@/lib/calm";
 import { useScene } from "@/lib/scene-context";
 import { useCanvasLoop } from "./useCanvasLoop";
 
@@ -38,7 +39,7 @@ export default function Steam() {
         p.y -= dt * 34;
         p.x += dt * (p.vx + Math.sin(t * 1.3 + p.seed) * 9);
         p.r += dt * 9;
-        const a = 0.2 * Math.sin(Math.PI * k) ** 1.4;
+        const a = 0.2 * ambientGain() * Math.sin(Math.PI * k) ** 1.4;
         const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
         g.addColorStop(0, `rgba(255,252,244,${a})`);
         g.addColorStop(0.6, `rgba(255,250,238,${a * 0.5})`);

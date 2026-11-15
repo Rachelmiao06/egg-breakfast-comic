@@ -8,6 +8,7 @@
  *   飞行节拍（flight 非 null）时弱化退回到很轻，让整屏飞行发生在厨房里；
  *   镜头随飞行进度平移到前景锅铲；放进饭碗时（serve 非 null）对准饭碗中央。
  */
+import { setCalm } from "@/lib/calm";
 import type { ReactNode } from "react";
 import SceneStage, { type StageFocus } from "@/components/SceneStage";
 import KitchenLayers from "@/components/kitchen/KitchenLayers";
@@ -35,6 +36,7 @@ export default function KitchenScene({
   const { progress, flight, serve } = useScene();
   // 接蛋飞行时弱化退回很轻；放进饭碗（serve）时由 comic-scroll 的 progress 决定，可以重新弱化突出前景
   const dim = flight !== null && serve === null ? Math.min(progress, 0.15) : progress;
+  setCalm(dim);
   const f = flight ?? 0;
   const ease = (t: number) => t * t * (3 - 2 * t);
   const focus =
