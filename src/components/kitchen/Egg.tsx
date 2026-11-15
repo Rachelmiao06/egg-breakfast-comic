@@ -9,13 +9,16 @@
  * 每段由谁控制（beats 的 egg 字段）：
  *   loop     锅里自主跳（真实时间）；下一段要离开锅时，本段退出阶段收住跳跃
  *   toTable  进入阶段收住 → 动作阶段滚动控制：锅 → 桌沿弧线 → 停留阶段桌沿轻跳（真实时间）
- *   table    桌沿轻跳（真实时间）；下一段要起飞时，本段退出阶段收住
- *   flight   进入阶段收住 → 动作阶段滚动控制：上一站（锅或桌沿）→ 锅铲 → 落铲压扁回弹（一次性事件）
+ *   table    桌沿轻跳（真实时间）；站点按段换（anchors.tableAt：备菜段从左往右游走），换站只在进入阶段按滚动走短弧线；
+ *            停留阶段小跳更少更小（阅读时收敛）；下一段要起飞时，本段退出阶段收住
+ *   leap     桌沿等待；前景表演开始（HEAR_EVENT start）时真实时间蓄力、蹬离桌面（接触声 + “啵”）、快速向上跳出画面上缘
+ *   air      在画面上缘之外（空中）；倒滚回 leap 段开头之前时，真实时间从上方落回起跳点
+ *   flight   进入阶段收住 → 动作阶段滚动控制：上一站（锅、桌沿或空中）→ 锅铲 → 落铲压扁回弹（一次性事件）；从空中时沿下落弧线从铲面右上方入画
  *   serve    滚动控制：锅铲 → 碗；bowl 停在碗里
  *   gone     已交给画着蛋的漫画：与交接格同步淡出
  * direct = true（新版）：滚动控制的位移直接设置，不再每帧重启补间；只有站点之间的离散跳变（快速拖动）用很短的补间接上。
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { beatById, eggTravel, type Beat, type Timeline } from "@/lib/beats";
 import { ANCHORS, Z } from "@/lib/scene";
@@ -63,13 +66,15 @@ export type EggAnchors = {
    * 以脚底为轴缩放，蛋一直站在接蛋格的铲面上；交接格按缩小后的蛋黄位置摆放（slots.ts handoffBox），交接点前后不跳。
    */
   handoffShrink?: number;
+  /** 可选：每段的桌面站点（段 id → 脚底点；eggPath wanderTableFor）。没有的段用 tableWait */
+  tableAt?: Record<string, Pt>;
+  /** 可选：高跳之后的空中站点（画面上缘之外、铲面右上方；eggPath airPointFor） */
+  air?: Pt;
   /**
-   * 可选：某一段里（如 hear）与前景表演同一时刻触发的“抬头一跳”（真实时间，在原地站点上向上跳到前景格的右上方再落回）。
-   * 段内进度 q 越过 start 触发一次，q < reset 复位，q > leave 时尽快落回。最高点按触发时屏幕上前景格（panelSelector）的位置算：
-   * 蛋在格子右侧时，蛋心升到格子上沿往下 gazeFy × 格高处（妈妈抬眼的视线范围）；蛋和格子横向重叠时，升到格子上沿之上；
-   * 最高点的蛋始终完整在屏幕内（margin 像素）。rise / hang / fall 为秒。
+   * 可选：leap 段的高跳。event 的 detail.phase：start = 起跳（与妈妈抬眼同一时刻）；reset 只在回到该段 beforeQ 之前时才算复位
+   * （格子往前离开视野时也会发 reset，那时蛋已在空中，不落回）。crouch / rise 为秒。
    */
-  peek?: { event: string; panelSelector: string; gazeFy: number; margin: number; rise: number; hang: number; fall: number };
+  leap?: { event: string; beforeQ: number; crouch: number; rise: number };
 };
 
 /**
@@ -101,7 +106,7 @@ const LAND_SQUASH_S = beatById("catch")?.seconds.landSquash ?? 0.7;
 const PAN_JUMP = 135;
 const TABLE_HOP = 46;
 
-type Station = "pan" | "table" | "spatula" | "bowl";
+type Station = "pan" | "table" | "spatula" | "bowl" | "air";
 type Pose = { x: number; y: number; scale: number; rotation: number };
 type Plan = {
   pose: Pose;
@@ -113,7 +118,12 @@ type Plan = {
   landing: Station | null; // 刚到达的站点（用于一次性落地回弹）
   /** 飞行的最后一段：姿态按"一拍二"更新（纸世界的帧率） */
   step?: boolean;
+  /** 本段蛋要停下来的站点姿态（给漫画格避让读的站点框；在路上时 = 目的地，不跟着移动）；null = 不在桌面上 */
+  rest?: Pose | null;
+  /** 阅读停留阶段：站点小跳更少、更小 */
+  calm?: boolean;
 };
+const TABLE_LIKE = new Set(["toTable", "table", "ready", "leap"]);
 
 const b_isFlight = (b: Beat) => b.egg === "flight";
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
@@ -121,8 +131,9 @@ const bez = (a: number, b: number, c: number, t: number) => (1 - t) ** 2 * a + 2
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
 function stationPose(st: Station, a: EggAnchors): Pose {
-  const p = st === "pan" ? a.panLaunch : st === "table" ? a.tableWait : st === "spatula" ? a.spatulaLand : a.bowlLand;
-  const scale = st === "pan" ? 1 : st === "table" ? a.eggAtTable : st === "spatula" ? a.eggOnSpatula : a.eggInBowl;
+  const air = a.air ?? { x: a.tableWait.x, y: -400 };
+  const p = st === "pan" ? a.panLaunch : st === "table" ? a.tableWait : st === "spatula" ? a.spatulaLand : st === "air" ? air : a.bowlLand;
+  const scale = st === "pan" ? 1 : st === "table" || st === "air" ? a.eggAtTable : st === "spatula" ? a.eggOnSpatula : a.eggInBowl;
   return { x: p.x - REST.x, y: p.y - REST.y, scale, rotation: st === "spatula" ? (a.spatulaTilt ?? 0) : 0 };
 }
 
@@ -156,10 +167,30 @@ export function flightPoint(A: Pt, B: Pt, apexY: number, t: number, apexAt = 0.6
   return { x: easeX ? A.x + (B.x - A.x) * k * k : bez(A.x, cx, B.x, k), y: bez(A.y, cy, B.y, k) };
 }
 
+/**
+ * 桌面上换站（两站之间按滚动走）：贴着桌面连跳几下（每 ~180 场景像素一下，至少两下），抬得低，
+ * 不会升进上方漫画格的范围被格子挡住；每一下身体往前进方向轻轻一歪，缩放不变。
+ */
+function hopBetween(A: Pt, B: Pt, t: number, scale: number, lift: number, spin: number): Pose {
+  const k = clamp01(t);
+  const n = Math.max(2, Math.round(Math.abs(B.x - A.x) / 180));
+  const ph = (k * n) % 1, hop = k >= 1 ? 0 : Math.sin(Math.PI * ph);
+  return { x: A.x + (B.x - A.x) * k - REST.x, y: A.y + (B.y - A.y) * k - lift * hop - REST.y, scale, rotation: spin * hop };
+}
+/**
+ * 从空中落到铲面（脚底点）：纵向先快后慢（很快从画面上缘入画，轻轻落到铲面），横向从右往左，
+ * 所以蛋从铲面右上方斜着落下来，不经过妈妈和对白泡。镜头跟随（page.tsx）读同一条路径。
+ */
+export function fallPoint(A: Pt, B: Pt, t: number): Pt {
+  const k = clamp01(t);
+  return { x: A.x + (B.x - A.x) * (1 - (1 - k) ** 1.5), y: A.y + (B.y - A.y) * (1 - (1 - k) ** 2) };
+}
+
 /** 本段之前，蛋最后停在哪一站（决定 flight 从哪起飞） */
 function lastStationBefore(beats: Beat[], index: number): Station {
   for (let i = index - 1; i >= 0; i--) {
     const e = beats[i].egg;
+    if (e === "air" || e === "leap") return "air";
     if (e === "toTable" || e === "table" || e === "ready") return "table";
     if (e === "flight") return "spatula";
     if (e === "loop") return "pan";
@@ -167,8 +198,11 @@ function lastStationBefore(beats: Beat[], index: number): Station {
   return "pan";
 }
 
-function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
+function plan(t: Timeline, beats: Beat[], a0: EggAnchors, launched: boolean): Plan {
   const b = t.beat;
+  // 本段的桌面站点（游走）：station "table" 读 a.tableWait，这里换成本段的点
+  const tableAt = (i: number): Pt => (i >= 0 && beats[i] ? a0.tableAt?.[beats[i].id] : undefined) ?? a0.tableWait;
+  const a: EggAnchors = { ...a0, tableWait: tableAt(t.index) };
   const next = beats[t.index + 1];
   const exiting = t.phase === "exit";
   // 行进进度与落点都读共享事件（beats.ts eggTravel / eventAt），声音的落铲触发点读的是同一个值
@@ -184,24 +218,37 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
       return P;
     }
     case "toTable": {
-      if (before) return { ...base("pan", "pan", Z.eggInPan), settle: true };
-      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 260, 12), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null };
+      if (before) return { ...base("pan", "pan", Z.eggInPan), settle: true, rest: stationPose("table", a) };
+      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 260, 12), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest: stationPose("table", a) };
       const P = base("table", "table", Z.eggOnTable);
       P.landing = "table";
-      P.settle = !!next && next.egg === "flight" && exiting;
+      P.rest = P.pose;
+      P.settle = !!next && (next.egg === "flight" || next.egg === "leap") && exiting;
       return P;
     }
-    case "table": {
-      const P = base("table", "table", Z.eggOnTable);
-      P.settle = !!next && next.egg === "flight" && exiting;
+    case "table":
+    case "ready":
+    case "leap": {
+      if (b.egg === "leap" && launched) return { ...base("air", null, Z.eggFlying), rest: null };
+      // 换站：上一段也在桌面、而且点不同 → 本段进入阶段按滚动沿短弧线跳过去（承接当前位置，不瞬移）
+      const prev = beats[t.index - 1];
+      const from = prev && TABLE_LIKE.has(prev.egg) ? tableAt(t.index - 1) : null;
+      const to = a.tableWait;
+      const rest = stationPose("table", a);
+      if (from && (from.x !== to.x || from.y !== to.y) && t.phase === "enter") {
+        const k = smooth(t.phaseP);
+        return { pose: hopBetween(from, to, k, a.eggAtTable, 42, to.x > from.x ? 7 : -7), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest };
+      }
+      const P = base("table", b.egg === "ready" ? "ready" : "table", Z.eggOnTable);
+      P.rest = rest;
+      P.landing = "table"; // 换站后第一次停下：一次落地回弹（同一站上来回滚动不重播）
+      if (b.egg === "ready") P.settle = exiting; // 环境段：桌沿蓄力（真实时间：压低、左右扭、准备跳），离开前收住
+      else if (b.egg === "leap") P.settle = true; // 等着起跳：不再自己小跳
+      else { P.settle = !!next && (next.egg === "flight" || next.egg === "leap") && exiting; P.calm = t.phase === "hold"; }
       return P;
     }
-    case "ready": {
-      // 环境段：桌沿蓄力（真实时间：压低、左右扭、准备跳），离开前收住
-      const P = base("table", "ready", Z.eggOnTable);
-      P.settle = exiting;
-      return P;
-    }
+    case "air":
+      return { ...base("air", null, Z.eggFlying), rest: null };
     case "inBowl": {
       // 环境段：空饭桌上碗里的蛋（后景）。进入阶段等漫画格离开后才淡入，退出阶段在下一段漫画（画着碗里的蛋）进来前淡出
       const P = base("bowl", "call", Z.eggOnTable);
@@ -210,10 +257,16 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
     }
     case "flight": {
       const from = lastStationBefore(beats, t.index);
-      if (before) return { ...base(from, from === "pan" ? "pan" : "table", from === "pan" ? Z.eggInPan : Z.eggOnTable), settle: true };
+      if (before) return { ...base(from, from === "pan" ? "pan" : from === "air" ? null : "table", from === "pan" ? Z.eggInPan : from === "air" ? Z.eggFlying : Z.eggOnTable), settle: true };
       if (travelling) {
         const pose = arc(from, "spatula", actionP, a, 380, -18);
-        if (a.flightApexY !== undefined) {
+        if (from === "air") {
+          // 从画面上缘之外、铲面右上方落下来（不越过妈妈和对白泡）；缩放从桌面的大小过渡到铲面的大小
+          const f = fallPoint(a.air ?? { x: a.tableWait.x, y: -400 }, a.spatulaLand, actionP);
+          pose.x = f.x - REST.x;
+          pose.y = f.y - REST.y;
+          pose.scale = a.eggAtTable + (a.eggOnSpatula - a.eggAtTable) * actionP;
+        } else if (a.flightApexY !== undefined) {
           const f = flightPoint(from === "pan" ? a.panLaunch : a.tableWait, a.spatulaLand, a.flightApexY, actionP, 0.6, !!a.flightEaseX);
           pose.x = f.x - REST.x;
           pose.y = f.y - REST.y;
@@ -253,6 +306,7 @@ function plan(t: Timeline, beats: Beat[], a: EggAnchors): Plan {
 
 export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = false, faces }: { src?: string; anchors?: Partial<EggAnchors>; direct?: boolean; faces?: EggFaces }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const stationRef = useRef<HTMLDivElement>(null); // 站点框（不可见）：漫画格避让读它，不跟着蛋的换站、小跳、高跳移动
   const eggRef = useRef<HTMLDivElement>(null); // 压缩回弹、原地小跳都作用在这一层（底图和表情图一起变形）
   const baseImgRef = useRef<HTMLImageElement>(null);
   const flyImgRef = useRef<HTMLImageElement>(null);
@@ -262,7 +316,30 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   const aKey = JSON.stringify(anchors ?? {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const a: EggAnchors = useMemo(() => ({ ...DEFAULT_EGG_ANCHORS, ...anchors }), [aKey]);
-  const P = plan(timeline, beats, a);
+  // 高跳是否已经发生（leap 段）：前景表演开始（HEAR_EVENT start）时为真；回到该段 beforeQ 之前才复位
+  const [launchedRaw, setLaunched] = useState(false);
+  const leapIdx = beats.findIndex((b) => b.egg === "leap");
+  const beforeLeap = leapIdx < 0 || timeline.index < leapIdx || (timeline.index === leapIdx && timeline.p < (a.leap?.beforeQ ?? 0.2));
+  const launched = launchedRaw && !beforeLeap;
+  const P = plan(timeline, beats, a, launched);
+
+  const leapKey = JSON.stringify(a.leap ?? null);
+  useEffect(() => {
+    const L = a.leap;
+    if (!L) return;
+    const on = (e: Event) => {
+      const ph = (e as CustomEvent<{ phase?: string }>).detail?.phase;
+      if (ph === "start") setLaunched(true);
+      // 格子往前离开视野时也会发 reset：那时蛋已经在空中，不复位；只有真正回到起跳之前才复位（由 beforeLeap 判断）
+    };
+    window.addEventListener(L.event, on);
+    return () => window.removeEventListener(L.event, on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leapKey]);
+  // 回到起跳之前：清掉“已起跳”，下次越过开始点重新起跳（不留旧状态，避免提前起跳）
+  // （只在状态过期时执行一次；否则第二次经过 hear 时会在妈妈抬眼之前就起跳）
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (beforeLeap && launchedRaw) setLaunched(false); }, [beforeLeap, launchedRaw]);
 
   // ---- 表情：直接切换（不做交叉淡化，任何时刻只显示一张脸） ----
   // fly：接蛋飞行途中（滚动控制）；rest：由落铲那一次真实时间事件在压缩到底时切换，不跟滚动快慢走；其余用原图
@@ -288,9 +365,65 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   useEffect(() => () => { window.clearTimeout(stepRef.current.id); }, []);
   const lastStation = useRef<Station | null>(null);
   const lastLanding = useRef<Station | null>(null);
+  const leapTl = useRef<gsap.core.Timeline | null>(null); // 高跳 / 落回（真实时间）进行中
+  const leapingRef = useRef(false);
   useEffect(() => {
     const w = wrapRef.current;
     if (!w) return;
+    // 漫画格避让读的站点框：本段要停下的站点（在路上时是目的地，不跟着蛋移动）；不在桌面上时移到画外
+    const sm = stationRef.current;
+    if (sm) gsap.set(sm, P.rest ? { x: P.rest.x, y: P.rest.y, scale: P.rest.scale, rotation: 0, transformOrigin: "50% 100%" } : { x: 0, y: -100000 });
+    const prevSt = lastStation.current;
+    const egg = eggRef.current, shadow = shadowRef.current;
+    const L = a.leap;
+    // 高跳：桌沿 → 空中（真实时间）：蓄力下蹲 → 蹬离桌面（接触声 + “啵”）→ 快速向上跳出画面上缘 → 停到画外的空中站点
+    if (L && !reducedMotion && prevSt === "table" && P.station === "air" && egg && shadow) {
+      leapTl.current?.kill();
+      gsap.killTweensOf([egg, shadow]);
+      leapingRef.current = true;
+      const air = P.pose;
+      gsap.set(shadow, { opacity: 0.45 });
+      leapTl.current = gsap.timeline({ onComplete: () => { leapTl.current = null; leapingRef.current = false; } })
+        .to(egg, { scaleX: 1.16, scaleY: 0.8, y: 0, rotation: 0, duration: L.crouch, ease: "power2.out", transformOrigin: "50% 100%" })
+        .to(shadow, { scale: 1.12, opacity: 0.55, duration: L.crouch }, "<")
+        .call(() => {
+          window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "hopTap1", gain: 0.6 } }));
+          window.setTimeout(() => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "pop" } })), 60);
+        })
+        .set(shadow, { opacity: 0, scale: 1 })
+        .to(egg, { scaleX: 0.88, scaleY: 1.16, duration: 0.12, ease: "power2.out" })
+        .to(w, { y: air.y, duration: L.rise, ease: "power1.out", overwrite: true }, "<")
+        .set(w, { x: air.x, y: air.y, scale: air.scale, rotation: 0 })
+        .set(egg, { scaleX: 1, scaleY: 1 });
+      lastStation.current = P.station;
+      lastLanding.current = null;
+      return;
+    }
+    // 落回：空中 → 桌沿（倒滚回起跳之前）：从起跳点正上方的画外落下，落地回弹
+    if (L && !reducedMotion && prevSt === "air" && P.station === "table" && egg && shadow) {
+      leapTl.current?.kill();
+      gsap.killTweensOf([egg, shadow]);
+      leapingRef.current = true;
+      const to = P.pose;
+      const airY = stationPose("air", a).y;
+      gsap.set(w, { x: to.x, y: airY, scale: to.scale, rotation: 0 });
+      gsap.set(shadow, { opacity: 0 });
+      leapTl.current = gsap.timeline({ onComplete: () => { leapTl.current = null; leapingRef.current = false; } })
+        .set(egg, { scaleX: 0.94, scaleY: 1.08, y: 0 })
+        .to(w, { y: to.y, duration: 0.45, ease: "power2.in" })
+        .to(shadow, { opacity: 0.45, duration: 0.25 }, "-=0.25")
+        .call(() => eggLand("table"))
+        .to(egg, { scaleX: 1.16, scaleY: 0.82, duration: 0.09, ease: "power1.out" })
+        .to(egg, { scaleX: 1, scaleY: 1, duration: 0.4, ease: "elastic.out(1, 0.45)" });
+      lastStation.current = P.station;
+      lastLanding.current = P.landing;
+      return;
+    }
+    // 高跳 / 落回进行中、目标站点没变：让它播完；目标变了（继续滚到飞行等）就交还给滚动
+    if (leapTl.current) {
+      if (P.station === prevSt) return;
+      leapTl.current.kill(); leapTl.current = null; leapingRef.current = false;
+    }
     const discrete = P.station !== null && lastStation.current !== P.station; // 换站（含快速拖过整段）
     const vars = { x: P.pose.x, y: P.pose.y, scale: P.pose.scale, rotation: P.pose.rotation, transformOrigin: "50% 100%" };
     if (reducedMotion) gsap.set(w, vars);
@@ -331,70 +464,12 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     if (P.landing || P.station !== lastLanding.current) lastLanding.current = P.landing;
   });
 
-  // ---- 抬头一跳（peek，真实时间）：听前景表演发出的事件（a.peek.event），和妈妈抬眼是同一个开始时刻 ----
-  // detail.phase：start = 起跳（本次进入只跳一次）；stop = 格子开始离开，尽快落回；reset = 格子退出视野，下次进入可再跳
-  const peekRef = useRef<{ played: boolean; tl: gsap.core.Timeline | null }>({ played: false, tl: null });
-  const peekingRef = useRef(false);
-  const resumeIdleRef = useRef<(() => void) | null>(null); // 抬头一跳结束后恢复站点小跳（跳之前被打断的那一下不会再回调）
-  const peekKey = JSON.stringify(a.peek ?? null);
-  useEffect(() => {
-    const pk = a.peek;
-    if (!pk) return;
-    const st = peekRef.current;
-    const land = (d: number) => {
-      const egg = eggRef.current, shadow = shadowRef.current;
-      st.tl?.kill(); st.tl = null;
-      if (!egg || !shadow) return;
-      gsap.to(egg, { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: d, ease: "power2.in", overwrite: true, onComplete: () => { peekingRef.current = false; resumeIdleRef.current?.(); } });
-      gsap.to(shadow, { scale: 1, opacity: 0.45, duration: d, overwrite: true });
-    };
-    const onCue = (e: Event) => {
-      const phase = (e as CustomEvent<{ phase?: string }>).detail?.phase;
-      const egg = eggRef.current, shadow = shadowRef.current, wrap = wrapRef.current;
-      if (!egg || !shadow || !wrap) return;
-      if (phase === "reset") { st.played = false; if (st.tl) land(0.15); return; }
-      if (phase === "stop") { if (st.tl) land(0.2); return; }
-      if (phase !== "start" || st.played || reducedMotion) return;
-      st.played = true;
-      // 最高点：按此刻屏幕上的站点框和前景格算（屏幕像素），再换算成蛋布局框里的位移
-      const r = wrap.getBoundingClientRect();
-      const panelEl = document.querySelector(pk.panelSelector);
-      const pr = panelEl ? (panelEl.parentElement ?? panelEl).getBoundingClientRect() : null;
-      const body = { x0: r.left + r.width * 0.06, x1: r.right - r.width * 0.06, y0: r.top + r.height * 0.04, y1: r.bottom };
-      const bh = body.y1 - body.y0, cy = (body.y0 + body.y1) / 2;
-      let target = cy - r.height * 1.1; // 没有前景格时：向上约一个蛋高
-      if (pr) {
-        const overlap = body.x0 < pr.right + 8 && body.x1 > pr.left - 8;
-        target = overlap ? pr.top - 10 - bh / 2 : pr.top + pk.gazeFy * pr.height;
-      }
-      target = Math.min(cy, Math.max(target, pk.margin + bh / 2));
-      const dx = Math.min(0, window.innerWidth - pk.margin - body.x1) + Math.max(0, pk.margin - body.x0);
-      const k = SIZE.w / Math.max(1, r.width); // 屏幕像素 → 布局框像素
-      const Y = (target - cy) * k, X = dx * k;
-      peekingRef.current = true;
-      gsap.killTweensOf([egg, shadow]);
-      st.tl = gsap.timeline({ onComplete: () => { st.tl = null; peekingRef.current = false; resumeIdleRef.current?.(); } })
-        .to(egg, { scaleX: 1.1, scaleY: 0.88, duration: 0.12, ease: "power2.out", transformOrigin: "50% 100%" })      // 蓄力（与“啵”同时）
-        .to(shadow, { scale: 1.06, opacity: 0.5, duration: 0.12 }, "<")
-        .to(egg, { x: X, y: Y, scaleX: 0.97, scaleY: 1.05, duration: pk.rise, ease: "power2.out" })                     // 上升：妈妈在上升途中抬眼
-        .to(shadow, { scale: 0.5, opacity: 0.12, duration: pk.rise, ease: "power2.out" }, "<")
-        .to(egg, { y: Y * 0.97, scaleX: 1, scaleY: 1, duration: pk.hang, ease: "sine.inOut" })                          // 最高点停一下（在她的视线里；只往下回一点，不越出屏幕）
-        .to(egg, { x: 0, y: 0, scaleX: 0.97, scaleY: 1.05, duration: pk.fall, ease: "power2.in" })                       // 落回桌沿
-        .to(shadow, { scale: 1, opacity: 0.45, duration: pk.fall, ease: "power2.in" }, "<")
-        .to(egg, { scaleX: 1.12, scaleY: 0.86, duration: 0.09, ease: "power1.out" })
-        .to(egg, { scaleX: 1, scaleY: 1, duration: 0.3, ease: "power2.out" });
-    };
-    window.addEventListener(pk.event, onCue);
-    return () => window.removeEventListener(pk.event, onCue);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [peekKey, reducedMotion]);
-
   // ---- 被点了一下（彩蛋）：回一个小跳；在路上（滚动控制）或在抬头一跳时不理 ----
   useEffect(() => {
     const onPoke = () => {
       const egg = eggRef.current, shadow = shadowRef.current;
       const st = lastStation.current;
-      if (!egg || !shadow || reducedMotion || st === null || peekingRef.current) return;
+      if (!egg || !shadow || reducedMotion || st === null || st === "air" || leapingRef.current) return;
       const H = st === "pan" ? PAN_JUMP * 0.55 : TABLE_HOP * 1.2;
       gsap.killTweensOf([egg, shadow]);
       gsap.timeline()
@@ -413,6 +488,8 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
 
   // ---- 内层：站点上的自主小跳（真实时间） ----
   const settleRef = useRef(P.settle);
+  const calmRef = useRef(!!P.calm);
+  useEffect(() => { calmRef.current = !!P.calm; }, [P.calm]);
   const kickRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     settleRef.current = P.settle;
@@ -427,10 +504,11 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
       gsap.to(egg, { y: 0, duration: 0.15, ease: "power1.out", overwrite: "auto" });
       return;
     }
-    const H = idle === "pan" ? PAN_JUMP : idle === "call" ? 24 : TABLE_HOP;
+    const H0 = idle === "pan" ? PAN_JUMP : idle === "call" ? 24 : TABLE_HOP;
     let busy = false;
     const ctx = gsap.context(() => {
       if (idle === "ready" || idle === "call") {
+        const H = H0;
         // ready：压低蓄力 → 停一下 → 小幅弹起又落回（像在找起跳时机），间隔不规则；call：碗里探身、左右晃着喊，幅度小
         const ready = idle === "ready";
         const act = () => {
@@ -462,11 +540,15 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
       const jump = () => {
         if (settleRef.current) return;
         // 前景漫画格在表演（切菜、表情）时，后景的蛋先不跳，避免抢眼
-        if (document.documentElement.dataset.comicPerf || peekingRef.current) { gsap.delayedCall(0.5, jump); return; }
+        if (document.documentElement.dataset.comicPerf || leapingRef.current) { gsap.delayedCall(0.5, jump); return; }
         busy = true;
         const k = idle === "pan" ? 1 : 0.8;
+        // 阅读停留阶段：桌沿小跳更小、间隔更长，不抢前景
+        const calm = idle === "table" && calmRef.current;
+        const H = calm ? H0 * 0.55 : H0;
+        const gap = calm ? 1.8 : 1;
         gsap
-          .timeline({ onComplete: () => { busy = false; gsap.delayedCall(idle === "pan" ? 0.6 + Math.random() * 0.8 : 1.4 + Math.random() * 1.6, jump); } })
+          .timeline({ onComplete: () => { busy = false; gsap.delayedCall(idle === "pan" ? 0.6 + Math.random() * 0.8 : (1.4 + Math.random() * 1.6) * gap, jump); } })
           .to(egg, { scaleX: 1.1, scaleY: 0.88, duration: 0.2 * k, ease: "power2.out", transformOrigin: "50% 100%" })
           .to(shadow, { scale: 1.06, opacity: 0.5, duration: 0.2 * k }, "<")
           .to(egg, { scaleX: 0.92, scaleY: 1.12, y: -H * 0.22, duration: 0.12 * k, ease: "power2.in" })
@@ -483,12 +565,10 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           .to(shadow, { scale: 1, opacity: 0.45, duration: 0.3 }, "<");
       };
       kickRef.current = () => { if (!busy) { gsap.killTweensOf(jump); jump(); } };
-      resumeIdleRef.current = () => { busy = false; gsap.killTweensOf(jump); gsap.delayedCall(1 + Math.random() * 1.2, jump); };
       gsap.delayedCall(0.3 + Math.random() * 0.3, jump);
     });
     return () => {
       kickRef.current = null;
-      resumeIdleRef.current = null;
       ctx.kill(); // 不 revert：离开站点时保持当前姿态，由外层平滑接上
       gsap.to(egg, { y: 0, scaleX: 1, scaleY: 1, rotation: 0, duration: 0.15, ease: "power1.out" });
     };
@@ -498,8 +578,14 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
   return (
     <FollowMid zIndex={P.z}>
       <div
-        ref={wrapRef}
+        ref={stationRef}
         data-egg-station
+        aria-hidden
+        className="pointer-events-none absolute invisible"
+        style={{ left: REST.x - SIZE.w / 2, top: REST.y - SIZE.h, width: SIZE.w, height: SIZE.h }}
+      />
+      <div
+        ref={wrapRef}
         className="pointer-events-none absolute will-change-transform"
         style={{ left: REST.x - SIZE.w / 2, top: REST.y - SIZE.h, width: SIZE.w, height: SIZE.h, opacity: P.opacity }}
       >

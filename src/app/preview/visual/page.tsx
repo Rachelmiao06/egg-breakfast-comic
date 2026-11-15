@@ -8,17 +8,17 @@ import { useState, useSyncExternalStore } from "react";
 import ScrollDriver from "@/components/ScrollDriver";
 import KitchenCharacters from "@/components/kitchen/KitchenCharacters";
 import KitchenScene from "@/components/kitchen/KitchenScene";
-import { flightPoint } from "@/components/kitchen/Egg";
+import { fallPoint } from "@/components/kitchen/Egg";
 import { SCENE_H, SCENE_W } from "@/lib/scene";
 import ScrollHint from "@/components/kitchen/ScrollHint";
 import SoundToggle from "@/components/kitchen/SoundToggle";
 import { SceneProvider, useScene } from "@/lib/scene-context";
 import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import { SearchBackdrop, Paper } from "./Backdrops";
-import { BG, cameraV2, depthFromCamera, gNow, V2_BEATS } from "./motion.v2";
+import { BG, cameraV2, depthFromCamera, gNow, gOf, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
-import { HEAR_EVENT, usePerfEnabled } from "./PanelPerf";
-import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, tableWaitFor } from "./eggPath";
+import { HEAR_CUE, HEAR_EVENT } from "./PanelPerf";
+import { airPointFor, eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, wanderTableFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
 import EggPoke from "./EggPoke";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
@@ -89,12 +89,18 @@ function StageV2() {
   const debug = useParam("debug") !== null;
   const clean = useParam("clean") !== null;
   const g = gNow(t);
-  const perfOn = usePerfEnabled();
+  const vp = useViewport();
+  // 备菜段桌面游走：左 / 中 / 右三个站点，夹在阅读镜头可见的桌面里（eggPath.ts wanderTableFor）；最后一个点 = hear 的高跳起跳点
+  const tableAt = wanderTableFor(cfg, readingView(vp.w, vp.h));
   const anchors = {
     ...eggAnchorsFrom(cfg),
-    // 桌沿等待点 = 起跳点：在铲面落点右侧（妈妈面朝右、锅铲向右伸，蛋从她右侧、铲面右上方飞来），按视口布局算（eggPath.ts）
-    tableWait: tableWaitFor(cfg),
+    tableAt,
+    tableWait: tableAt.hear,
     eggAtTable: eggAtTableFor(cfg),
+    // 高跳之后的空中站点：画面上缘之外、铲面右上方（接蛋时从这里落到铲面）
+    air: airPointFor(cfg, catchView(vp.w, vp.h)),
+    // hear：前景表演开始（HEAR_EVENT start，与妈妈抬眼同一时刻）时蓄力 0.25 s，0.35 s 内冲出画面上缘；回到该段 beforeQ 之前才复位
+    leap: { event: HEAR_EVENT, beforeQ: HEAR_CUE.beforeQ, crouch: 0.25, rise: 0.35 },
     // 环境段 tablecall：饭桌上的碗（后景会话提供碗；这里只给蛋的脚底点和大小）
     bowlLand: { x: BG.anchors.tableBowl.x, y: BG.anchors.tableBowl.y },
     eggInBowl: BG.anchors.eggInTableBowl,
@@ -106,14 +112,10 @@ function StageV2() {
     flightLean: cfg.egg.flightLean,
     // 交接：回正的同时以脚底为轴缩到画里那颗蛋的外轮廓宽度（slots.json scene.handoff / egg）；交接格按缩小后的蛋黄摆放
     handoffShrink: handoffShrinkFor(cfg),
-    // hear：与妈妈抬眼同一时刻触发的抬头一跳（听 PanelPerf 的 HEAR_EVENT：听见格表演开始的那一刻）；蛋升到前景格右上方、她的视线里，再落回桌沿。表演关闭时不跳
-    ...(perfOn
-      ? { peek: { event: HEAR_EVENT, panelSelector: 'img[src*="/p3d"]', gazeFy: 0.12, margin: 14, rise: 0.8, hang: 0.22, fall: 0.5 } }
-      : {}),
   };
   // 接蛋动作阶段：镜头轻微跟随蛋（与蛋读同一条飞行路径）
   let eggPt: { x: number; y: number } | null = null;
-  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = flightPoint(anchors.tableWait, anchors.spatulaLand!, anchors.flightApexY, flight, 0.6, anchors.flightEaseX);
+  if (t.beat.egg === "flight" && flight !== null && flight < 1) eggPt = fallPoint(anchors.air, anchors.spatulaLand!, flight);
   // 环境段（蛋是主体）：镜头水平方向主要跟着蛋的站点，窄屏、竖屏也不会把蛋切出画面；进入和离开时按段内进度渐变
   let follow: number | undefined;
   const envEgg = t.beat.egg === "ready" ? anchors.tableWait : t.beat.egg === "inBowl" ? anchors.bowlLand : null;
@@ -221,6 +223,16 @@ function catchView(vw: number, vh: number) {
   const x = clamp(vw * ax - fx * s, vw - SCENE_W * s, 0);
   const y = clamp(vh * ay - fy * s, vh - SCENE_H * s, 0);
   return { x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s };
+}
+
+/** 备菜段（阅读）镜头下可见的场景范围：用于把游走站点夹在画面内的桌面上（算法同 SceneStage，读 chop 段中点的镜头） */
+function readingView(vw: number, vh: number) {
+  const cam = cameraV2(gOf("chop", 0.5));
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  const s = Math.max(vw / SCENE_W, vh / SCENE_H) * cam.zoom;
+  const x = clamp(vw * cam.at.x - cam.x * s, vw - SCENE_W * s, 0);
+  const y = clamp(vh * cam.at.y - cam.y * s, vh - SCENE_H * s, 0);
+  return { x0: -x / s, x1: (vw - x) / s, y0: -y / s, y1: (vh - y) / s, s };
 }
 
 /** 新版：接蛋格连同右侧的蛋位放得进接蛋镜头就保持原位，放不下就缩小、靠左、下缘贴桌面（eggPath.ts fitCatchForEgg）。交接格滑动也按这个可见范围 */

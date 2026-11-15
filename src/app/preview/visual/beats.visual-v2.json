@@ -288,7 +288,7 @@
     0,
     0
    ],
-   "egg": "table",
+   "egg": "leap",
    "audio": {
     "loops": {
      "room": 0.18,
@@ -328,7 +328,7 @@
     0,
     0
    ],
-   "egg": "table",
+   "egg": "air",
    "audio": {
     "loops": {
      "room": 0.14,

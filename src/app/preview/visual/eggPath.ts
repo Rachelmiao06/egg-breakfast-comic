@@ -119,3 +119,35 @@ export function fitCatchForEgg(cfg: SlotConfig, view: { x0: number; x1: number; 
     scene: { ...cfg.scene, catch: { ...c, box: [Math.round(view.x0 + m), Math.round(Math.max(640 - h * 0.35, BG.table.topY - BG.eggPath.boxAboveTable - h)), w, h] } },
   };
 }
+
+type View = { x0: number; x1: number; y0: number; y1: number };
+const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * 备菜段桌面游走的三个站点（左 / 中 / 右，脚底中心，场景像素）。期望 x 在 backgrounds.json anchors.wander，
+ * 夹在阅读镜头（view）可见的桌面里：避开左侧架子（minX）和右侧葱、篮子（maxX），离画面边缘 margin；中点夹在左右之间。
+ */
+export function wanderPointsFor(cfg: SlotConfig, view: View & { s?: number }): Pt[] {
+  const Wd = BG.anchors.wander;
+  const w = EGG * eggAtTableFor(cfg);
+  const y = cfg.narrow ? BG.anchors.portraitTableWait.y : BG.anchors.tableWait.y;
+  // 右下角留给声音按钮（屏幕像素 → 场景像素）：右侧的点不压到按钮
+  const reserve = view.s ? Wd.rightReservePx / view.s : 0;
+  const lo = Math.max(view.x0 + Wd.margin + w / 2, Wd.minX), hi = Math.min(view.x1 - Wd.margin - reserve - w / 2, Wd.maxX);
+  const L = clampN(Wd.x[0], lo, hi), R = clampN(Wd.x[2], lo, hi);
+  const M = clampN(Wd.x[1], L + (R - L) * 0.3, R - (R - L) * 0.3);
+  return [L, M, R].map((x) => ({ x: Math.round(x), y }));
+}
+/** 每段的桌面站点（段 id → 脚底点），给 Egg 的 tableAt */
+export function wanderTableFor(cfg: SlotConfig, view: View & { s?: number }): Record<string, Pt> {
+  const pts = wanderPointsFor(cfg, view);
+  return Object.fromEntries(Object.entries(BG.anchors.wander.at as Record<string, number>).map(([id, i]) => [id, pts[i]]));
+}
+/** 高跳之后的空中站点：画面上缘之外（整颗蛋在画布上沿之上）、铲面右上方，并在接蛋镜头（catchView）横向范围内，接蛋时从上缘入画 */
+export function airPointFor(cfg: SlotConfig, catchView: View): Pt {
+  const Wd = BG.anchors.wander;
+  const w = EGG * eggAtTableFor(cfg);
+  const land = landPoint(cfg.scene.catch);
+  const x = Math.max(land.x, Math.min(land.x + Wd.airDxEggW * w, catchView.x1 - 0.6 * w));
+  return { x: Math.round(x), y: Math.round(-w - Wd.airAbove) };
+}
