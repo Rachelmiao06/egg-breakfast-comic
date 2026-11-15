@@ -216,8 +216,8 @@ export function trajFoot(T: EggTraj, s: number): Pt {
   return { x: R.x + (C.x - R.x) * u, y: R.y + (C.y - R.y) * u * u };
 }
 /** 平飞段的参数：匀速为主，起步和收尾各缓一点 */
-const FLY_F = 0.1;
-const flyEase = (u: number) => u * u * (3 - 2 * u) * 0.35 + u * 0.65;
+/** 抛物线拱高（场景像素）：随水平距离，至少 40 */
+const flyArch = (T: EggTraj) => 40 + 0.25 * Math.abs(T.M.x - T.L.x);
 function trajPose(T: EggTraj, s: number): Pose {
   const f = trajFoot(T, s);
   const u = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;

@@ -99,7 +99,6 @@ function StageV2() {
     tableAt,
     tableWait: tableAt.hear,
     eggAtTable: eggAtTableFor(cfg),
-    ink: BG.anchors.eggInk, // 深棕黑描边，和背景里胡萝卜、葱的墨线一致
     // 高跳之后的空中站点：画面上缘之外、铲面右上方（接蛋时从这里落到铲面）
     // 高跳轨迹 P(s)：L（右侧桌面）→ M（妈妈视线相遇点）→ E（出画）→ R（铲面右上方、catch 取景上缘外）→ C（铲面接触点）（eggPath.trajectoryFor，docs/EGG-JUMP.md）
     traj: trajectoryFor(cfg, vp, camAt(gOf("hear", 0.6), vp.w, vp.h), catchView(vp.w, vp.h), tableAt.hear),
