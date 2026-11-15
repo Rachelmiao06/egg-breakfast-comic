@@ -342,7 +342,7 @@ function FlowLayer() {
         const pos = { ...(places[p.key] ?? { x: p.x, y: p.y, w: p.w }) };
         const hVh = hOf(p, pos.w, vp.w, vp.h);
         const pan = pans[p.key] ?? 0;
-        let dy: number, stage: Stage, wrap: CSSProperties | null = null;
+        let dy: number, stage: Stage, reveal: { on: boolean; off: [number, number]; scale: number; origin: string } | null = null;
         if (step) {
           // 逐格出现：本段进入阶段里按 order 错开，每格从自己的方向（slots.json from）小幅滑入并淡入，停在原位；
           // 退出阶段整段淡出并略向上离开。格子位置仍用新版布局（fitPlaces / columnPlaces）。
@@ -356,17 +356,18 @@ function FlowLayer() {
           const span = n === 1 ? 1 : 0.62;
           const [s0, s1] = p.enterAt ?? (() => { const a = n === 1 ? 0 : (rank * (1 - span)) / (n - 1); return [a * enterEnd, (a + span) * enterEnd]; })();
           const [e0, e1] = p.exitAt ?? [exitStart, 1];
-          const k = outCubic(clamp01((q - s0) / Math.max(1e-6, s1 - s0)));
-          const x = clamp01((q - e0) / Math.max(1e-6, e1 - e0));
-          const [ox, oy] = p.from === "seam" ? [0, 0] : offsetFor(p.from, k);
+          // 滚动只决定"该不该在"：越过本格入场窗口的 35% 出现，越过退出窗口的 12% 离开；
+          // 淡入淡出本身按真实时间播完（<Reveal>，约 0.5 s），停在任何滚动位置都不会留下半透明的格子
+          // （2026-11-15 用户：宽屏下停在退出阶段，寻找段两格半透明地挂在画面上缘）
+          const holds = (ph.exit ?? 1) === 0;
+          const tIn = s0 + 0.35 * (s1 - s0);
+          const tOut = holds ? Infinity : e0 + 0.12 * (e1 - e0);
+          const on = q >= tIn && q < tOut;
           const panNow = pan * clamp01((q - s1) / Math.max(1e-6, e0 - s1));
-          dy = oy - panNow - 12 * inQuad(x);
-          const op = (p.from === "seam" ? k : Math.min(1, k * 1.4)) * (1 - inQuad(x));
+          dy = -panNow;
           const topVh = pos.y + dy;
-          stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh) * (op >= 0.95 ? 1 : op), entered: q >= s1 - 0.01, leaving: q > e0 };
-          if (ox !== 0) pos.x += ox;
-          // 进场：淡入的同时从略大缩到 1（以格子中心为原点，外壳铺满视口所以格子位置不变）；停稳后不套外壳
-          if (op < 1 || k < 1) wrap = { position: "absolute", inset: 0, opacity: op, scale: `${(1 + ENTER_SCALE * (1 - k)).toFixed(4)}`, transformOrigin: `${(pos.x + pos.w / 2).toFixed(2)}vw ${(pos.y + dy + hVh / 2).toFixed(2)}vh` };
+          stage = { vis: on ? clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh) : 0, entered: on, leaving: q >= tOut };
+          reveal = { on, off: q >= tOut ? [0, -8] : p.from === "seam" ? [0, 0] : offsetFor(p.from, 0), scale: q >= tOut ? 1 : 1 + ENTER_SCALE, origin: `${(pos.x + pos.w / 2).toFixed(2)}vw ${(pos.y + dy + hVh / 2).toFixed(2)}vh` };
         } else {
           const [s0, s1] = p.enterAt ?? [-0.14 + i * 0.05, 0.34];
           const [e0, e1] = p.exitAt ?? [0.7 + i * 0.03, 1.14];
@@ -393,7 +394,7 @@ function FlowLayer() {
         const perch = p.key === PERCH_PANEL && !vp.portrait;
         return (
           <Fragment key={p.key}>
-            {wrap ? <div style={wrap}>{panel}</div> : panel}
+            {reveal ? <Reveal on={reveal.on} off={reveal.off} scale={reveal.scale} origin={reveal.origin} reduced={reducedMotion}>{panel}</Reveal> : panel}
             {perch && <PerchEgg pos={pos} dy={dy} show={stage.vis > 0.55 && !stage.leaving} />}
             <PanelSignal k={p.key} q={q} stage={stage} />
           </Fragment>
@@ -505,6 +506,30 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
         </svg>
       ))}
       <span className="sr-only">…</span>
+    </div>
+  );
+}
+
+/**
+ * 逐格出现模式的出入场：on 由滚动决定，过渡按真实时间播放（CSS transition）。挂载时先以"不在"状态画一帧再切到 on，
+ * 快速滚进某段（格子一挂载就该在）也有淡入。off：不在时的位移（入场前 = 格子来的方向，离场后 = 向上 8vh）。
+ * 包一层铺满的 absolute 容器，子元素的 vw / vh 定位不变。入场前还略放大（paper.ts ENTER_SCALE，以格子中心为原点），落定时缩回 1。
+ */
+function Reveal({ on, off, scale, origin, reduced, children }: { on: boolean; off: [number, number]; scale: number; origin: string; reduced: boolean; children: ReactNode }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => setShown(on)); });
+    return () => cancelAnimationFrame(id);
+  }, [on]);
+  const [dx, dy] = reduced ? [0, 0] : off;
+  const transition = reduced
+    ? "opacity 0.2s linear"
+    : shown
+      ? "opacity 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1)"
+      : "opacity 0.35s ease-in, transform 0.4s ease-in";
+  return (
+    <div className="absolute inset-0" style={{ opacity: shown ? 1 : 0, transform: shown || reduced ? "none" : `translate3d(${dx}vw, ${dy}vh, 0) scale(${scale})`, transformOrigin: origin, transition }}>
+      {children}
     </div>
   );
 }
