@@ -244,7 +244,7 @@ function plan(t: Timeline, beats: Beat[], a0: EggAnchors): Plan {
     }
     case "toTable": {
       if (before) return { ...base("pan", "pan", Z.eggInPan), settle: true, rest: stationPose("table", a) };
-      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 130, 12, true), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest: stationPose("table", a) };
+      if (travelling) return { pose: arc("pan", "table", smooth(actionP), a, 60, 12, true), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest: stationPose("table", a) };
       const P = base("table", "table", Z.eggOnTable);
       P.landing = "table";
       P.rest = P.pose;
