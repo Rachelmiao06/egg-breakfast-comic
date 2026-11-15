@@ -128,6 +128,9 @@ class MusicEngine {
   private levels: Record<Stem, number> = Object.fromEntries(STEM_NAMES.map((s) => [s, 0])) as Record<Stem, number>;
   private bloop = false;
   private lastBloop = -Infinity;
+  private lastShh = -Infinity;
+  private scene = "";
+  private shhTimer = 0;
   private fired = 0;
   private userGain = 1;
   private duckTimer = 0;
@@ -214,6 +217,9 @@ class MusicEngine {
 
   setBloop(on: boolean) { this.bloop = on; }
 
+  /** 当前场景编号（写在 data-scene 上，useKitchenAudio 据此在结尾特写里不播"嗒"） */
+  setScene(id: string) { this.scene = id; this.root.dataset.scene = id; }
+
   stinger(name: string, gain = 0.5, rate = 1, pan = 0) {
     const voice = this.buffers["v-" + name];
     const buf = this.buffers["st-" + name] ?? voice;
@@ -241,9 +247,20 @@ class MusicEngine {
       if (this.stinger("egg-bloop", 0.3, BLOOP_RATES[Math.floor(Math.random() * BLOOP_RATES.length)])) this.lastBloop = now;
       return;
     }
-    // 结尾三个点（前景派发 hopTap1/2/3）：不再是"嗒"，换成蟋蟀的一声，三个点逐个略降调（2026-11-15 用户：嗒嗒嗒表达无语太局限、不明显）
     if (typeof d?.sound === "string" && /^hopTap[123]$/.test(d.sound)) {
-      this.stinger("cricket", 0.55, [1.04, 1, 0.95][Number(d.sound.slice(-1)) - 1]);
+      const n = Number(d.sound.slice(-1));
+      // 结尾三个点（前景派发 hopTap1/2/3）：不再是"嗒"，换成蟋蟀的一声，三个点逐个略降调（2026-11-15 用户：嗒嗒嗒表达无语太局限、不明显）
+      if (this.scene === "closeup") this.stinger("cricket", 0.55, [1.04, 1, 0.95][n - 1]);
+      // 酱油瓶"嘘"：和画面里酱油瓶受惊的动画同一件事触发（Backdrops 听 hopTap → 120 ms 后酱油瓶一惊）：蛋起跳那一帧的 hopTap1、结尾第一个点的 hopTap1；
+      // 比瓶子的动画晚一点点（150 ms），一次起跳 / 一轮三个点只嘘一声（5 s 内不重复）
+      if (n === 1 && ["hear", "listen", "closeup"].includes(this.scene)) {
+        const now = performance.now();
+        if (now - this.lastShh > 5000) {
+          this.lastShh = now;
+          window.clearTimeout(this.shhTimer);
+          this.shhTimer = window.setTimeout(() => { if (!this.disposed) this.stinger("boy-shh", 0.95, 1, -0.7); }, 150);
+        }
+      }
       return;
     }
     this.onDuck();
@@ -265,6 +282,7 @@ class MusicEngine {
   dispose() {
     this.disposed = true;
     window.clearTimeout(this.duckTimer);
+    window.clearTimeout(this.shhTimer);
     document.removeEventListener("visibilitychange", this.onVisibility);
     window.removeEventListener("kitchen:oneshot", this.onShot);
     window.removeEventListener("kitchen:action", this.onDuck);
@@ -307,6 +325,7 @@ export function useKitchenMusic({ getCtx, soundOn, timeline, beats, resolveAt }:
   useEffect(() => {
     engine.current?.setLevels(musicLevels(timeline, beats, resolveAt));
     engine.current?.setBloop(SCENES[timeline.beat.id]?.bloop === true);
+    engine.current?.setScene(timeline.beat.id);
   }, [timeline, beats, resolveAt]);
 
   // stinger：向下越过触发点时播一次

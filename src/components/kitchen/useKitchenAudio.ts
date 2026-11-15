@@ -468,8 +468,9 @@ class KitchenMixer {
       warnOnce(`${KITCHEN_ONESHOT_EVENT}: 未登记的声音 ${String(name)}`);
       return;
     }
-    // 结尾三个点的 hopTap1/2/3 事件由配乐引擎换成蟋蟀声（useKitchenMusic），这里不再播"嗒"；配乐关掉（?music=0）时三个点静音
-    if (typeof name === "string" && /^hopTap[123]$/.test(name)) return;
+    // 结尾特写里三个点的 hopTap1/2/3 事件由配乐引擎换成蟋蟀声（useKitchenMusic），这里不再播"嗒"；配乐关掉（?music=0）时三个点静音。
+    // 只限结尾特写：蛋起跳那一帧的 hopTap1（蹬桌接触）要照常响
+    if (typeof name === "string" && /^hopTap[123]$/.test(name) && document.querySelector("[data-kitchen-music]")?.getAttribute("data-scene") === "closeup") return;
     if (name === "eggHop") {
       // 只给锅里的跳出声；桌面上的小跳（前景漫画在讲故事时）不出声
       if (d?.surface !== undefined && d.surface !== "pan") return;
