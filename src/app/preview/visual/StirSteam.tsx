@@ -36,20 +36,30 @@ export const STEAM = {
   /** 均匀的薄雾（最浓时的透明度），保证每个角落都有一点雾 */
   haze: 0.12,
   /**
-   * 明确的源头：从炒锅口冒出来的一柱烟。源头取炒菜格 p2e 里那口锅（格内比例位置），格子在哪、多大，烟就从哪冒；
-   * 找不到这一格时从画面下方中部冒。烟柱 = 很多小团连成的一条：出口细而浓，边升边变宽、变淡、左右蜿蜒，最后散进满屏的雾里。
+   * 明确的源头：从炒菜格 p2e 里那口锅的锅口冒出来的烟（格子在哪、多大，源头就在哪；找不到这一格时从画面下方中部）。
+   * 不再用一团团柔光（像棉花）：烟 = 竖向拉长的丝状噪声（一缕缕细丝）几层，以不同速度往上流，
+   * 再被一个"出口窄、越高越宽、左右蜿蜒、越高越淡"的形状裁出来；锅口以下一律不画，所以只从锅里冒，不会出现在桌面上。
    */
   plume: {
     panel: "p2e",
-    at: [0.3, 0.82] as [number, number],
-    max: 260,
-    rate: 55,
-    life: [3.6, 6] as [number, number],
-    r0: 0.012,
-    r1: 0.13,
-    rise: 0.13,
-    wiggle: 0.12,
-    alpha: 0.5,
+    /** 锅口中心在格子里的位置（格内比例） */
+    at: [0.33, 0.84] as [number, number],
+    /** 丝状噪声成形（比满屏雾更锐，丝缕更分明） */
+    shape: [0.1, 0.4] as [number, number],
+    /** 烟丝的颜色：略带灰的暖白（纯白在浅色背景上看不出来，要有一点明暗才像烟） */
+    color: [228, 221, 208] as [number, number, number],
+    /** 几层丝：纹理边长（屏幕长边倍数）、纵向拉长倍数、上升速度（纹理边长 / 秒）、横向漂移、透明度 */
+    strands: [
+      { size: 0.45, stretch: 3.2, vy: 0.22, vx: 0.01, a: 1 },
+      { size: 0.3, stretch: 3.6, vy: 0.34, vx: -0.015, a: 0.85 },
+      { size: 0.2, stretch: 4.0, vy: 0.5, vx: 0.02, a: 0.7 },
+    ],
+    /** 烟柱半宽：出口 → 最高处（屏幕宽的比例）；蜿蜒幅度；最高处（离出口多远，屏幕高的比例）烟散尽 */
+    w0: 0.03,
+    w1: 0.2,
+    wiggle: 0.09,
+    reach: 0.9,
+    alpha: 1,
   },
 };
 
@@ -58,13 +68,13 @@ const rand = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) - 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
 /** 可平铺的分形值噪声 → 奶白色、alpha 为成形后的噪声的纹理 */
-function makeFog(): HTMLCanvasElement {
+function makeFog(shape: [number, number] = STEAM.shape, rgb: [number, number, number] = [255, 251, 241]): HTMLCanvasElement {
   const grids = [4, 8, 16, 32].map((g) => Array.from({ length: g * g }, () => rand()));
   const c = document.createElement("canvas");
   c.width = c.height = TILE;
   const ctx = c.getContext("2d")!;
   const img = ctx.createImageData(TILE, TILE);
-  const [lo, hi] = STEAM.shape;
+  const [lo, hi] = shape;
   for (let y = 0; y < TILE; y++) {
     for (let x = 0; x < TILE; x++) {
       let n = 0, amp = 0.5, tot = 0;
@@ -77,7 +87,7 @@ function makeFog(): HTMLCanvasElement {
       });
       const a = smooth(Math.min(1, Math.max(0, (n / tot - lo) / (hi - lo))));
       const i = (y * TILE + x) * 4;
-      img.data[i] = 255; img.data[i + 1] = 251; img.data[i + 2] = 241; img.data[i + 3] = Math.round(a * 255);
+      img.data[i] = rgb[0]; img.data[i + 1] = rgb[1]; img.data[i + 2] = rgb[2]; img.data[i + 3] = Math.round(a * 255);
     }
   }
   ctx.putImageData(img, 0, 0);
@@ -104,23 +114,30 @@ export default function StirSteam() {
     const c = cv.current;
     const ctx = c?.getContext("2d");
     if (!c || !ctx || reducedMotion || !perf) return;
-    const fit = () => { c.width = Math.max(2, Math.round(window.innerWidth / 2)); c.height = Math.max(2, Math.round(window.innerHeight / 2)); };
+    const mk = () => document.createElement("canvas");
+    const P = mk(), M = mk(); // P：丝状噪声层；M：烟柱形状的遮罩
+    const pctx = P.getContext("2d")!, mctx = M.getContext("2d")!;
+    const fit = () => {
+      c.width = P.width = M.width = Math.max(2, Math.round(window.innerWidth / 2));
+      c.height = P.height = M.height = Math.max(2, Math.round(window.innerHeight / 2));
+    };
     fit();
     window.addEventListener("resize", fit);
     const fog = makeFog();
     const pats = STEAM.layers.map(() => ctx.createPattern(fog, "repeat")!);
     const off = STEAM.layers.map((_, i) => [i * 97, i * 53]);
-    let I = 0, acc = 0;
-    type P = { x: number; y: number; age: number; ttl: number; ph: number; vy: number };
-    const ps: P[] = [];
     const PL = STEAM.plume;
+    const wisp = makeFog(PL.shape, PL.color);
+    const ppats = PL.strands.map(() => pctx.createPattern(wisp, "repeat")!);
+    const poff = PL.strands.map((_, i) => [i * 71, i * 113]);
+    let I = 0;
     const tick = () => {
       const dt = Math.min(0.1, gsap.ticker.deltaRatio(60) / 60);
       const W = c.width, H = c.height, T = target.current;
       I += (T - I) * Math.min(1, dt * (T > I ? STEAM.up : STEAM.down));
       ctx.globalCompositeOperation = "source-over";
       ctx.clearRect(0, 0, W, H);
-      if (I < 0.01 && !ps.length) return;
+      if (I < 0.01) return;
       const L = Math.max(W, H);
       STEAM.layers.forEach((l, i) => {
         const tile = l.size * L;
@@ -143,32 +160,51 @@ export default function StirSteam() {
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = `rgba(255,250,238,${STEAM.haze * I})`;
       ctx.fillRect(0, 0, W, H);
-      // 烟柱：源头 = 炒菜格里那口锅（每帧按格子当前的屏幕位置算）
+
+      // 烟柱：源头 = 炒菜格里那口锅的锅口（每帧按格子当前的屏幕位置算）；锅口以下不画
       const el = document.querySelector<HTMLElement>(`[data-panel="${PL.panel}"]`);
       const r = el?.getBoundingClientRect();
+      if (r && (r.bottom < 0 || r.top > window.innerHeight)) return; // 这一格不在画面里，没有源头就不冒
       const sx = (r && r.width > 10 ? r.left + r.width * PL.at[0] : window.innerWidth * 0.45) / 2;
-      const sy = (r && r.width > 10 ? r.top + r.height * PL.at[1] : window.innerHeight * 0.85) / 2;
-      const inView = !r || (r.bottom > 0 && r.top < window.innerHeight);
-      acc += dt * PL.rate * I;
-      while (acc >= 1 && ps.length < PL.max) { acc -= 1; ps.push({ x: sx, y: sy, age: 0, ttl: rand() * (PL.life[1] - PL.life[0]) + PL.life[0], ph: rand() * 6.28, vy: PL.rise * H * (0.8 + rand() * 0.4) }); }
-      if (acc >= 1) acc = 0;
-      const S = Math.min(W, H), t = gsap.ticker.time;
-      for (let i = ps.length - 1; i >= 0; i--) {
-        const p = ps[i];
-        p.age += dt;
-        const u = p.age / p.ttl;
-        if (u >= 1) { ps.splice(i, 1); continue; }
-        p.y -= p.vy * dt * (1 - 0.35 * u);
-        const x = p.x + (Math.sin(t * 0.8 + u * 6.5) * PL.wiggle * W + Math.sin(p.ph) * 0.035 * W) * Math.min(1, u * 2) * (0.35 + u); // 烟柱整体蜿蜒，每团再各自偏一点，边缘不会是笔直的竖条
-        const rad = (PL.r0 + (PL.r1 - PL.r0) * Math.sqrt(u)) * S;
-        const a = (inView ? 1 : 0) * PL.alpha * Math.min(1, I * 1.4) * Math.min(1, u * 8) * (1 - u) ** 1.2;
-        const g = ctx.createRadialGradient(x, p.y, 0, x, p.y, rad);
-        g.addColorStop(0, `rgba(255,253,248,${a})`);
-        g.addColorStop(0.55, `rgba(246,240,229,${a * 0.55})`);
-        g.addColorStop(1, "rgba(236,228,214,0)");
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(x, p.y, rad, 0, Math.PI * 2); ctx.fill();
+      const sy = Math.min(H, (r && r.width > 10 ? r.top + r.height * PL.at[1] : window.innerHeight * 0.85) / 2);
+      const reach = Math.max(10, Math.min(sy, PL.reach * H));
+      const t = gsap.ticker.time;
+      // 1) 丝状噪声：竖向拉长，往上流
+      pctx.globalCompositeOperation = "source-over";
+      pctx.clearRect(0, 0, W, H);
+      PL.strands.forEach((l, i) => {
+        const tile = l.size * L;
+        poff[i][0] += l.vx * tile * dt; poff[i][1] -= l.vy * tile * dt;
+        const k = tile / TILE;
+        ppats[i].setTransform(new DOMMatrix().translate(poff[i][0], poff[i][1]).scale(k, k * l.stretch));
+        pctx.globalAlpha = l.a;
+        pctx.fillStyle = ppats[i];
+        pctx.fillRect(0, 0, W, sy);
+      });
+      // 2) 形状遮罩：出口窄、越高越宽、左右蜿蜒、越高越淡；每 2 像素一行
+      mctx.clearRect(0, 0, W, H);
+      for (let y = 0; y < sy; y += 2) {
+        const u = Math.min(1, (sy - y) / reach);
+        if (u >= 1) continue;
+        const cx = sx + Math.sin(t * 0.8 + u * 5.2) * PL.wiggle * W * u * u + Math.sin(t * 1.7 + u * 11) * 0.012 * W * u;
+        const w = (PL.w0 + (PL.w1 - PL.w0) * Math.pow(u, 0.75)) * W;
+        const a = Math.min(1, u * 45) * (1 - u) ** 0.8; // 出口处从 0 起，很快浓起来，往上渐淡
+        const gr = mctx.createLinearGradient(cx - w, 0, cx + w, 0);
+        gr.addColorStop(0, "rgba(0,0,0,0)");
+        gr.addColorStop(0.3, `rgba(0,0,0,${a * 0.45})`);
+        gr.addColorStop(0.5, `rgba(0,0,0,${a})`);
+        gr.addColorStop(0.7, `rgba(0,0,0,${a * 0.45})`);
+        gr.addColorStop(1, "rgba(0,0,0,0)");
+        mctx.fillStyle = gr;
+        mctx.fillRect(Math.max(0, cx - w), y, Math.min(W, cx + w) - Math.max(0, cx - w), 2);
       }
+      pctx.globalAlpha = 1;
+      pctx.globalCompositeOperation = "destination-in";
+      pctx.drawImage(M, 0, 0);
+      ctx.globalAlpha = Math.min(1, PL.alpha * Math.min(1, I * 1.4));
+      ctx.drawImage(P, 0, 0);
+      ctx.drawImage(P, 0, 0); // 叠两次，浓一倍（出口处能清楚看到烟）
+      ctx.globalAlpha = 1;
     };
     gsap.ticker.add(tick);
     return () => { gsap.ticker.remove(tick); window.removeEventListener("resize", fit); ctx.clearRect(0, 0, c.width, c.height); };
