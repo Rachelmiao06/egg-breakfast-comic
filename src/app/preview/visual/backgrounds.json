@@ -110,6 +110,36 @@
   "source": "source/bg-v3/BG-kitchen-secret-friends.png（横版）、source/bg-v3/kitchen-friends-portrait.png（竖版，桌面原件 new pics/hallway-portrait.png 的副本；内容是同一套厨房）",
   "status": "已替换。横版缩放 1.05（场景像素 / 图片像素），竖版 0.9；box 由 counter 对齐和可见范围算出",
   "srcBase": "/assets/bg/kitchen-friends-base.webp",
+  "planes": {
+   "note": "纵深：横版底图拆成远、近两个平面（tools/prepare_planes.py）。远景平面 = 墙、瓷砖、窗、层板、菜篮、小角色（站在台面后沿的东西都在这里），相对主体层多一点位移：鼠标偏移 × mouse 像素、镜头景深位移 × depth、阅读漂移 × drift 像素（KitchenLayers 发布的 --kl-mouse-* / --kl-depth-* / --kl-drift；系数对应厨房分层 far 组：amp 1.5 → 5−1.5，f 0.92 → 1−0.92，drift 1 → 6−1）。近景平面 = 台面前半，蛋站在这里，和主体层一起动。切缝在台面中段的木纹上，near 的上沿羽化接到 far 的台面。soft 是远景的预烘软化版（模糊、低饱和、略亮），画格在场时叠化进来（Backdrops panelPresence），小角色和窗玻璃同时加 friendsBlur / windowBlur 像素的模糊；windowMouse 是窗玻璃在远景平面之上再多的横向鼠标视差（像素）。图片像素。",
+   "far": {
+    "src": "/assets/bg/kitchen-friends-far.webp",
+    "img": [
+     0,
+     0,
+     1672,
+     826
+    ],
+    "mouse": 3.5,
+    "depth": 0.08,
+    "drift": 5
+   },
+   "near": {
+    "src": "/assets/bg/kitchen-friends-near.webp",
+    "img": [
+     0,
+     754,
+     1672,
+     187
+    ]
+   },
+   "soft": {
+    "src": "/assets/bg/kitchen-friends-far-soft.webp",
+    "friendsBlur": 0.6,
+    "windowBlur": 0.8
+   },
+   "windowMouse": 1.5
+  },
   "actorsNote": "横版阅读厨房的三个小角色（tools/prepare_friends.py 从原图拆出：角色层 + 遮挡物 + 只在角色背后补齐的底图）。img / pivot 是原图像素；只转动几度，方向选在只会露出干净背景的一侧：酱油瓶往左躲到油瓶后（露出层板侧面：底图在这里按行延续侧面本身的木纹，不用模糊补齐；最大 −3°，再大瓶盖那几行和瓶颈那几行的木纹会出现小错位）、糖罐往左歪头（露出墙面）、葱叶往右偏向胡萝卜（露出瓷砖）。角度由 curves 里对应曲线给出（度，滚动驱动），只安排在各段的进入 / 退出阶段，阅读停留阶段不动；三个错开。减少动态效果时全部为 0。胡萝卜背后是生菜和番茄，没有可用的底图，保持静态。竖版没有拆层，保持静态。",
   "actors": [
    {

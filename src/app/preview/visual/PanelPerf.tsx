@@ -15,6 +15,7 @@ import gsap from "gsap";
 import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
+import { PAPER_SHADOW } from "./paper";
 
 type Place = { x: number; y: number; w: number };
 /** 声像跟着格子：按格子中心在屏幕上的横向位置给 -0.7…0.7（左边的格声音偏左，右边偏右）；厨房声不受影响 */
@@ -42,7 +43,7 @@ export function usePerfEnabled() {
 }
 
 function boxStyle(pos: Place, aspect: number, dy: number): CSSProperties {
-  return { left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)` };
+  return { left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW };
 }
 const flag = (on: boolean) => {
   if (on) document.documentElement.dataset.comicPerf = "1";
