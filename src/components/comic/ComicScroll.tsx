@@ -43,7 +43,7 @@ const CAPTIONS: Record<keyof typeof MOM_PANELS, string> = {
 } as Record<keyof typeof MOM_PANELS, string>;
 
 /** 手绘圆润可爱的中文字体（与 /demo/scroll-motion 同款）；加载前先退到系统圆体 */
-const cute = ZCOOL_KuaiLe({ weight: "400", subsets: ["chinese-simplified"], preload: false, display: "swap" });
+const cute = ZCOOL_KuaiLe({ weight: "400", subsets: ["chinese-simplified"] as unknown as ["latin"], preload: false, display: "swap" });
 
 const FONT = '"PingFang SC","Hiragino Sans GB",system-ui,sans-serif';
 
