@@ -128,6 +128,23 @@ build() {
                       # 柔和，-36…-47 dB），3.2 s 之后变成一下一下的咕嘟（大流量，不用）。取 [0.85, 2.05]，0.08 s 淡入、0.35 s 淡出、
                       # 高通 150 Hz 去掉手持的低频 → 1.2 s 小流量液体声
       oneshot_trim "$raw" "$wav" 0.85 2.05 0.08 0.35 "highpass=f=150"; finalize "$wav" "$out" 6 192k ;;
+    bag-rustle)       # 备菜·p1a 妈妈俯身拿购物袋（WilliamJMeyer "FOLEY_Handling paper bag_1"，CC0）：取 [8.6, 10.2] 一段纸袋窸窣，0.08 s 淡入、0.5 s 淡出 → 1.6 s
+      oneshot_trim "$raw" "$wav" 8.6 10.2 0.08 0.5 "highpass=f=100"; finalize "$wav" "$out" 6 192k ;;
+    bag-down)         # 备菜·p1b 购物袋放到台面上（shelbyshark "Grocery Drop"，CC0）：1.95 s 纸袋窸窣、2.20 s 袋子落到台面（-8 dB）、余响到 3.0 s。
+                      # 取 [1.90, 3.05]，5 ms 淡入、0.35 s 淡出 → 1.15 s；混音器从 0.2 s 处开始播，落台面的一下在格子到位后约 0.1 s
+      oneshot_trim "$raw" "$wav" 1.90 3.05 0.005 0.35 "highpass=f=60"; finalize "$wav" "$out" 3 192k ;;
+    veg-table)        # 备菜·p1d 把胡萝卜、葱、玉米摆到桌上（jas88 "Sound 12_ Cutting on wooden board"，CC0）：1.11 / 1.38 / 1.70 s 三下很轻的木头碰触。
+                      # 取 [1.05, 1.95]，3 ms 淡入、0.25 s 淡出 → 0.9 s
+      oneshot_trim "$raw" "$wav" 1.05 1.95 0.003 0.25 "highpass=f=80"; finalize "$wav" "$out" 3 192k ;;
+    veg-board)        # 备菜·p2a 把菜放到案板上（allanox "cutting_board_02"，CC0；标签 board/kitchen/knife）：6.3 s、6.8 s 两下"放下 + 轻滑"的木板声。
+                      # 取 [6.10, 7.15]，5 ms 淡入、0.15 s 淡出 → 1.05 s
+      oneshot_trim "$raw" "$wav" 6.10 7.15 0.005 0.15 "highpass=f=80"; finalize "$wav" "$out" 3 192k ;;
+    board-scrape)     # 备菜·p2c 切好的菜在案板上（TRP "cutting board chops scrapes"，CC0）：27 s 之后是"刀一碰 + 刀面把菜推开"的轻刮，底噪很低（-80 dB）。
+                      # 取 [37.85, 39.75]：38.2 s、39.4 s 两下推菜，3 ms 淡入、0.3 s 淡出 → 1.9 s；源很轻，增益大
+      oneshot_trim "$raw" "$wav" 37.85 39.75 0.003 0.3 "highpass=f=120"; finalize "$wav" "$out" 6 192k ;;
+    veg-bowl)         # 调汁·p3b 用铲子把菜舀进饭碗（macdaddyno1 "rice falling into a rice bowl"，CC0）：原档是米粒落进金属碗，1.70 / 1.95 / 2.30 s 三小下。
+                      # 取 [1.65, 2.45]，3 kHz 低通（压掉金属碗的振铃，接近菜粒落在饭上的软声），5 ms 淡入、0.25 s 淡出 → 0.8 s
+      oneshot_trim "$raw" "$wav" 1.65 2.45 0.005 0.25 "lowpass=f=3000,lowpass=f=3000"; finalize "$wav" "$out" 3 192k ;;
     egg-rice)         # 蛋被铲子放到饭上（p4b）：和 catch 同一原档（Pixabay "soft plop"）的第二声 plop（2.04 s 起音），比落铲更闷：
                       # 取 [2.035, 2.45]，2.5 kHz 低通，2 ms 淡入、0.15 s 淡出 → 0.415 s。"碗放到桌上"另用 bowl-down（p4e）
       raw="$RAW/catch.mp3"
@@ -159,6 +176,6 @@ build() {
 }
 
 names=("$@")
-if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3 stirfry-stir sauce-stir pour egg-hop egg-rice); fi
+if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3 stirfry-stir sauce-stir pour egg-hop egg-rice bag-rustle bag-down veg-table veg-board board-scrape veg-bowl); fi
 for n in "${names[@]}"; do build "$n"; done
 echo "完成。测量：tools/audio_measure.sh"

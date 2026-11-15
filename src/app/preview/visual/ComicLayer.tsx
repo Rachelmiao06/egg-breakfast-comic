@@ -12,6 +12,7 @@ import { ChopPanel, HearPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEna
 import { BLINK_PANELS, BlinkLayer, ClosingBlink } from "./Blink";
 import FrameReact from "./FrameReact";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
+import { replayStory } from "@/lib/replay";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -264,7 +265,9 @@ function FlowLayer() {
   const visible = PANELS.filter((p) => {
     if (p.hideInFlow || index[p.beat] === undefined) return false;
     const q = g - index[p.beat];
-    return step ? q >= 0 && q < 1 : q > -0.16 && q < 1.16;
+    // 没有退出阶段的段（结尾特写 closeup）读完后一直留在画面上：页面滚到底时 q 正好是 1，也不能消失
+    const holdsToEnd = (beats[index[p.beat]].phases?.exit ?? 1) === 0;
+    return step ? q >= 0 && (q < 1 || (holdsToEnd && q < 1.2)) : q > -0.16 && q < 1.16;
   });
   const groups: Record<string, PanelSpec[]> = {};
   // 提前离场的格（exitAt 早于同段其他格）单独成组排版：它离开后，同段其他格的位置不受影响
@@ -374,7 +377,49 @@ function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelS
       {/* 眼神僵住：三个点之前不眨眼，最后一个点之后约 1.2 秒才眨第一下 */}
       <ClosingBlink stable={stable} enabled={!reducedMotion && perfOn} afterMs={((seconds.dotDelay ?? 0.5) + 2 * (seconds.dotGap ?? 0.6) + 1.2) * 1000} />
       {stable && <Dots key="dots" instant={reducedMotion} delay={seconds.dotDelay ?? 0.5} gap={seconds.dotGap ?? 0.6} portrait={portrait} />}
+      {/* 三个点全部出现后，再留约 1.6 秒安静画面，才轻轻出现“再看一次” */}
+      {stable && <ReplayButton key="replay" afterMs={((seconds.dotDelay ?? 0.5) + 2 * (seconds.dotGap ?? 0.6) + 1.6) * 1000} instant={reducedMotion} />}
     </div>
+  );
+}
+
+/**
+ * 结尾的“再看一次”：低调的小字按钮，在妈妈特写下方，不压人物表情。点了走统一重置入口（src/lib/replay.ts）：
+ * 立即回到开场，蛋、漫画、格内表演、单次音效都复位，声音开关保持用户的选择。键盘可用（原生 button，Enter / 空格），
+ * 减少动态效果时不做淡入。
+ */
+function ReplayButton({ afterMs, instant }: { afterMs: number; instant: boolean }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setShown(true), afterMs);
+    return () => window.clearTimeout(id);
+  }, [afterMs]);
+  return (
+    <button
+      type="button"
+      aria-label="再看一次（回到开头）"
+      tabIndex={shown ? 0 : -1}
+      onClick={() => {
+        (document.activeElement as HTMLElement | null)?.blur();
+        replayStory();
+      }}
+      className="absolute left-1/2 top-full flex -translate-x-1/2 select-none items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8a6a4a]/60"
+      style={{
+        marginTop: "2.6vh",
+        pointerEvents: shown ? "auto" : "none",
+        opacity: shown ? 1 : 0,
+        transition: instant ? "none" : "opacity 700ms ease-out",
+        color: "rgba(74,52,32,0.72)",
+        background: "rgba(255,250,240,0.55)",
+        border: "1px solid rgba(74,52,32,0.22)",
+        fontSize: "clamp(12px, 0.95vw, 14px)",
+        letterSpacing: "0.08em",
+        fontFamily: '"PingFang SC","Hiragino Sans GB",system-ui,sans-serif',
+      }}
+    >
+      <span aria-hidden style={{ fontSize: "1.05em", lineHeight: 1 }}>↺</span>
+      再看一次
+    </button>
   );
 }
 

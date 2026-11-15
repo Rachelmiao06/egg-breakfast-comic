@@ -10,6 +10,7 @@ import Lenis from "lenis";
 import { locate, totalVh } from "@/lib/beats";
 import { setScrollVelocity } from "@/lib/scroll-velocity";
 import { useScene } from "@/lib/scene-context";
+import { REPLAY_EVENT } from "@/lib/replay";
 
 /**
  * smooth = true：用 Lenis 作为全站唯一的平滑层（触控板、鼠标滚轮都经过它），
@@ -77,7 +78,19 @@ export default function ScrollDriver({ smooth = false }: { smooth?: boolean }) {
       window.addEventListener("scroll", onScroll, { passive: true });
     }
     window.addEventListener("resize", onScroll);
+    // “再看一次”：立即回到顶部（不平滑滚过整段故事，避免倒着把每一段都走一遍），时间轴同步到开场
+    const onReplay = () => {
+      if (lenis) lenis.scrollTo(0, { immediate: true, force: true });
+      else window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+      v = 0;
+      lastVh = 0;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      update();
+    };
+    window.addEventListener(REPLAY_EVENT, onReplay);
     return () => {
+      window.removeEventListener(REPLAY_EVENT, onReplay);
       if (lenis) {
         cancelAnimationFrame(lenisRaf);
         lenis.destroy();

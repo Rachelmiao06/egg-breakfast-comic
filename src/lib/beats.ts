@@ -17,7 +17,8 @@ export type OneShotSound = "stirfryIn" | "catch" | "bowlDown" | "pour" | "momCal
  * ready 桌沿准备起跳（环境段，真实时间蓄力）· flight 进入阶段收住、动作阶段由滚动飞到锅铲 · serve 锅铲→碗（滚动）· bowl 在碗里
  * inBowl 环境段：空饭桌上碗里的蛋试着呼喊（后景可见，漫画里不同时出现蛋）· gone 已交给漫画（隐藏）
  */
-export type EggMode = "loop" | "toTable" | "table" | "ready" | "flight" | "serve" | "bowl" | "inBowl" | "gone";
+/** leap：桌沿等待，前景表演开始时（HEAR_EVENT）蓄力并高跳出画面上缘；air：在画面上缘之外（空中），flight 从这里落到铲面 */
+export type EggMode = "loop" | "toTable" | "table" | "ready" | "leap" | "air" | "flight" | "serve" | "bowl" | "inBowl" | "gone";
 /** 停留组：同组连续段落期间画面停住（sticky / pin），组结束后释放；null = 正常流动段 */
 export type PinGroup = "prep" | "catch" | "bowl" | "search" | "reunion";
 

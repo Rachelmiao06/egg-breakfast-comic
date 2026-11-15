@@ -28,7 +28,7 @@ const READY_VIS = 0.9, LEAVE_VIS = 0.6, GONE_VIS = 0.12, BEFORE_Q = 0.2;
  * eyesMs 时妈妈抬眼看向右上（蛋正在上升），蛋随后到达最高点，puzzMs 时露出疑惑（蛋已在下落）。
  * 收住时派发 "stop"（蛋尽快落回），复位时派发 "reset"（下次进入可再跳）。蛋和表情听同一个事件，保证是同一段动作。
  */
-export const HEAR_CUE = { eyesMs: 500, puzzMs: 1300 } as const;
+export const HEAR_CUE = { eyesMs: 500, puzzMs: 1300, beforeQ: BEFORE_Q } as const;
 export const HEAR_EVENT = "comic:hear";
 const hearSignal = (phase: "start" | "stop" | "reset") => window.dispatchEvent(new CustomEvent(HEAR_EVENT, { detail: { phase } }));
 const P = "/assets/comic-v3/perf/"; // 听见格的表情层

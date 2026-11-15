@@ -331,7 +331,32 @@
    "y": 930,
    "note": "环境段 tablecall：饭桌上碗里蛋的脚底中心（碗本身由后景会话提供，占位）"
   },
-  "eggInTableBowl": 0.42
+  "eggInTableBowl": 0.42,
+  "wander": {
+   "note": "备菜段桌面游走（2026-11-14 用户要求）：同一颗蛋从左往右在桌面上换三次位置。x = 期望的脚底 x（左 / 中 / 右，场景像素），y 用桌面高度（横版 tableWait.y 965，窄版 portraitTableWait.y 990）。实际站点由 eggPath.ts wanderPointsFor 按阅读镜头的可见桌面夹住：不小于 minX（左侧酱油瓶、糖罐架子）也不大于 maxX（右侧葱和篮子），离可见边缘 margin，右侧再留出右下角声音按钮的 rightReservePx（屏幕像素）；中点夹在左右之间。at = 每段停在第几个点（drop 落到左点；换站只发生在该段进入阶段，按滚动走短弧线）。最后一个点就是 hear 的高跳起跳点。air：高跳之后在画面上缘之外，铲面右上方 airDxEggW 个蛋宽、上缘之上 airAbove（场景像素，脚底再高一个蛋高）；接蛋时从这里落到铲面。",
+   "x": [
+    380,
+    790,
+    1170
+   ],
+   "minX": 360,
+   "maxX": 1170,
+   "margin": 20,
+   "rightReservePx": 64,
+   "at": {
+    "drop": 0,
+    "bag": 0,
+    "idea": 0,
+    "chop": 1,
+    "stirfry": 1,
+    "sauce": 2,
+    "missing": 2,
+    "prejump": 2,
+    "hear": 2
+   },
+   "airDxEggW": 0.9,
+   "airAbove": 60
+  }
  },
  "eggPath": {
   "note": "narrowSlot（现在 below；right 为旧行为）：right（默认，窄屏格子缩小、蛋在格子右侧）或 below（窄屏格子保持正常适配宽度，蛋在格子下方偏右、铲尖右侧 tipGap 处起跳，可伸出屏幕右缘最多 maxOverhang 个蛋宽；需要接蛋格 z 低于桌沿蛋，见 Z.catchPanel）。接蛋路径（src/app/preview/visual/eggPath.ts）：桌沿等待点 = 起跳点放在铲面落点右侧 gapEggW 个蛋宽，夹在接蛋镜头可见范围内（离右缘 viewMargin）；飞行最高点在格上框以下 apexFromBoxTop × 格高。panel 是接蛋格 p3e 画面里的位置（格内比例），检查工具用它验证路径不碰气泡、不越过妈妈视线左侧。 below 模式要配合 Egg.flightPoint 的横向 ease-in（flightEaseXFor），否则上升时会掠过铲尖。 maxOverhang 为负表示起跳点至少离屏幕右缘 0.1 个蛋宽（飞行中半空放大也不出屏）。",
@@ -451,19 +476,19 @@
    [
     "listen",
     0.2,
-    595,
+    675,
     840,
-    1.45,
-    0.5,
+    1.55,
+    0.7,
     0.6
    ],
    [
     "listen",
     0.92,
-    605,
+    685,
     840,
-    1.45,
-    0.5,
+    1.55,
+    0.7,
     0.6
    ],
    [
@@ -501,24 +526,6 @@
     1.08,
     0.5,
     0.6
-   ],
-   [
-    "tablecall",
-    0.35,
-    700,
-    880,
-    1.22,
-    0.5,
-    0.62
-   ],
-   [
-    "tablecall",
-    0.85,
-    700,
-    880,
-    1.22,
-    0.5,
-    0.62
    ],
    [
     "search",
@@ -613,23 +620,8 @@
   ],
   "bowl": [
    [
-    "tablecall",
-    0.12,
-    0
-   ],
-   [
-    "tablecall",
-    0.27,
-    1
-   ],
-   [
-    "tablecall",
-    0.85,
-    1
-   ],
-   [
-    "tablecall",
-    0.94,
+    "opening",
+    0,
     0
    ]
   ],
@@ -697,11 +689,6 @@
     -3
    ],
    [
-    "tablecall",
-    0.9,
-    -3
-   ],
-   [
     "search",
     0.1,
     0
@@ -759,13 +746,13 @@
     -3
    ],
    [
-    "tablecall",
-    0.1,
+    "search",
+    0.02,
     -3
    ],
    [
-    "tablecall",
-    0.35,
+    "search",
+    0.15,
     0
    ],
    [
@@ -834,27 +821,12 @@
     "prejump",
     0.8,
     0
-   ],
-   [
-    "tablecall",
-    0.45,
-    0
-   ],
-   [
-    "tablecall",
-    0.65,
-    3
-   ],
-   [
-    "tablecall",
-    0.85,
-    0
    ]
   ],
   "doorway": [
    [
-    "tablecall",
-    0.85,
+    "search",
+    0.0,
     0
    ],
    [
@@ -875,8 +847,8 @@
   ],
   "doorwayDrift": [
    [
-    "tablecall",
-    0.85,
+    "search",
+    0.0,
     1
    ],
    [
@@ -1048,5 +1020,6 @@
     10
    ]
   }
- }
+ },
+ "notes_bowlB": "2026-11-15 集成会话：用户选饭碗方案 B，tablecall 段和背景饭碗已删除（curves.bowl 恒为 0，TableBowl 不再显示）；camera / friendJar / friendSoy / friendLeaves / doorway / doorwayDrift 里引用 tablecall 的点已移除或改到 search 开头。"
 }

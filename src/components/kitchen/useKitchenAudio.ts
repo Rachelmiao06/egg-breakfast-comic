@@ -45,6 +45,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { eventAt, locate, loopLevels, LOOP_SOUNDS, phaseEdges, type Beat, type LoopSound, type OneShotSound, type Timeline } from "@/lib/beats";
 import { useScene } from "@/lib/scene-context";
 import audioMap from "./audio-map.json";
+import { REPLAY_EVENT } from "@/lib/replay";
 
 const DIR = "/assets/audio/";
 /** 循环声文件（音量完全由节拍表 audio.loops 决定） */
@@ -61,12 +62,12 @@ const LOOP_FILES: Record<LoopSound, string> = {
  *   window.dispatchEvent(new CustomEvent("kitchen:oneshot", { detail: { sound: "chopHit" } }))
  * 触发时刻完全由动画决定，混音器不做节拍判断。
  */
-type EventSound = "chopHit" | "eggHop" | "stirfryStir" | "sauceStir" | "eggRice";
+type EventSound = "chopHit" | "eggHop" | "stirfryStir" | "sauceStir" | "eggRice" | "bagRustle" | "bagDown" | "vegTable" | "vegBoard" | "boardScrape" | "vegBowl";
 /** 只在 audio-map 里用、由滚动越过触发点触发的单次音效（共享的 OneShotSound 类型里没有，运行时照样经节拍表的 oneshots 传递） */
 type ShotSound = OneShotSound | EventSound;
-const EVENT_SOUNDS: readonly EventSound[] = ["chopHit", "eggHop", "stirfryStir", "sauceStir", "eggRice"];
+const EVENT_SOUNDS: readonly EventSound[] = ["chopHit", "eggHop", "stirfryStir", "sauceStir", "eggRice", "bagRustle", "bagDown", "vegTable", "vegBoard", "boardScrape", "vegBowl"];
 /** 解码成 AudioBuffer 播放：每次触发新建节点，快速连续触发可以重叠，并可以带声像、可以单独淡出 */
-const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3", "eggHop", "stirfryIn", "stirfryStir", "sauceStir", "pour", "bowlDown", "eggRice", "catch", "pop"];
+const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3", "eggHop", "stirfryIn", "stirfryStir", "sauceStir", "pour", "bowlDown", "eggRice", "catch", "pop", "bagRustle", "bagDown", "vegTable", "vegBoard", "boardScrape", "vegBowl"];
 export const KITCHEN_ONESHOT_EVENT = "kitchen:oneshot";
 /** 前景一段动作的开始 / 停止：detail = { name, phase: "start" | "stop" } */
 export const KITCHEN_ACTION_EVENT = "kitchen:action";
@@ -78,7 +79,7 @@ const HOP_MIN_GAP_MS = 1800;
 const ACTION_FADE_S = 0.2, PANEL_FADE_S = 0.25;
 /** 动作开始后这么短时间内就收到停止（快速滚过格子）：快速收掉 */
 const QUICK_STOP_MS = 400;
-type Cues = { action: Record<string, string>; muted?: string[]; panel: Record<string, { sound: string; delay: number }[]> };
+type Cues = { action: Record<string, string>; muted?: string[]; panel: Record<string, { sound: string; delay: number; gain?: number }[]> };
 const CUES = (audioMap as unknown as { cues?: Cues }).cues ?? { action: {}, panel: {} };
 /** 接触声开头的淡入（秒）：从文件中间（skip）开始播时防咔哒 */
 const SKIP_FADE_S = 0.003;
@@ -104,6 +105,14 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number; 
   eggHop: { file: "egg-hop.mp3", volume: 0.16, skip: 0.006 },
   // 蛋被铲子放到饭上（p4b）：比落铲更闷的一声 plop（和 catch 同一原档的第二声，2.5 kHz 低通）。"碗放到桌上"另用 bowlDown（p4e）
   eggRice: { file: "egg-rice.mp3", volume: 0.4, skip: 0.02 },
+  // 备菜段 / 调汁段静态格的动作声：2026-11-15 用户修正后**不接入**（静态格里没有正在发生的动作）。文件和这里的登记保留，
+  // 不在 audio-map available 里、不加载；等这些格有了放菜 / 舀菜的动作帧，再加进 available 和 cues.panel
+  bagRustle: { file: "bag-rustle.mp3", volume: 0.3 }, // p1a 俯身拿购物袋：纸袋窸窣
+  bagDown: { file: "bag-down.mp3", volume: 0.45, skip: 0.2 }, // p1b 购物袋放到台面上：从 0.2 s 开始，落台面在约 0.1 s
+  vegTable: { file: "veg-table.mp3", volume: 0.45, skip: 0.05 }, // p1d 把菜摆到桌上：三下轻的木头碰触
+  vegBoard: { file: "veg-board.mp3", volume: 0.45, skip: 0.15 }, // p2a 把菜放到案板上：两下放下 + 轻滑
+  boardScrape: { file: "board-scrape.mp3", volume: 0.35 }, // p2c 切好的菜：刀面在案板上推两下
+  vegBowl: { file: "veg-bowl.mp3", volume: 0.4 }, // 调汁段 p3b 把菜舀进饭碗：三小下菜粒落在饭上
   // 翻炒：木铲在钢锅里推菜、轻刮锅，3.2 s 一段（kitchen:action stirfry）
   stirfryStir: { file: "stirfry-stir.mp3", volume: 0.3 },
   // 调汁：木勺在碗里轻搅、碰碗，2.6 s 一段；前景两圈约 1.25 s，转完时的停止事件把它淡出（kitchen:action sauceStir）
@@ -338,6 +347,7 @@ class KitchenMixer {
     window.addEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
     window.addEventListener(KITCHEN_ACTION_EVENT, this.onActionEvent);
     window.addEventListener(COMIC_PANEL_EVENT, this.onPanelEvent);
+    window.addEventListener(REPLAY_EVENT, this.onReplay);
     this.lastTick = performance.now();
     this.timer = window.setInterval(this.tick, TICK_MS);
   }
@@ -484,12 +494,12 @@ class KitchenMixer {
     const key = typeof d?.key === "string" ? d.key : null;
     const cues = key ? CUES.panel[key] : undefined;
     if (!key || !cues) return; // 没登记声音的格子：静默
-    const tag = `panel:${key}`;
+    const tag = (i: number) => `panel:${key}:${i}`; // 一格可以有多个声音（例如 p3b 舀菜 + 碗轻放），各自一个声部
     (this.panelTimers.get(key) ?? []).forEach((id) => window.clearTimeout(id));
     this.panelTimers.delete(key);
-    if (d!.phase !== "start") { this.fadeTag(tag, PANEL_FADE_S); return; }
-    this.panelTimers.set(key, cues.map((c) => window.setTimeout(() => {
-      if (c.sound in ONESHOTS) this.fire(c.sound as ShotSound, { tag });
+    if (d!.phase !== "start") { cues.forEach((_, i) => this.fadeTag(tag(i), PANEL_FADE_S)); return; }
+    this.panelTimers.set(key, cues.map((c, i) => window.setTimeout(() => {
+      if (c.sound in ONESHOTS) this.fire(c.sound as ShotSound, { tag: tag(i), gain: c.gain });
       else warnOnce(`audio-map cues.panel ${key}: 未登记的声音 ${c.sound}`);
     }, c.delay * 1000)));
   };
@@ -505,6 +515,16 @@ class KitchenMixer {
     v.g.gain.linearRampToValueAtTime(0, now + fadeS);
     try { v.src.stop(now + fadeS + 0.01); } catch { /* 已结束 */ }
   }
+
+  /** “再看一次”：停掉上一轮还在响的单次音效、动作声和格子定时器；循环声由新的时间轴带回开场电平，声音开关不变 */
+  private onReplay = () => {
+    this.stopVoices();
+    this.actionStart.clear();
+    this.lastHop = -Infinity;
+    for (const ch of this.all(this.shots)) {
+      if (!ch.el.paused) { ch.el.pause(); ch.el.currentTime = 0; }
+    }
+  };
 
   private stopVoices() {
     for (const v of this.voices) { try { v.stop(); } catch { /* 已结束 */ } }
@@ -657,6 +677,7 @@ class KitchenMixer {
     window.removeEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
     window.removeEventListener(KITCHEN_ACTION_EVENT, this.onActionEvent);
     window.removeEventListener(COMIC_PANEL_EVENT, this.onPanelEvent);
+    window.removeEventListener(REPLAY_EVENT, this.onReplay);
     this.stopVoices();
     for (const ch of [...this.all(this.loops), ...this.all(this.shots)]) {
       ch.el.pause();

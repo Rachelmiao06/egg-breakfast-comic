@@ -222,7 +222,7 @@ for (const [w, h] of sizes) {
   await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
   // REDUCED=1：模拟“减少动态效果”
   await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: process.env.REDUCED ? "reduce" : "no-preference" }] });
-  await send("Page.navigate", { url: `${base}/preview/background${process.env.QUERY ? "?" + process.env.QUERY : ""}` });
+  await send("Page.navigate", { url: `${base}${process.env.ROUTE || "/preview/background"}${process.env.QUERY ? "?" + process.env.QUERY : ""}` });
   await sleep(5000);
   if (SHOTS_ONLY) {
     for (const [name, vh] of Object.entries(SHOTS_ONLY)) {
