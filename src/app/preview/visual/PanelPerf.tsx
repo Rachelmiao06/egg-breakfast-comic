@@ -43,7 +43,7 @@ export function usePerfEnabled() {
 }
 
 function boxStyle(pos: Place, aspect: number, dy: number): CSSProperties {
-  return { left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW };
+  return { left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, filter: PAPER_SHADOW };
 }
 const flag = (on: boolean) => {
   if (on) document.documentElement.dataset.comicPerf = "1";

@@ -470,7 +470,7 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
 function FlowPanel({ p, pos, dy, blink = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
-    <div className="absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
+    <div className="absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, filter: PAPER_SHADOW }}>
       {p.src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
