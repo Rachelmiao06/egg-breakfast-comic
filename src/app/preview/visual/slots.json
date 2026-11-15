@@ -102,13 +102,13 @@
   {
    "key": "p2d",
    "beat": "stirfry",
-   "src": "/assets/comic-v4/frames/p2d-f1.webp",
+   "src": "/assets/comic-v5/p2d/static.webp",
    "source": "new pics/B-pouring frame-01（静态格用原图；动画用分层 comic-v4/layers/p2d-base、part、pile、drop1–3、front，tools/split_layers.py）",
    "dialogueInImage": true,
    "x": 22,
    "y": 8,
    "w": 52,
-   "aspect": 3.2033,
+   "aspect": 3.1802,
    "from": "top",
    "order": 0,
    "role": "hero"
