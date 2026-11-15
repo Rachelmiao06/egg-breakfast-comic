@@ -1,14 +1,15 @@
 "use client";
 /**
- * 漫画格内部的表演（只有两格，其余漫画保持静态）。图层由 tools/prepare_perf_layers.py 从用户给的四张配套图生成。
+ * 漫画格内部的表演。
  *
- * 切菜格 p2b：底图（去掉握刀手）+ 握刀手臂层（以袖口为支点）+ 对白泡（叠在手臂上，压住袖口，和原图一样）。
- *   格子稳定进入后（段内 q 越过 0.36）真实时间切三下：抬刀 → 停一下 → 落刀 → 刀刃接触的那一帧派发 kitchen:oneshot chopHit（落刀声）→ 停顿；
- *   三刀后停住不再动。倒滚不重播；回到格子进入之前（q < 0.3）再向前进入才会再播；格子开始离开（q > 0.72）时立即收住。
- * 听见格 p3d：原格 → 抬眼 → 疑惑，只换眉眼和嘴（与原格逐像素对齐），硬切，不做交叉淡化，不晃动整张脸；停在疑惑。
- *   同样在越过 0.36（“啵”之后）开始，先停 0.5 秒再抬眼，1.3 秒时露出疑惑。
- * 两格表演进行时在 <html data-comic-perf> 上做标记，后景的蛋暂缓小跳，不抢前景。
- * 减少动态效果或 ?perf=0：显示原静态格（对比录屏用）；切菜格仍在同一时机按同样节奏放三下刀声，画面不动。
+ * 切菜 p2b、配菜入锅 p2d、调酱汁 p3a：分层动画（tools/split_layers.py 从 new pics 的连续帧拆出来，public/assets/comic-v4/layers/）。
+ *   稳定底图（运动部件已去掉并补全）+ 透明运动层（握刀手 / 推菜的手和木铲 / 握勺的手臂，绕记录的自然支点转动、平移）
+ *   + 另外的运动层（案板上的菜、三颗掉落的菜，各自一层）+ 遮挡层（对白泡、框线、扶菜的手、胡萝卜、锅身、碗前壁、围裙）。
+ *   所有层同一画布、同一位置；动作用 GSAP 时间轴按真实时间播放，声音挂在同一条时间轴上的接触时刻。
+ * 听见格 p3d：原格 → 抬眼 → 疑惑，只换眉眼和嘴（与原格逐像素对齐），硬切；停在疑惑。
+ * 触发、收住、复位都走 useStage：格子真的在阅读位置（入场结束且可见 ≥ 90%）才播，离场收住，几乎看不见或退回入场前才复位。
+ * 表演进行时在 <html data-comic-perf> 上做标记，后景的蛋暂缓小跳，不抢前景。
+ * 减少动态效果或 ?perf=0：显示原静态格（new pics 第 1 帧）；声音仍在同样的时刻派发，画面不动。
  */
 import gsap from "gsap";
 import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
@@ -30,7 +31,7 @@ const READY_VIS = 0.9, LEAVE_VIS = 0.6, GONE_VIS = 0.12, BEFORE_Q = 0.2;
 export const HEAR_CUE = { eyesMs: 500, puzzMs: 1300 } as const;
 export const HEAR_EVENT = "comic:hear";
 const hearSignal = (phase: "start" | "stop" | "reset") => window.dispatchEvent(new CustomEvent(HEAR_EVENT, { detail: { phase } }));
-const P = "/assets/comic-v3/perf/";
+const P = "/assets/comic-v3/perf/"; // 听见格的表情层
 
 export function usePerfEnabled() {
   return useSyncExternalStore(
@@ -69,7 +70,9 @@ function useStage(q: number, stage: Stage, enabled: boolean, play: () => void, s
     if (stage.leaving || stage.vis < LEAVE_VIS) { stop(); return; }
     if (stage.entered && stage.vis >= READY_VIS && !played.current) { played.current = true; play(); }
   });
-  useEffect(() => () => { reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 卸载时复位，并清掉"播过"标记：格子离开视口被卸载、再次进入重新挂载时能再播；
+  // 开发模式 StrictMode 的"挂载 → 模拟卸载 → 再挂载"也一样（否则刚开始就被复位，而 played 还是 true，整段不播）
+  useEffect(() => () => { played.current = false; reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
@@ -109,95 +112,10 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   );
 }
 
-/**
- * 配菜下锅格 p2d：空中两粒玉米（能和锅底干净分开的只有这两粒）单独成层，底图原位置补了同一锅底的纹理。
- * 格子稳定后两小批：第一批从原位置落进锅里没入菜堆；停一下，第二批从铲边稍高处出现再落下；之后停住（菜已入锅，不再倒）。
- * （旧版说明）"滋啦"现在只由 StirfryPanel 第 2 帧派发 stirfryIn，节拍表里按滚动触发的那一条已删除。
- * 木铲推动、砧板倾斜、热气需要新图（见 docs/tasks/scroll-motion-demo-asset-requests.md）。
- */
-/**
- * 逐帧格内动作（稳定底图 + 只在动作区域切换的连续帧，tools/prepare_frames.py 生成）。
- * - f1 是整格底图（框线、对白、躯干、环境、静态格都用它）；f2、f3… 只在"手、工具、食物"所在的动作区域有像素，区域外透明。
- * - 换帧是硬切：同一时刻只显示一张动作层，不会叠出两只手、两把勺子；框线和对白始终来自底图，不跟着跳。
- * - 触发、收住、复位走 useStage（格子真的在阅读位置才按真实时间播一遍，停止滚动也播完）；离场时直接落到终帧。
- * - 隐藏标签页时 GSAP 时间轴随 rAF 暂停，回来接着播，不积累计时器。
- */
-type FrameStep = { f: number; ms: number };
-function FramesPanel({
-  p, pos, dy, q, stage, animate, dir, steps, endFrame = 1, delay = 0.3, onStep, front = false, runStatic = false, onEnd, onHalt, haltAtEnd = false,
-}: {
-  p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean;
-  /** 资源前缀，如 /assets/comic-v4/frames/p3a */
-  dir: string;
-  /** 播放顺序（帧号从 1 开始）和每帧停留毫秒 */
-  steps: FrameStep[];
-  /** 播完 / 离场后停住的帧 */
-  endFrame?: number;
-  delay?: number;
-  /** 每切到一帧时的回调（例如落刀接触帧派发声音） */
-  /** pan：按格子在屏幕上的横向位置给的声像（-0.7…0.7），声音事件带上它，声音在格子那一侧 */
-  onStep?: (f: number, i: number, pan: number) => void;
-  /** 有稳定前景遮挡层（<dir>-front.webp：对白泡、锅沿等，从底图取出，画在动作帧之上） */
-  front?: boolean;
-  /** 静态格（减少动态效果）时也按同样时刻跑 onStep（只放声音，画面不动） */
-  runStatic?: boolean;
-  /** 所有帧播完的那一刻（静态格同一时刻） */
-  onEnd?: () => void;
-  /** 播过之后被收住（离场）或复位时（用来停掉持续的动作声） */
-  onHalt?: () => void;
-  /** 播完就算结束（动作声随动画结束）：播完时调 onHalt，之后离场不再重复调 */
-  haltAtEnd?: boolean;
-}) {
-  const count = Math.max(...steps.map((s) => s.f), endFrame);
-  const layers = useRef<(HTMLImageElement | null)[]>([]);
-  const tl = useRef<gsap.core.Timeline | null>(null);
-  const show = (f: number) => layers.current.forEach((el, i) => { if (el) el.style.opacity = i + 2 === f ? "1" : "0"; });
-  /** 从 play 到 halt 之间为真：只在真的播过时才派发 onHalt */
-  const live = useRef(false);
-  const halt = () => { if (live.current) { live.current = false; onHalt?.(); } };
-  const reset = () => { tl.current?.kill(); tl.current = null; show(1); flag(false); halt(); };
-  const stop = () => { halt(); if (!tl.current) return; tl.current.kill(); tl.current = null; show(endFrame); flag(false); };
-  const play = () => {
-    reset();
-    live.current = true;
-    if (!animate) {
-      // 静态格：画面不动，只在同样的时刻跑 onStep / onEnd（例如三下落刀声）
-      const t = gsap.timeline({ delay, onComplete: () => { tl.current = null; } });
-      let at = 0;
-      steps.forEach((st, i) => { t.call(() => onStep?.(st.f, i, panFor(pos)), [], at); at += st.ms / 1000; });
-      t.call(() => { onEnd?.(); if (haltAtEnd) halt(); }, [], at);
-      tl.current = t;
-      return;
-    }
-    flag(true);
-    const t = gsap.timeline({ delay, onComplete: () => { tl.current = null; show(endFrame); flag(false); } });
-    let at = 0;
-    steps.forEach((s, i) => {
-      t.call(() => { show(s.f); onStep?.(s.f, i, panFor(pos)); }, [], at);
-      at += s.ms / 1000;
-    });
-    t.call(() => { show(endFrame); onEnd?.(); if (haltAtEnd) halt(); }, [], at);
-    tl.current = t;
-  };
-  useStage(q, stage, animate || runStatic, play, stop, reset);
-  if (!animate) return <StaticImg src={`${dir}-f1.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
-  return (
-    <div className="absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${dir}-f1.webp`} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" />
-      {Array.from({ length: count - 1 }, (_, i) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={i} ref={(el) => { layers.current[i] = el; }} src={`${dir}-f${i + 2}.webp`} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={{ opacity: 0 }} />
-      ))}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {front && <img src={`${dir}-front.webp`} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" />}
-    </div>
-  );
-}
-
+const L4 = "/assets/comic-v4/layers/";
 const F4 = "/assets/comic-v4/frames/";
 /** 声音事件（混音器在 kitchen-audio 分支接收；没收到就静音）。时刻都挂在 useStage 的真实时间轴上 */
-const oneshot = (sound: string) => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound } }));
+const oneshot = (sound: string, pan?: number) => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound, pan } }));
 const action = (name: string, phase: "start" | "stop", pan?: number) => window.dispatchEvent(new CustomEvent("kitchen:action", { detail: { name, phase, pan } }));
 
 /**
@@ -217,43 +135,162 @@ export function PanelSignal({ k, q, stage }: { k: string; q: number; stage: Stag
   return null;
 }
 /**
- * 调酱汁格 p3a（new pics/C-sauce 三帧）：勺子在碗里 左 → 后 → 右前 → 左，绕两圈后停在第 1 帧（和静态格一样）。
- * 扶碗的手、碗身、瓶子、框线都在动作区域外，始终是底图。
+ * 分层格内动作（tools/split_layers.py 生成；layers.json 记着画布、支点、关键姿态）。
+ * - <key>-base：第 1 帧去掉运动部件后补全的底图；<key>-part：运动部件（手 + 必要的前臂 + 工具），绕 pivot（画布百分比）转动 / 平移；
+ *   extras：另外各自运动的层（案板上的菜、掉落的菜）；<key>-front：遮挡层，像素和底图一致，画在所有运动层之上。
+ * - 位移用 xPercent / yPercent（相对整张画布），旋转绕 pivot。静止姿态就是第 1 帧，原位叠合与原图一致。
+ * - build() 往时间轴上排动作和声音；静态格（减少动态效果）同一个 build 作用在空对象上，声音时刻完全相同，画面不动。
+ * - 离场：时间轴停掉、落回静止姿态（= 静态格），持续的动作声由 onHalt 停掉；复位同样。隐藏标签页时 GSAP 随 rAF 暂停，不积累计时器。
  */
-const SAUCE_STEPS: FrameStep[] = [1, 2, 3, 1, 2, 3].map((f) => ({ f, ms: 210 }));
-/** 声音：两圈开始时 sauceStir start，两圈转完 / 离场 / 复位时 stop。静态格同一时刻派发 */
-const sauceStep = (_f: number, i: number, pan: number) => { if (i === 0) action("sauceStir", "start", pan); };
-export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <FramesPanel {...props} dir={`${F4}p3a`} steps={SAUCE_STEPS} endFrame={1} runStatic onStep={sauceStep} haltAtEnd onHalt={() => action("sauceStir", "stop")} />;
+type Targets = Record<string, object>;
+function LayersPanel({
+  p, pos, dy, q, stage, animate, k, extras = [], pivot, delay = 0.3, build, runStatic = false, onHalt, haltAtEnd = false,
+}: {
+  p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean;
+  /** 资源名前缀，如 p2b */
+  k: string;
+  extras?: string[];
+  /** 运动部件的自然支点（画布百分比） */
+  pivot: [number, number];
+  delay?: number;
+  /** 排动作：t.part / t[extra] 是要动的对象（静态格时是空对象）；pan 是格子在屏幕上的声像 */
+  build: (tl: gsap.core.Timeline, t: Targets, pan: number) => void;
+  runStatic?: boolean;
+  onHalt?: () => void;
+  /** 时间轴播完就算动作结束（调 onHalt），之后离场不再重复调 */
+  haltAtEnd?: boolean;
+}) {
+  const els = useRef<Record<string, HTMLImageElement | null>>({});
+  const tl = useRef<gsap.core.Timeline | null>(null);
+  const live = useRef(false);
+  const names = ["part", ...extras];
+  const rest = () => names.forEach((n) => { const el = els.current[n]; if (el) gsap.set(el, { xPercent: 0, yPercent: 0, rotation: 0, opacity: 1 }); });
+  const halt = () => { if (live.current) { live.current = false; onHalt?.(); } };
+  const reset = () => { tl.current?.kill(); tl.current = null; rest(); flag(false); halt(); };
+  const stop = () => { halt(); if (!tl.current) return; tl.current.kill(); tl.current = null; rest(); flag(false); };
+  const play = () => {
+    reset();
+    live.current = true;
+    const targets: Targets = {};
+    names.forEach((n) => { targets[n] = (animate && els.current[n]) || {}; });
+    if (animate) {
+      flag(true);
+      const part = els.current.part;
+      if (part) gsap.set(part, { transformOrigin: `${pivot[0]}% ${pivot[1]}%` });
+    }
+    const t = gsap.timeline({ delay, onComplete: () => { tl.current = null; if (animate) { rest(); flag(false); } if (haltAtEnd) halt(); } });
+    build(t, targets, panFor(pos));
+    tl.current = t;
+  };
+  useStage(q, stage, animate || runStatic, play, stop, reset);
+  if (!animate) return <StaticImg src={`${F4}${k}-f1.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
+  const layer = (n: string, src: string, ref: boolean) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img key={n} ref={ref ? (el) => { els.current[n] = el; } : undefined} src={src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={ref ? { willChange: "transform" } : undefined} />
+  );
+  return (
+    <div className="absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+      {layer("base", `${L4}${k}-base.webp`, false)}
+      {layer("part", `${L4}${k}-part.webp`, true)}
+      {extras.map((n) => layer(n, `${L4}${k}-${n}.webp`, true))}
+      {layer("front", `${L4}${k}-front.webp`, false)}
+    </div>
+  );
 }
 
 /**
- * 切胡萝卜格 p2b（new pics/A-chopping 三帧：1 抬刀、2 接近、3 落刀）：
- * 抬 → 接近 → 落（落刀帧派发 chopHit）→ 回抬，三刀，最后停在落刀后的稳定帧。对白泡是前景遮挡层，袖子从泡后面经过时泡不跳。
- * 静态格（减少动态效果）画面停在第 1 帧，三下刀声照常、时刻相同。
+ * 切胡萝卜格 p2b：握刀的手（连袖口和刀）整体往下切，绕袖口与手腕交界轻微转动。
+ * 最低姿态取自 A-chopping 第 3 帧相对第 1 帧的位姿（下移 18% 画布高、转 1°）；刀尖落进胡萝卜后面（胡萝卜、扶菜的手、对白泡、框线都是遮挡层）。
+ * 三刀：小抬 → 快落 → 刀刃接触的那一刻派发 chopHit → 短停 → 抬回 → 停顿；三刀后停在抬刀姿态（和静态格一样）。
+ * 静态格画面不动，三下刀声照常、时刻相同。
  */
-const CHOP_STEPS: FrameStep[] = [
-  ...[0, 1, 2].flatMap((k) => [
-    { f: 1, ms: k === 0 ? 160 : 150 },
-    { f: 2, ms: 75 },
-    { f: 3, ms: k === 2 ? 1 : 280 }, // 落刀：刀刃接触胡萝卜
-    ...(k === 2 ? [] : [{ f: 2, ms: 90 }]),
-  ]),
-];
-const chopHit = (f: number, _i: number, pan: number) => { if (f === 3) window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit", pan } })); };
+const CHOP_DOWN = { yPercent: 18, xPercent: 0, rotation: 1.5 };
+function chopScript(tl: gsap.core.Timeline, t: Targets, pan: number) {
+  let at = 0;
+  for (let i = 0; i < 3; i++) {
+    tl.to(t.part, { yPercent: -1.6, rotation: -0.8, duration: 0.1, ease: "power1.out" }, at); // 小抬
+    at += i === 0 ? 0.14 : 0.11;
+    tl.to(t.part, { ...CHOP_DOWN, duration: 0.1, ease: "power3.in" }, at); // 落刀
+    at += 0.1;
+    tl.call(() => oneshot("chopHit", pan), [], at); // 刀刃接触
+    at += 0.07;
+    tl.to(t.part, { yPercent: 0, xPercent: 0, rotation: 0, duration: 0.22, ease: "power2.out" }, at); // 抬回
+    at += 0.22 + (i === 2 ? 0 : 0.1);
+  }
+}
 export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <FramesPanel {...props} dir={`${F4}p2b`} steps={CHOP_STEPS} endFrame={3} delay={0.35} onStep={chopHit} front runStatic />;
+  return <LayersPanel {...props} k="p2b" pivot={[6.81, 42.16]} delay={0.35} build={chopScript} runStatic />;
 }
 
 /**
- * 配菜入锅格 p2d（new pics/B-pouring 三帧：1 开始滑落、2 木铲推动、3 已入锅）：只向前播一次，停在第 3 帧，不倒放。
- * 锅身前沿和对白泡是前景遮挡层，菜落进锅里而不是浮在锅上。"滋啦"只在这里派发（节拍表里按滚动触发的已删除）。
+ * 配菜入锅格 p2d：手腕在框上沿，木铲绕手腕摆：先探进菜堆（往右上，铲头钻到菜下面），再往左下推回来把菜推下案板边。
+ * 推回来的那一刻案板上的菜堆被推得挪一下又停住，铲边的菜一颗颗掉进锅里（三颗各自一层：落下、在锅里的菜上淡出），
+ * 第二下再推、再掉；最后掉下去的菜在案板边重新出现（铲边又挤出来的菜），停在和静态格一样的姿态。
+ * 锅身前沿、对白泡、框线是遮挡层。
+ * 声音：第一颗菜落进锅里的那一刻 stirfryIn（每次播放一次）；推完开始持续翻炒声 stirfry，离场 / 复位时停。静态格同一时刻派发。
  */
-const POUR_STEPS: FrameStep[] = [{ f: 1, ms: 380 }, { f: 2, ms: 520 }, { f: 3, ms: 1 }];
-/** 声音：第 2 帧（菜被推下、落进锅里）"滋啦" stirfryIn；第 3 帧（已入锅）开始翻炒声，离场 / 复位时停。静态格同一时刻派发 */
-const pourStep = (f: number) => { if (f === 2) oneshot("stirfryIn"); };
+const DROP_FALL = 22; // 掉落距离（画布高百分比）：从案板边落到锅里的菜面
+function stirfryScript(tl: gsap.core.Timeline, t: Targets, pan: number, start: () => void) {
+  const stroke = (at: number) => {
+    tl.to(t.part, { rotation: -5, duration: 0.38, ease: "sine.inOut" }, at); // 探进菜堆
+    tl.to(t.part, { rotation: 0.8, duration: 0.28, ease: "power2.in" }, at + 0.38); // 推回来
+    tl.to(t.part, { rotation: 0, duration: 0.2, ease: "sine.out" }, at + 0.66);
+    tl.to(t.pile, { xPercent: -0.6, yPercent: 0.8, duration: 0.16, ease: "power2.out" }, at + 0.5); // 菜堆被推得挪一下
+    tl.to(t.pile, { xPercent: 0, yPercent: 0, duration: 0.34, ease: "sine.inOut" }, at + 0.66);
+  };
+  const fall = (d: object, at: number) => {
+    tl.fromTo(d, { yPercent: 0 }, { yPercent: DROP_FALL, duration: 0.42, ease: "power2.in", immediateRender: false }, at);
+    tl.to(d, { opacity: 0, duration: 0.12, ease: "none" }, at + 0.32);
+  };
+  const appear = (d: object, at: number) => {
+    tl.fromTo(d, { yPercent: -8, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.26, ease: "power1.out", immediateRender: false }, at);
+  };
+  stroke(0);
+  fall(t.drop1, 0.6);
+  fall(t.drop2, 0.68);
+  tl.call(() => oneshot("stirfryIn", pan), [], 1.02); // 第一颗落进锅里
+  stroke(1.0);
+  appear(t.drop1, 1.25);
+  fall(t.drop3, 1.6);
+  fall(t.drop1, 1.66);
+  appear(t.drop2, 1.9);
+  appear(t.drop1, 2.2);
+  appear(t.drop3, 2.25);
+  tl.call(start, [], 2.5);
+}
+/** 持续的动作声：只有真的 start 过才在收住时发 stop（播放还没走到 start 就离场时不发空的 stop） */
+function useActionSound(name: string) {
+  const on = useRef(false);
+  return {
+    start: (pan: number) => { on.current = true; action(name, "start", pan); },
+    stop: () => { if (on.current) { on.current = false; action(name, "stop"); } },
+  };
+}
 export function StirfryPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <FramesPanel {...props} dir={`${F4}p2d`} steps={POUR_STEPS} endFrame={3} front runStatic onStep={pourStep} onEnd={() => action("stirfry", "start")} onHalt={() => action("stirfry", "stop")} />;
+  const snd = useActionSound("stirfry");
+  return <LayersPanel {...props} k="p2d" pivot={[20.45, 0.42]} extras={["pile", "drop1", "drop2", "drop3"]} build={(tl, t, pan) => stirfryScript(tl, t, pan, () => snd.start(pan))} runStatic onHalt={snd.stop} />;
+}
+
+/**
+ * 调酱汁格 p3a：整条手臂（袖子 + 手 + 勺）绕肩膀（框上沿）转着搅：右下 → 右 → 右上 → 回到左边，两圈后停在静止姿态。
+ * 幅度取自 C-sauce 第 3 帧（右移约 5% 画布宽、下移约 1%、转 5°）；袖子往右时收进围裙后面（围裙、碗前壁、框线是遮挡层），勺头在碗里滑。
+ * 声音：开始时 sauceStir start，两圈转完 / 离场 / 复位时 stop。静态格同一时刻派发。
+ */
+const STIR = { x: 4.9, y: 1.2, rot: 5, laps: 2, sec: 2.3 };
+function sauceScript(tl: gsap.core.Timeline, t: Targets, start: () => void) {
+  const st = { a: 0 };
+  tl.call(start, [], 0);
+  tl.to(st, {
+    a: STIR.laps, duration: STIR.sec, ease: "sine.inOut",
+    onUpdate: () => {
+      const th = st.a * Math.PI * 2;
+      gsap.set(t.part, { xPercent: (STIR.x / 2) * (1 - Math.cos(th)), yPercent: STIR.y * Math.sin(th), rotation: (STIR.rot / 2) * (1 - Math.cos(th)) });
+    },
+  }, 0);
+}
+export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
+  const snd = useActionSound("sauceStir");
+  return <LayersPanel {...props} k="p3a" pivot={[37.94, 1.64]} build={(tl, t, pan) => sauceScript(tl, t, () => snd.start(pan))} runStatic haltAtEnd onHalt={snd.stop} />;
 }
 
 function StaticImg({ src, pos, aspect, dy }: { src: string; pos: Place; aspect: number; dy: number }) {
