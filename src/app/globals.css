@@ -30,3 +30,69 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   overflow-x: hidden;
 }
+
+/* 画格 = 一张贴在墙上的相纸（docs/PAPER-WORLD.md）。图里不再自带黑框（tools/panel_alpha.py 已裁掉），
+   所有格子的纸边一样宽、圆角一样大，与图片缩放比例无关。
+   ::after = 奶油纸边（inset 阴影，内圆角自动 = 外圆角 − 边宽）+ 内缘一道极细的暖棕线；
+   ::before = PaperTexture shader 烘出的纸纹（--paper-tex，见 PaperFrameTexture.tsx），multiply 只叠在纸边环上，
+   纸边有纤维颗粒，画面保持原样（叠在整格上会让画面发糙）。没有纹理（--paper-tex: none）时就是平整的奶油色。 */
+.panel-frame {
+  --pf-w: max(6px, 0.6vw);
+  --pf-r: max(10px, 1.1vw);
+  --sheen: calc(50% + var(--kl-mouse-x, 0) * 38%);
+  border-radius: var(--pf-r);
+  overflow: hidden;
+  /* 回弹落下：慢一点、带一点过冲；跟随鼠标的倾斜和高光走快的曲线（见 [data-hover]） */
+  transition:
+    translate 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.35),
+    scale 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.35),
+    rotate 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.35),
+    box-shadow 0.4s ease-out;
+}
+/* 鼠标碰到：浮起、朝鼠标倾斜（rotate 用轴角，一条属性就能合成 X/Y 两个方向）、投影加深（PanelHover.tsx） */
+.panel-frame[data-hover] {
+  translate: 0 -7px;
+  scale: 1.028;
+  rotate: var(--ph-rx, 0) var(--ph-ry, 0) 0 calc(var(--ph-rm, 0) * 1deg);
+  box-shadow: 0 38px 54px -16px rgba(60, 35, 15, 0.5), 0 12px 20px -4px rgba(60, 35, 15, 0.28), 0 1px 2px rgba(60, 35, 15, 0.24) !important;
+  transition:
+    translate 0.22s cubic-bezier(0.2, 0.8, 0.3, 1),
+    scale 0.22s cubic-bezier(0.2, 0.8, 0.3, 1),
+    rotate 0.12s ease-out,
+    box-shadow 0.22s ease-out;
+}
+.panel-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 60;
+  /* 前景感：一道随鼠标左右扫过的柔和高光（--kl-mouse-x 来自 KitchenLayers，-1…1，触屏 / 减少动态效果时为 0），
+     加左上角的一点打光。画在画面上、被下面的纸边 inset 阴影盖住，所以纸边始终是平整的奶油色。 */
+  background:
+    linear-gradient(112deg, transparent calc(var(--sheen) - 16%), rgba(255, 250, 236, 0.22) var(--sheen), transparent calc(var(--sheen) + 16%)),
+    radial-gradient(130% 100% at 12% 0%, rgba(255, 248, 228, 0.16), transparent 62%);
+  box-shadow:
+    inset 0 0 0 var(--pf-w) #fbf3e2,
+    inset 0 0 0 calc(var(--pf-w) + 1px) rgba(120, 82, 46, 0.28);
+}
+.panel-frame::before {
+  /* 纸纹只落在纸边上（不碰画面）：整格铺纹理，再用「整个盒子 − 内容盒」的遮罩只留下边框环；
+     内容盒的圆角 = 外圆角 − 边宽，和 ::after 的奶油边内缘一致。 */
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: var(--pf-w);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 61;
+  background-image: var(--paper-tex, none);
+  background-size: 1024px 1024px;
+  background-origin: border-box;
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}

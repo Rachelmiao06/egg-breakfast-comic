@@ -10,7 +10,7 @@
    "x": 8,
    "y": 8,
    "w": 44,
-   "aspect": 1.967,
+   "aspect": 2.0397,
    "from": "seam",
    "order": 0,
    "role": "hero"
@@ -24,7 +24,7 @@
    "x": 60,
    "y": 34,
    "w": 22,
-   "aspect": 1.028,
+   "aspect": 1.0298,
    "from": "right",
    "order": 1,
    "role": "support"
@@ -38,7 +38,7 @@
    "x": 30,
    "y": 6,
    "w": 28,
-   "aspect": 1.13,
+   "aspect": 1.1376,
    "from": "top",
    "order": 0,
    "role": "hero"
@@ -52,7 +52,7 @@
    "x": 52,
    "y": 48,
    "w": 34,
-   "aspect": 1.893,
+   "aspect": 1.9463,
    "from": "bottom",
    "order": 1,
    "role": "support"
@@ -66,7 +66,7 @@
    "x": 26,
    "y": 5,
    "w": 44,
-   "aspect": 2.154,
+   "aspect": 2.2009,
    "from": "top",
    "order": 0,
    "role": "hero"
@@ -80,7 +80,7 @@
    "x": 28,
    "y": 44,
    "w": 28,
-   "aspect": 1.512,
+   "aspect": 1.5457,
    "from": "left",
    "order": 1,
    "role": "hero"
@@ -94,7 +94,7 @@
    "x": 62,
    "y": 50,
    "w": 20,
-   "aspect": 1.513,
+   "aspect": 1.5574,
    "from": "right",
    "order": 2,
    "role": "insert"
@@ -108,7 +108,7 @@
    "x": 22,
    "y": 8,
    "w": 52,
-   "aspect": 3.034,
+   "aspect": 3.2033,
    "from": "top",
    "order": 0,
    "role": "hero"
@@ -122,7 +122,7 @@
    "x": 36,
    "y": 44,
    "w": 40,
-   "aspect": 2.473,
+   "aspect": 2.6027,
    "from": "bottom",
    "order": 1,
    "role": "support"
@@ -136,7 +136,7 @@
    "x": 28,
    "y": 8,
    "w": 26,
-   "aspect": 1.004,
+   "aspect": 1.0062,
    "from": "left",
    "order": 0,
    "role": "hero"
@@ -150,7 +150,7 @@
    "x": 60,
    "y": 40,
    "w": 20,
-   "aspect": 1.112,
+   "aspect": 1.1232,
    "from": "right",
    "order": 1,
    "role": "support"
@@ -164,14 +164,18 @@
    "x": 44,
    "y": 14,
    "w": 28,
-   "aspect": 1.172,
+   "aspect": 1.1618,
    "from": "left",
    "order": 0,
    "role": "hero"
   },
   {
    "key": "p3d",
-   "portraitPlace": { "x": 3, "y": 50, "w": 46 },
+   "portraitPlace": {
+    "x": 3,
+    "y": 50,
+    "w": 46
+   },
    "beat": "hear",
    "src": "/assets/comic-v3/p3d.webp",
    "source": "03-something-is-missing.png D 格",
@@ -179,7 +183,7 @@
    "x": 8,
    "y": 40,
    "w": 22,
-   "aspect": 0.848,
+   "aspect": 0.8391,
    "from": "right",
    "order": 0,
    "role": "hero"
@@ -193,7 +197,7 @@
    "x": 14,
    "y": 8,
    "w": 28,
-   "aspect": 1.349,
+   "aspect": 1.3754,
    "from": "left",
    "order": 0,
    "role": "hero"
@@ -207,7 +211,7 @@
    "x": 52,
    "y": 44,
    "w": 22,
-   "aspect": 1.355,
+   "aspect": 1.3812,
    "from": "right",
    "order": 1,
    "role": "support"
@@ -221,7 +225,7 @@
    "x": 10,
    "y": 26,
    "w": 80,
-   "aspect": 3.291,
+   "aspect": 3.5254,
    "from": "bottom",
    "order": 0,
    "role": "hero"
@@ -235,7 +239,7 @@
    "x": 16,
    "y": 8,
    "w": 26,
-   "aspect": 1.084,
+   "aspect": 1.0855,
    "from": "left",
    "order": 0,
    "role": "hero"
@@ -249,7 +253,7 @@
    "x": 54,
    "y": 36,
    "w": 22,
-   "aspect": 0.982,
+   "aspect": 0.978,
    "from": "right",
    "order": 1,
    "role": "support"
@@ -263,7 +267,7 @@
    "x": 8,
    "y": 8,
    "w": 18,
-   "aspect": 0.998,
+   "aspect": 1.0021,
    "from": "left",
    "order": 0,
    "role": "insert",
@@ -303,7 +307,7 @@
    "x": 61,
    "y": 34,
    "w": 27,
-   "aspect": 1.039,
+   "aspect": 0.9714,
    "from": "right",
    "order": 2,
    "role": "hero",
@@ -321,7 +325,7 @@
    "x": 14,
    "y": 8,
    "w": 30,
-   "aspect": 1.041,
+   "aspect": 1.0592,
    "from": "right",
    "order": 0,
    "role": "hero"
@@ -335,7 +339,7 @@
    "x": 56,
    "y": 34,
    "w": 22,
-   "aspect": 0.947,
+   "aspect": 0.9421,
    "from": "left",
    "order": 1,
    "role": "support"
@@ -349,7 +353,7 @@
    "x": 10,
    "y": 8,
    "w": 22,
-   "aspect": 0.957,
+   "aspect": 0.956,
    "from": "bottom",
    "order": 0,
    "role": "support"
@@ -363,7 +367,7 @@
    "x": 36,
    "y": 46,
    "w": 46,
-   "aspect": 2.55,
+   "aspect": 2.6676,
    "from": "top",
    "order": 1,
    "role": "hero"
@@ -377,7 +381,7 @@
    "x": 14,
    "y": 10,
    "w": 28,
-   "aspect": 1.348,
+   "aspect": 1.3736,
    "from": "left",
    "order": 0,
    "role": "hero"
@@ -391,14 +395,18 @@
    "x": 54,
    "y": 40,
    "w": 24,
-   "aspect": 1.348,
+   "aspect": 1.3725,
    "from": "right",
    "order": 1,
    "role": "support"
   },
   {
    "key": "p6d",
-   "soloPlace": { "x": 20, "y": 16, "w": 60 },
+   "soloPlace": {
+    "x": 20,
+    "y": 16,
+    "w": 60
+   },
    "beat": "worry",
    "src": "/assets/comic-v3/p6d.webp",
    "source": "06-recognition-and-punchline.png D 格",
@@ -406,14 +414,18 @@
    "x": 10,
    "y": 6,
    "w": 44,
-   "aspect": 2.615,
+   "aspect": 2.7417,
    "from": "top",
    "order": 0,
    "role": "support"
   },
   {
    "key": "p6e",
-   "soloPlace": { "x": 29, "y": 14, "w": 42 },
+   "soloPlace": {
+    "x": 29,
+    "y": 14,
+    "w": 42
+   },
    "beat": "punchline",
    "src": "/assets/comic-v3/p6e.webp",
    "source": "06-recognition-and-punchline.png E 格",
@@ -421,7 +433,7 @@
    "x": 24,
    "y": 42,
    "w": 30,
-   "aspect": 1.36,
+   "aspect": 1.393,
    "from": "left",
    "order": 1,
    "role": "hero"
@@ -435,7 +447,7 @@
    "x": 0,
    "y": 0,
    "w": 0,
-   "aspect": 1.384,
+   "aspect": 1.4164,
    "from": "bottom",
    "order": 0,
    "role": "closeup"
@@ -448,14 +460,14 @@
    "source": "03-something-is-missing.png E 格",
    "dialogueInImage": true,
    "box": [
-    380,
-    470,
-    900,
-    512
+    395,
+    484,
+    871,
+    483
    ],
    "land": {
-    "fx": 0.775,
-    "fy": 0.49
+    "fx": 0.7838,
+    "fy": 0.4903
    },
    "frameSrc": null,
    "occluderSrc": null,
@@ -470,18 +482,18 @@
    "source": "04-catch-and-call.png A 格",
    "dialogueInImage": true,
    "imageSize": [
-    1007,
-    354
+    973,
+    321
    ],
    "eggCenter": {
-    "fx": 0.1843,
-    "fy": 0.5406
+    "fx": 0.1733,
+    "fy": 0.5432
    },
-   "eggWidthFrac": 0.2389,
-   "eggOutlineWidthFrac": 0.137,
+   "eggWidthFrac": 0.2472,
+   "eggOutlineWidthFrac": 0.1418,
    "eggYolk": {
-    "fx": 0.2012,
-    "fy": 0.5325
+    "fx": 0.1908,
+    "fy": 0.5343
    },
    "eggHoleMask": "/assets/comic-v3/p4a-egg-hole.png",
    "note": "box 由活动蛋落定的位置和大小自动算出。eggCenter = 活动蛋画布中心应落在本格的哪一点，eggWidthFrac = 活动蛋画布宽 / 本格宽；数值由 align.py 量出：两颗蛋的蛋黄中心重合（偏差 0），画里的蛋被活动蛋整颗盖住（未盖住约 25 px，在右手尖的描边）。两张图画法不同，活动蛋的蛋黄约大 1.5 倍，无法同时对齐大小"

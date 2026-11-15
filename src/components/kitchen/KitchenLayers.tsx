@@ -150,6 +150,16 @@ export default function KitchenLayers({ mouse = false, showToast = false, hide =
         stage.style.setProperty("--kl-counter-x", `${counterVars[0].toFixed(2)}px`);
         stage.style.setProperty("--kl-counter-y", `${counterVars[1].toFixed(2)}px`);
       }
+      // 原始输入也发布出去（舞台和 <html>）：阅读厨房的远近平面、页面层的画格按自己的系数做视差
+      //   --kl-mouse-x/y 鼠标偏移 -1…1（无单位）、--kl-depth-x/y 镜头景深位移（场景像素）、--kl-drift 阅读漂移 0…1
+      for (const el of [stage, document.documentElement]) {
+        if (!el) continue;
+        el.style.setProperty("--kl-mouse-x", m.x.toFixed(3));
+        el.style.setProperty("--kl-mouse-y", m.y.toFixed(3));
+        el.style.setProperty("--kl-depth-x", `${dz.x.toFixed(2)}px`);
+        el.style.setProperty("--kl-depth-y", `${dz.y.toFixed(2)}px`);
+        el.style.setProperty("--kl-drift", shown.toFixed(3));
+      }
     };
 
     gsap.ticker.add(tick);

@@ -13,6 +13,7 @@ import { BLINK_PANELS, BlinkLayer, ClosingBlink } from "./Blink";
 import FrameReact from "./FrameReact";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import { replayStory } from "@/lib/replay";
+import { ENTER_SCALE, PAPER_PARALLAX, PAPER_SHADOW } from "./paper";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -136,7 +137,7 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
     <Placeholder label={p.label ?? ""} />
   );
   return (
-    <div className="absolute" style={style}>
+    <div className="panel-frame absolute" style={{ ...style, boxShadow: PAPER_SHADOW }}>
       {p.from === "seam" ? <SeamPanel progress={seamProgress}>{content}</SeamPanel> : content}
     </div>
   );
@@ -295,7 +296,8 @@ function FlowLayer() {
     }
   }
   return (
-    <div data-comic-flow className="pointer-events-none fixed inset-0 z-10">
+    // 画格是最近的一层：整层随鼠标做比厨房桌面更大的视差（KitchenLayers 发布在 <html> 上的 --kl-mouse-*，触屏和减少动态效果时为 0）
+    <div data-comic-flow className="pointer-events-none fixed inset-0 z-10" style={{ translate: `calc(var(--kl-mouse-x, 0) * ${-PAPER_PARALLAX.x}vw) calc(var(--kl-mouse-y, 0) * ${-PAPER_PARALLAX.y}vh)` }}>
       {visible.map((p) => {
         const q = g - index[p.beat];
         if (p.role === "closeup") return <CloseupShot key={p.key} p={p} q={q} portrait={vp.portrait} vw={vp.w} reducedMotion={reducedMotion} seconds={beats[index[p.beat]].seconds} />;
@@ -326,7 +328,8 @@ function FlowLayer() {
           const topVh = pos.y + dy;
           stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh) * (op >= 0.95 ? 1 : op), entered: q >= s1 - 0.01, leaving: q > e0 };
           if (ox !== 0) pos.x += ox;
-          if (op < 1) wrap = { opacity: op };
+          // 进场：淡入的同时从略大缩到 1（以格子中心为原点，外壳铺满视口所以格子位置不变）；停稳后不套外壳
+          if (op < 1 || k < 1) wrap = { position: "absolute", inset: 0, opacity: op, scale: `${(1 + ENTER_SCALE * (1 - k)).toFixed(4)}`, transformOrigin: `${(pos.x + pos.w / 2).toFixed(2)}vw ${(pos.y + dy + hVh / 2).toFixed(2)}vh` };
         } else {
           const [s0, s1] = p.enterAt ?? [-0.14 + i * 0.05, 0.34];
           const [e0, e1] = p.exitAt ?? [0.7 + i * 0.03, 1.14];
@@ -372,7 +375,7 @@ function CloseupShot({ p, q, portrait, vw, reducedMotion, seconds }: { p: PanelS
   const stable = q >= 0.42;
   if (q < -0.05) return null;
   return (
-    <div className="absolute left-1/2 top-1/2" style={{ width: wPx, aspectRatio: `${aspect}`, transform: `translate(-50%, calc(-50% + ${(1 - k) * 7}vh))`, opacity: k }}>
+    <div className="panel-frame absolute left-1/2 top-1/2" style={{ width: wPx, aspectRatio: `${aspect}`, transform: `translate(-50%, calc(-50% + ${(1 - k) * 7}vh))`, opacity: k }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
       {/* 眼神僵住：三个点之前不眨眼，最后一个点之后约 1.2 秒才眨第一下 */}
@@ -467,7 +470,7 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
 function FlowPanel({ p, pos, dy, blink = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
-    <div className="absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)` }}>
+    <div className="panel-frame absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
       {p.src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />

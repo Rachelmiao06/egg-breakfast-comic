@@ -17,10 +17,12 @@ import { cameraAt, depthAt, VISUAL_BEATS } from "./beats.visual";
 import { SearchBackdrop, Paper } from "./Backdrops";
 import { BG, cameraV2, depthFromCamera, gNow, gOf, V2_BEATS } from "./motion.v2";
 import ComicLayer from "./ComicLayer";
+import PaperFrameTexture from "./PaperFrameTexture";
 import { HEAR_EVENT } from "./PanelPerf";
 import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, trajectoryFor, wanderTableFor } from "./eggPath";
 import ScenePanels from "./ScenePanels";
 import EggPoke from "./EggPoke";
+import PanelHover from "./PanelHover";
 import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
 import { useViewport } from "./viewport";
 
@@ -150,6 +152,7 @@ function StageV2() {
       <ComicLayer flow />
       <ScrollDriver smooth />
       <EggPoke />
+      <PanelHover />
       <SoundToggle />
       <ScrollHint />
       {!clean && <MotionToggle v2 />}
@@ -260,6 +263,7 @@ export default function VisualPreviewPage() {
   const cfg = v1 ? (vp.portrait ? mobileSlots(base, vp.w, vp.h) : base) : fitSlotsV2(base, vp.w, vp.h);
   return (
     <SlotContext.Provider value={{ cfg, setCfg }}>
+      <PaperFrameTexture />
       <Versioned />
     </SlotContext.Provider>
   );

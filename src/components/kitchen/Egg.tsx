@@ -751,14 +751,18 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           aria-hidden
           className="absolute"
           style={{
-            left: SIZE.w / 2 - 125,
-            bottom: P.station === "pan" ? 0 : -16,
-            width: 250,
-            height: 46,
+            // 桌面：接触影子（脚底正下方一圈较深的核心 + 略宽于蛋身的外圈软影），蛋才"站"在桌上；锅里：原来的软影，
+            // 落在锅底、锅沿遮挡线以上。锅里的抬高用 bottom 而不是 transform：GSAP 会缓存并重写 transform 的 y。
+            left: P.station === "table" ? SIZE.w / 2 - 150 : SIZE.w / 2 - 125,
+            bottom: P.station === "pan" ? 23 : P.station === "table" ? -38 : -16,
+            width: P.station === "table" ? 300 : 250,
+            height: P.station === "table" ? 60 : 46,
             borderRadius: "50%",
-            background: "radial-gradient(ellipse at center, rgba(70,42,18,0.5) 0%, rgba(70,42,18,0.22) 45%, rgba(70,42,18,0) 72%)",
+            background:
+              P.station === "table"
+                ? "radial-gradient(ellipse 52% 55% at 50% 42%, rgba(58,34,14,0.75) 0%, rgba(58,34,14,0.35) 55%, rgba(58,34,14,0) 100%), radial-gradient(ellipse at center, rgba(70,42,18,0.4) 0%, rgba(70,42,18,0.18) 45%, rgba(70,42,18,0) 72%)"
+                : "radial-gradient(ellipse at center, rgba(70,42,18,0.5) 0%, rgba(70,42,18,0.22) 45%, rgba(70,42,18,0) 72%)",
             opacity: showShadow ? 0.45 : 0,
-            transform: P.station === "pan" ? "translateY(-23px)" : undefined,
             // 出现时短暂淡入；离开桌沿（起跳）时立即消失，后景不残留影子
             transition: showShadow ? "opacity 0.2s" : "none",
           }}
