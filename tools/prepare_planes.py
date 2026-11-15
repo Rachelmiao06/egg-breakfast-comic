@@ -48,6 +48,8 @@ FAR_SEEDS: list[tuple[int, int]] = []
 # 强制归墙的区域（x0, y0, x1, y1）：葱叶子角色层下面那块模糊补的瓷砖，照旧留在远景层里（角色层盖住它）；补墙时也不拿它当来源
 FAR_BOXES = [(1325, 373, 1440, 522)]
 NO_SOURCE = [(1325, 373, 1470, 522), (190, 250, 360, 420)]  # 后一块是糖罐角色层下面补的那片木色，不能当墙面来源
+SPLIT_X = 1385  # 葱身子和菜篮的分界（图片 x）
+SCALLION_Y = 470  # 葱身子的最高一行（图片 y，叶子角色层在它上面）
 SMALL = 1500  # 小于这个面积的色块看邻居
 RING = 4  # 看邻居时向外看的像素
 AVOID = 20  # 补墙的来源离物件至少这么远
@@ -212,7 +214,25 @@ def main() -> None:
     W, H = im.size
     rgb = np.asarray(im)
     objects, stats = classify(rgb)
-    near = objects.copy()
+    # 道具拆成独立图片（props-*.png，RGBA，裁到包围盒）：蛋要站上去、躲到后面，层序要能单独调。
+    # 近景层只剩台面（后沿以下），道具不再在里面，页面上按同样位置另画（Backdrops planes.props）。
+    # 切割线：左区域 x < 420 = 层板架（连罐子、盆栽、油瓶）；右区域 x ≥ SPLIT_X 且在葱身子之外 = 菜篮（连菜、格纹布）；
+    # 右区域 x < SPLIT_X、y > SCALLION_Y 的是葱角色的身子（叶子是另一个角色层）。
+    props = {}
+    yy, xx = np.mgrid[0:H, 0:W]
+    left = objects & (xx < ZONES[0][2])
+    right = objects & (xx >= ZONES[1][0])
+    scallion = right & (xx < SPLIT_X) & (yy > SCALLION_Y)
+    props["shelf"], props["scallion"], props["basket"] = left, scallion, right & ~scallion
+    prop_boxes = {}
+    for name, m in props.items():
+        a = cv2.GaussianBlur(m.astype(np.float32), (3, 3), 0)
+        ys, xs = np.where(a > 0)
+        x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+        rgba = np.dstack([rgb, np.round(a * 255).astype(np.uint8)])[y0:y1, x0:x1]
+        Image.fromarray(rgba).save(OUT / f"props-{name}.png", optimize=True)
+        prop_boxes[name] = [int(x0), int(y0), int(x1 - x0), int(y1 - y0)]
+    near = np.zeros_like(objects)
     near[BACK:, :] = True
 
     # 近景层：台面 + 物件，边缘 3×3 羽化；裁到最高一行
@@ -252,6 +272,7 @@ def main() -> None:
     for name in ("kitchen-friends-near", "kitchen-friends-far", "kitchen-friends-far-soft"):
         print(f"{name}.webp  {(OUT / f'{name}.webp').stat().st_size // 1024} KB")
     print(f"components: {stats}")
+    print(f"props.img = {prop_boxes}")
     print(f"near.img = [0, {top}, {W}, {H - top}]   far.img = [0, 0, {W}, {BACK + EXT}]")
 
 

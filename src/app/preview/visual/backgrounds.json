@@ -130,9 +130,9 @@
     "src": "/assets/bg/kitchen-friends-near.webp",
     "img": [
      0,
-     113,
+     667,
      1672,
-     828
+     274
     ]
    },
    "soft": {
@@ -140,7 +140,42 @@
     "friendsBlur": 0.6,
     "windowBlur": 0.8
    },
-   "windowMouse": 1.5
+   "windowMouse": 1.5,
+   "props": {
+    "note": "道具切片（tools/prepare_planes.py 输出 props-*.png，RGBA，图片像素）：层板架（连罐子、盆栽）、葱身子、菜篮（连菜、格纹布）。近景层现在只剩台面，道具在近景平面里按同样位置另画（画面不变），层序能单独调：蛋站在道具顶上（perch，见 anchors.perches），将来也可以把道具抬到蛋之上做遮挡。",
+    "items": [
+     {
+      "id": "shelf",
+      "src": "/assets/bg/props-shelf.png",
+      "img": [
+       0,
+       113,
+       420,
+       562
+      ]
+     },
+     {
+      "id": "scallion",
+      "src": "/assets/bg/props-scallion.png",
+      "img": [
+       1296,
+       519,
+       90,
+       154
+      ]
+     },
+     {
+      "id": "basket",
+      "src": "/assets/bg/props-basket.png",
+      "img": [
+       1384,
+       278,
+       288,
+       394
+      ]
+     }
+    ]
+   }
   },
   "actorsNote": "横版阅读厨房的三个小角色（tools/prepare_friends.py 从原图拆出：角色层 + 遮挡物 + 只在角色背后补齐的底图）。img / pivot 是原图像素；只转动几度，方向选在只会露出干净背景的一侧：酱油瓶往左躲到油瓶后（露出层板侧面：底图在这里按行延续侧面本身的木纹，不用模糊补齐；最大 −3°，再大瓶盖那几行和瓶颈那几行的木纹会出现小错位）、糖罐往左歪头（露出墙面）、葱叶往右偏向胡萝卜（露出瓷砖）。角度由 curves 里对应曲线给出（度，滚动驱动），只安排在各段的进入 / 退出阶段，阅读停留阶段不动；三个错开。减少动态效果时全部为 0。胡萝卜背后是生菜和番茄，没有可用的底图，保持静态。竖版没有拆层，保持静态。",
   "actors": [
@@ -394,7 +429,17 @@
     0.3
    ],
    "backInset": 70,
-   "backScale": 0.72
+   "backScale": 0.72,
+   "perch": {
+    "note": "第三站（sauce → hear，也是高跳的起跳点）= 菜篮边沿上的支点（道具切片 reading.planes.props 的 basket）：脚底 (x, y) 场景像素、d 景深缩放；x 夹在边沿范围 [minX, maxX] 内，而且必须在阅读镜头可见范围里放得下（离右缘 margin + 声音按钮）。放不下（窄屏、竖屏没有拆层）就退回台面上的第三个点。从台面跳上去是一次大跳（站间纵向差 > climbDy 时只跳一下，弧顶抬 climbLift）。",
+    "x": 1400,
+    "y": 593,
+    "d": 0.72,
+    "minX": 1350,
+    "maxX": 1520,
+    "climbDy": 100,
+    "climbLift": 150
+   }
   }
  },
  "eggPath": {

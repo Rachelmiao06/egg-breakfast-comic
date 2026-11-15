@@ -141,10 +141,15 @@ export function wanderPointsFor(cfg: SlotConfig, view: View & { s?: number }): P
   const lo = Math.max(view.x0 + Wd.margin + w / 2, Wd.minX), hi = Math.min(view.x1 - Wd.margin - reserve - w / 2, Wd.maxX);
   const L = clampN(Wd.x[0], lo, hi), R = clampN(Wd.x[2], lo, hi);
   const M = clampN(Wd.x[1], L + (R - L) * 0.3, R - (R - L) * 0.3);
-  return [L, M, R].map((x, i) => {
+  const pts: Pt[] = [L, M, R].map((x, i) => {
     const depth = Wd.depth[i];
     return { x: Math.round(x), y: Math.round(front + (back - front) * depth), d: +(1 - (1 - Wd.backScale) * depth).toFixed(3) };
   });
+  // 第三站：能放进镜头就换成菜篮边沿上的支点（横版拆层才有道具切片），否则留在台面上
+  const Pc = Wd.perch;
+  const perchHi = view.x1 - Wd.margin - reserve - w / 2;
+  if (!portrait && perchHi >= Pc.minX) pts[2] = { x: Math.round(Math.min(Pc.x, perchHi, Pc.maxX)), y: Pc.y, d: Pc.d };
+  return pts;
 }
 /** 每段的桌面站点（段 id → 脚底点），给 Egg 的 tableAt */
 export function wanderTableFor(cfg: SlotConfig, view: View & { s?: number }): Record<string, Pt> {

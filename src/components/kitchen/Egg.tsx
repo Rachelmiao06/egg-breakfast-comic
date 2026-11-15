@@ -181,7 +181,10 @@ export function flightPoint(A: Pt, B: Pt, apexY: number, t: number, apexAt = 0.6
  */
 function hopBetween(A: Pt, B: Pt, t: number, scaleA: number, scaleB: number, lift: number, spin: number): Pose {
   const k = clamp01(t);
-  const n = Math.max(2, Math.round(Math.abs(B.x - A.x) / 180));
+  // 跳上 / 跳下道具（两站纵向差大）：只跳一下，弧顶抬得高（不在空中连跳，也不贴着墙滑过去）
+  const climb = Math.abs(B.y - A.y) > 100;
+  const n = climb ? 1 : Math.max(2, Math.round(Math.abs(B.x - A.x) / 180));
+  if (climb) lift = Math.max(lift, 150);
   const ph = (k * n) % 1, hop = k >= 1 ? 0 : Math.sin(Math.PI * ph);
   return { x: A.x + (B.x - A.x) * k - REST.x, y: A.y + (B.y - A.y) * k - lift * hop - REST.y, scale: scaleA + (scaleB - scaleA) * smooth(k), rotation: spin * hop };
 }
