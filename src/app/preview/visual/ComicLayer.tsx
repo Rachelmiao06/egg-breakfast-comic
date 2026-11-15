@@ -16,6 +16,7 @@ import { IdleStack } from "./IdleLayers";
 import { IDLE } from "./idle";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import { replayStory } from "@/lib/replay";
+import { getScrollVelocity } from "@/lib/scroll-velocity";
 import { ENTER_SCALE, PAPER_PARALLAX, PAPER_SHADOW } from "./paper";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -290,8 +291,44 @@ function revealMode() {
   return new URLSearchParams(window.location.search).get("reveal") === "flow" ? "flow" : "step";
 }
 
+/**
+ * 前景纸面的 3D 倾斜（2026-11-15 用户：大格子静止显得丑，想让它像背景一样跟着视角倾一下）。
+ * 整层漫画（一张"纸面"）绕画面中心做小角度透视旋转：滚得快时上沿朝里倒（俯仰），镜头横移时偏转（yaw），再加一点鼠标；
+ * 全部经弹簧平滑，停手后回正，所以阅读时是静止的。直接写 DOM，不触发重渲染。最大 ±1.6°，减少动态效果时关闭。
+ */
+const TILT = { pitch: 0.012, yaw: 0.9, mouseX: 0.6, mouseY: 0.4, max: 1.6, perspective: 1600, k: 0.12 };
+function usePaperTilt(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !enabled) return;
+    let raf = 0, px = 0, py = 0, pr = 0, lastCam = NaN, camV = 0, last = performance.now();
+    const clamp = (v: number) => Math.max(-TILT.max, Math.min(TILT.max, v));
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const root = document.documentElement.style;
+      const cam = parseFloat(root.getPropertyValue("--kl-depth-x")) || 0;
+      if (!Number.isNaN(lastCam) && dt > 0) camV += ((cam - lastCam) / dt - camV) * Math.min(1, dt * 10);
+      lastCam = cam;
+      const mx = parseFloat(root.getPropertyValue("--kl-mouse-x")) || 0;
+      const my = parseFloat(root.getPropertyValue("--kl-mouse-y")) || 0;
+      const rx = clamp(-getScrollVelocity() * TILT.pitch - my * TILT.mouseY);
+      const ry = clamp(camV * 0.02 * TILT.yaw + mx * TILT.mouseX);
+      const rz = clamp(getScrollVelocity() * 0.004);
+      const k = 1 - Math.pow(1 - TILT.k, dt * 60);
+      px += (rx - px) * k; py += (ry - py) * k; pr += (rz - pr) * k;
+      el.style.transform = Math.abs(px) + Math.abs(py) + Math.abs(pr) < 0.002 ? "" : `perspective(${TILT.perspective}px) rotateX(${px.toFixed(3)}deg) rotateY(${py.toFixed(3)}deg) rotateZ(${pr.toFixed(3)}deg)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); el.style.transform = ""; };
+  }, [ref, enabled]);
+}
+
 function FlowLayer() {
   const { timeline: t, beats, reducedMotion } = useScene();
+  const tiltRef = useRef<HTMLDivElement>(null);
+  usePaperTilt(tiltRef, !reducedMotion);
   const vp = useViewport();
   const perf = usePerfEnabled() && !reducedMotion; // 格内表演：减少动态效果或 ?perf=0 时用原静态格
   const g = t.index + t.p;
@@ -332,9 +369,20 @@ function FlowLayer() {
       if (eggHere) avoidEgg(list, places, eggHere, vp.w, vp.h);
     }
   }
+  // 单格太大显得笨重（2026-11-15：饭碗大横幅占 85vw）：横屏下宽度上限 66vw，绕中心缩小，不改比例
+  if (!vp.portrait) {
+    for (const [k, pl] of Object.entries(places)) {
+      const MAXW = 66;
+      if (pl.w > MAXW) {
+        const cy = pl.y + hOf(PANELS.find((q) => q.key === k)!, pl.w, vp.w, vp.h) / 2;
+        const nh = hOf(PANELS.find((q) => q.key === k)!, MAXW, vp.w, vp.h);
+        places[k] = { x: pl.x + (pl.w - MAXW) / 2, y: cy - nh / 2, w: MAXW };
+      }
+    }
+  }
   return (
     // 画格是最近的一层：整层随鼠标做比厨房桌面更大的视差（KitchenLayers 发布在 <html> 上的 --kl-mouse-*，触屏和减少动态效果时为 0）
-    <div data-comic-flow className="pointer-events-none fixed inset-0 z-10" style={{ translate: `calc(var(--kl-mouse-x, 0) * ${-PAPER_PARALLAX.x}vw) calc(var(--kl-mouse-y, 0) * ${-PAPER_PARALLAX.y}vh)` }}>
+    <div ref={tiltRef} data-comic-flow className="pointer-events-none fixed inset-0 z-10" style={{ transformOrigin: "50% 50%", willChange: "transform",  translate: `calc(var(--kl-mouse-x, 0) * ${-PAPER_PARALLAX.x}vw) calc(var(--kl-mouse-y, 0) * ${-PAPER_PARALLAX.y}vh)` }}>
       {visible.map((p) => {
         const q = g - index[p.beat];
         if (p.role === "closeup") return <CloseupShot key={p.key} p={p} q={q} portrait={vp.portrait} vw={vp.w} reducedMotion={reducedMotion} seconds={beats[index[p.beat]].seconds} />;
@@ -389,7 +437,7 @@ function FlowLayer() {
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
+          : <FlowPanel push={perf ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
         const perch = p.key === PERCH_PANEL && !vp.portrait;
         return (
@@ -534,15 +582,16 @@ function Reveal({ on, off, scale, origin, reduced, children }: { on: boolean; of
   );
 }
 
-function FlowPanel({ p, pos, dy, blink = null, idle = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null; idle?: boolean | null }) {
+function FlowPanel({ p, pos, dy, blink = null, idle = null, push = 0 }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null; idle?: boolean | null; push?: number }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
     <div data-panel={p.key} className="panel-frame absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
       {p.src && idle !== null ? (
         <IdleStack k={p.key} src={p.src} active={idle} />
       ) : p.src ? (
+        // 慢慢推近：随滚动 1 → 1.035（可逆、停住就停住），大格子不再是死图；panel-frame 已 overflow: hidden
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
+        <img src={p.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" style={{ transform: push > 0 ? `scale(${(1 + 0.035 * push).toFixed(4)})` : undefined, transformOrigin: "50% 55%" }} />
       ) : (
         <Placeholder label={p.label ?? ""} />
       )}
