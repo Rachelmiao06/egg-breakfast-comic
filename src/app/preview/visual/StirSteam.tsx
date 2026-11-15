@@ -35,6 +35,22 @@ export const STEAM = {
   topThin: 0.5,
   /** 均匀的薄雾（最浓时的透明度），保证每个角落都有一点雾 */
   haze: 0.12,
+  /**
+   * 明确的源头：从炒锅口冒出来的一柱烟。源头取炒菜格 p2e 里那口锅（格内比例位置），格子在哪、多大，烟就从哪冒；
+   * 找不到这一格时从画面下方中部冒。烟柱 = 很多小团连成的一条：出口细而浓，边升边变宽、变淡、左右蜿蜒，最后散进满屏的雾里。
+   */
+  plume: {
+    panel: "p2e",
+    at: [0.3, 0.82] as [number, number],
+    max: 260,
+    rate: 55,
+    life: [3.6, 6] as [number, number],
+    r0: 0.012,
+    r1: 0.13,
+    rise: 0.13,
+    wiggle: 0.12,
+    alpha: 0.5,
+  },
 };
 
 const TILE = 256;
@@ -94,14 +110,17 @@ export default function StirSteam() {
     const fog = makeFog();
     const pats = STEAM.layers.map(() => ctx.createPattern(fog, "repeat")!);
     const off = STEAM.layers.map((_, i) => [i * 97, i * 53]);
-    let I = 0;
+    let I = 0, acc = 0;
+    type P = { x: number; y: number; age: number; ttl: number; ph: number; vy: number };
+    const ps: P[] = [];
+    const PL = STEAM.plume;
     const tick = () => {
       const dt = Math.min(0.1, gsap.ticker.deltaRatio(60) / 60);
       const W = c.width, H = c.height, T = target.current;
       I += (T - I) * Math.min(1, dt * (T > I ? STEAM.up : STEAM.down));
       ctx.globalCompositeOperation = "source-over";
       ctx.clearRect(0, 0, W, H);
-      if (I < 0.01) return;
+      if (I < 0.01 && !ps.length) return;
       const L = Math.max(W, H);
       STEAM.layers.forEach((l, i) => {
         const tile = l.size * L;
@@ -124,6 +143,32 @@ export default function StirSteam() {
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = `rgba(255,250,238,${STEAM.haze * I})`;
       ctx.fillRect(0, 0, W, H);
+      // 烟柱：源头 = 炒菜格里那口锅（每帧按格子当前的屏幕位置算）
+      const el = document.querySelector<HTMLElement>(`[data-panel="${PL.panel}"]`);
+      const r = el?.getBoundingClientRect();
+      const sx = (r && r.width > 10 ? r.left + r.width * PL.at[0] : window.innerWidth * 0.45) / 2;
+      const sy = (r && r.width > 10 ? r.top + r.height * PL.at[1] : window.innerHeight * 0.85) / 2;
+      const inView = !r || (r.bottom > 0 && r.top < window.innerHeight);
+      acc += dt * PL.rate * I;
+      while (acc >= 1 && ps.length < PL.max) { acc -= 1; ps.push({ x: sx, y: sy, age: 0, ttl: rand() * (PL.life[1] - PL.life[0]) + PL.life[0], ph: rand() * 6.28, vy: PL.rise * H * (0.8 + rand() * 0.4) }); }
+      if (acc >= 1) acc = 0;
+      const S = Math.min(W, H), t = gsap.ticker.time;
+      for (let i = ps.length - 1; i >= 0; i--) {
+        const p = ps[i];
+        p.age += dt;
+        const u = p.age / p.ttl;
+        if (u >= 1) { ps.splice(i, 1); continue; }
+        p.y -= p.vy * dt * (1 - 0.35 * u);
+        const x = p.x + (Math.sin(t * 0.8 + u * 6.5) * PL.wiggle * W + Math.sin(p.ph) * 0.035 * W) * Math.min(1, u * 2) * (0.35 + u); // 烟柱整体蜿蜒，每团再各自偏一点，边缘不会是笔直的竖条
+        const rad = (PL.r0 + (PL.r1 - PL.r0) * Math.sqrt(u)) * S;
+        const a = (inView ? 1 : 0) * PL.alpha * Math.min(1, I * 1.4) * Math.min(1, u * 8) * (1 - u) ** 1.2;
+        const g = ctx.createRadialGradient(x, p.y, 0, x, p.y, rad);
+        g.addColorStop(0, `rgba(255,253,248,${a})`);
+        g.addColorStop(0.55, `rgba(246,240,229,${a * 0.55})`);
+        g.addColorStop(1, "rgba(236,228,214,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, p.y, rad, 0, Math.PI * 2); ctx.fill();
+      }
     };
     gsap.ticker.add(tick);
     return () => { gsap.ticker.remove(tick); window.removeEventListener("resize", fit); ctx.clearRect(0, 0, c.width, c.height); };

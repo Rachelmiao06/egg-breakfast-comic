@@ -472,7 +472,7 @@ function Dots({ instant, delay, gap, portrait }: { instant: boolean; delay: numb
 function FlowPanel({ p, pos, dy, blink = null, idle = null }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null; idle?: boolean | null }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
-    <div className="panel-frame absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
+    <div data-panel={p.key} className="panel-frame absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
       {p.src && idle !== null ? (
         <IdleStack k={p.key} src={p.src} active={idle} />
       ) : p.src ? (
