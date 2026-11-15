@@ -12,6 +12,7 @@
  * reducedMotion：只淡入淡出，不位移、不漂浮。
  */
 import { useEffect, useRef } from "react";
+import { ZCOOL_KuaiLe } from "next/font/google";
 import gsap from "gsap";
 import { envelope, phaseProgress } from "@/lib/beats";
 import { getScrollVelocity } from "@/lib/scroll-velocity";
@@ -40,6 +41,9 @@ const CAPTIONS: Record<keyof typeof MOM_PANELS, string> = {
   stirfry: "下锅啦，滋啦——",
   sauce: "再调一碗酱汁。",
 } as Record<keyof typeof MOM_PANELS, string>;
+
+/** 手绘圆润可爱的中文字体（与 /demo/scroll-motion 同款）；加载前先退到系统圆体 */
+const cute = ZCOOL_KuaiLe({ weight: "400", subsets: ["chinese-simplified"], preload: false, display: "swap" });
 
 const FONT = '"PingFang SC","Hiragino Sans GB",system-ui,sans-serif';
 
@@ -165,23 +169,47 @@ function Ending({ opacity }: { opacity: number }) {
   );
 }
 
-/** 逐字显现的旁白：每个字按 reveal（0–1）依次从下方淡入，位置在画格底部的奶油色小条上。 */
+/**
+ * 成组显现的旁白：每 2–3 个字（遇标点收尾）为一组，相邻两组的显现区间有重叠，
+ * 滚动时是一小片一小片地"浮"出来，而不是一个字一个字蹦。每组从下方 10px、轻微模糊淡入到位。
+ */
+function chunk(text: string) {
+  const out: string[] = [];
+  let cur = "";
+  for (const c of text) {
+    cur += c;
+    if (cur.length >= 3 || /[，。～—！？、]/.test(c)) {
+      out.push(cur);
+      cur = "";
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
 function Caption({ text, reveal }: { text?: string; reveal: number }) {
   if (!text) return null;
-  const chars = [...text];
-  const n = reveal * chars.length;
+  const groups = chunk(text);
+  const OVERLAP = 1.6; // 同时处于"正在显现"的组数（越大越柔和）
+  const pos = reveal * (groups.length - 1 + OVERLAP);
   return (
     <div
       data-caption
       aria-label={text}
-      className="absolute -bottom-[7%] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-cream px-4 py-1.5 text-[clamp(16px,2.2vw,22px)] font-semibold text-ink shadow-[0_6px_14px_-8px_rgba(107,74,43,0.5)] ring-2 ring-ink/60"
-      style={{ fontFamily: FONT, opacity: reveal > 0 ? 1 : 0 }}
+      className={`${cute.className} absolute -bottom-[8%] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-2xl bg-cream px-5 py-2 text-[clamp(18px,2.6vw,28px)] leading-tight text-ink shadow-[0_6px_14px_-8px_rgba(107,74,43,0.5)] ring-2 ring-ink/60`}
+      style={{ opacity: reveal > 0 ? 1 : 0, letterSpacing: "0.04em" }}
     >
-      {chars.map((c, i) => {
-        const k = Math.min(1, Math.max(0, n - i));
+      {groups.map((g, i) => {
+        const k = Math.min(1, Math.max(0, (pos - i) / OVERLAP));
+        const e = 1 - Math.pow(1 - k, 3);
         return (
-          <span key={i} aria-hidden className="inline-block" style={{ opacity: k, transform: `translateY(${((1 - k) * 8).toFixed(2)}px)`, whiteSpace: "pre" }}>
-            {c}
+          <span
+            key={i}
+            aria-hidden
+            className="inline-block"
+            style={{ opacity: e, transform: `translateY(${((1 - e) * 10).toFixed(2)}px)`, filter: e < 0.98 ? `blur(${((1 - e) * 3).toFixed(2)}px)` : undefined, whiteSpace: "pre" }}
+          >
+            {g}
           </span>
         );
       })}
