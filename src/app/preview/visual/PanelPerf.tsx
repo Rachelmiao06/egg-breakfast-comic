@@ -20,6 +20,14 @@ type Place = { x: number; y: number; w: number };
 export type Stage = { vis: number; entered: boolean; leaving: boolean };
 /** 可见 ≥ 90% 且入场结束才开始；可见 < 60% 或开始离场就收住；几乎看不见（< 12%）或退回入场前才复位，下次进入再播 */
 const READY_VIS = 0.9, LEAVE_VIS = 0.6, GONE_VIS = 0.12, BEFORE_Q = 0.2;
+/**
+ * 听见格 p3d 的表演：开始的那一刻派发 HEAR_EVENT（phase "start"），后景的蛋同一时刻起跳（Egg peek）；
+ * eyesMs 时妈妈抬眼看向右上（蛋正在上升），蛋随后到达最高点，puzzMs 时露出疑惑（蛋已在下落）。
+ * 收住时派发 "stop"（蛋尽快落回），复位时派发 "reset"（下次进入可再跳）。蛋和表情听同一个事件，保证是同一段动作。
+ */
+export const HEAR_CUE = { eyesMs: 500, puzzMs: 1300 } as const;
+export const HEAR_EVENT = "comic:hear";
+const hearSignal = (phase: "start" | "stop" | "reset") => window.dispatchEvent(new CustomEvent(HEAR_EVENT, { detail: { phase } }));
 const P = "/assets/comic-v3/perf/";
 
 export function usePerfEnabled() {
@@ -134,15 +142,16 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
     clear();
     show(0);
     flag(true);
+    hearSignal("start");
     timers.current = [
-      window.setTimeout(() => show(1), 500), // 先停住，再抬眼
-      window.setTimeout(() => { show(2); timers.current = []; flag(false); }, 1300), // 露出疑惑，停住
+      window.setTimeout(() => show(1), HEAR_CUE.eyesMs), // 蛋起跳后抬眼（蛋正在上升）
+      window.setTimeout(() => { show(2); timers.current = []; flag(false); }, HEAR_CUE.puzzMs), // 露出疑惑，停住
     ];
   };
   // 离开时：还没播完就直接落到结尾表情（疑惑），保证这一格的终态始终一致；
   // 否则停在"抬眼"半途，回滚回来也一直是半截表情。已播完时什么都不做。
-  const stop = () => { if (timers.current.length) { clear(); show(2); } };
-  const reset = () => { clear(); show(0); };
+  const stop = () => { hearSignal("stop"); if (timers.current.length) { clear(); show(2); } };
+  const reset = () => { hearSignal("reset"); clear(); show(0); };
   useStage(q, stage, animate, play, stop, reset);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (

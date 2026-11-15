@@ -50,6 +50,13 @@ export type EggAnchors = {
    * 以脚底为轴缩放，蛋一直站在接蛋格的铲面上；交接格按缩小后的蛋黄位置摆放（slots.ts handoffBox），交接点前后不跳。
    */
   handoffShrink?: number;
+  /**
+   * 可选：某一段里（如 hear）与前景表演同一时刻触发的“抬头一跳”（真实时间，在原地站点上向上跳到前景格的右上方再落回）。
+   * 段内进度 q 越过 start 触发一次，q < reset 复位，q > leave 时尽快落回。最高点按触发时屏幕上前景格（panelSelector）的位置算：
+   * 蛋在格子右侧时，蛋心升到格子上沿往下 gazeFy × 格高处（妈妈抬眼的视线范围）；蛋和格子横向重叠时，升到格子上沿之上；
+   * 最高点的蛋始终完整在屏幕内（margin 像素）。rise / hang / fall 为秒。
+   */
+  peek?: { event: string; panelSelector: string; gazeFy: number; margin: number; rise: number; hang: number; fall: number };
 };
 
 /**
@@ -294,6 +301,64 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     if (P.landing || P.station !== lastLanding.current) lastLanding.current = P.landing;
   });
 
+  // ---- 抬头一跳（peek，真实时间）：听前景表演发出的事件（a.peek.event），和妈妈抬眼是同一个开始时刻 ----
+  // detail.phase：start = 起跳（本次进入只跳一次）；stop = 格子开始离开，尽快落回；reset = 格子退出视野，下次进入可再跳
+  const peekRef = useRef<{ played: boolean; tl: gsap.core.Timeline | null }>({ played: false, tl: null });
+  const peekingRef = useRef(false);
+  const resumeIdleRef = useRef<(() => void) | null>(null); // 抬头一跳结束后恢复站点小跳（跳之前被打断的那一下不会再回调）
+  const peekKey = JSON.stringify(a.peek ?? null);
+  useEffect(() => {
+    const pk = a.peek;
+    if (!pk) return;
+    const st = peekRef.current;
+    const land = (d: number) => {
+      const egg = eggRef.current, shadow = shadowRef.current;
+      st.tl?.kill(); st.tl = null;
+      if (!egg || !shadow) return;
+      gsap.to(egg, { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: d, ease: "power2.in", overwrite: true, onComplete: () => { peekingRef.current = false; resumeIdleRef.current?.(); } });
+      gsap.to(shadow, { scale: 1, opacity: 0.45, duration: d, overwrite: true });
+    };
+    const onCue = (e: Event) => {
+      const phase = (e as CustomEvent<{ phase?: string }>).detail?.phase;
+      const egg = eggRef.current, shadow = shadowRef.current, wrap = wrapRef.current;
+      if (!egg || !shadow || !wrap) return;
+      if (phase === "reset") { st.played = false; if (st.tl) land(0.15); return; }
+      if (phase === "stop") { if (st.tl) land(0.2); return; }
+      if (phase !== "start" || st.played || reducedMotion) return;
+      st.played = true;
+      // 最高点：按此刻屏幕上的站点框和前景格算（屏幕像素），再换算成蛋布局框里的位移
+      const r = wrap.getBoundingClientRect();
+      const panelEl = document.querySelector(pk.panelSelector);
+      const pr = panelEl ? (panelEl.parentElement ?? panelEl).getBoundingClientRect() : null;
+      const body = { x0: r.left + r.width * 0.06, x1: r.right - r.width * 0.06, y0: r.top + r.height * 0.04, y1: r.bottom };
+      const bh = body.y1 - body.y0, cy = (body.y0 + body.y1) / 2;
+      let target = cy - r.height * 1.1; // 没有前景格时：向上约一个蛋高
+      if (pr) {
+        const overlap = body.x0 < pr.right + 8 && body.x1 > pr.left - 8;
+        target = overlap ? pr.top - 10 - bh / 2 : pr.top + pk.gazeFy * pr.height;
+      }
+      target = Math.min(cy, Math.max(target, pk.margin + bh / 2));
+      const dx = Math.min(0, window.innerWidth - pk.margin - body.x1) + Math.max(0, pk.margin - body.x0);
+      const k = SIZE.w / Math.max(1, r.width); // 屏幕像素 → 布局框像素
+      const Y = (target - cy) * k, X = dx * k;
+      peekingRef.current = true;
+      gsap.killTweensOf([egg, shadow]);
+      st.tl = gsap.timeline({ onComplete: () => { st.tl = null; peekingRef.current = false; resumeIdleRef.current?.(); } })
+        .to(egg, { scaleX: 1.1, scaleY: 0.88, duration: 0.12, ease: "power2.out", transformOrigin: "50% 100%" })      // 蓄力（与“啵”同时）
+        .to(shadow, { scale: 1.06, opacity: 0.5, duration: 0.12 }, "<")
+        .to(egg, { x: X, y: Y, scaleX: 0.97, scaleY: 1.05, duration: pk.rise, ease: "power2.out" })                     // 上升：妈妈在上升途中抬眼
+        .to(shadow, { scale: 0.5, opacity: 0.12, duration: pk.rise, ease: "power2.out" }, "<")
+        .to(egg, { y: Y * 0.97, scaleX: 1, scaleY: 1, duration: pk.hang, ease: "sine.inOut" })                          // 最高点停一下（在她的视线里；只往下回一点，不越出屏幕）
+        .to(egg, { x: 0, y: 0, scaleX: 0.97, scaleY: 1.05, duration: pk.fall, ease: "power2.in" })                       // 落回桌沿
+        .to(shadow, { scale: 1, opacity: 0.45, duration: pk.fall, ease: "power2.in" }, "<")
+        .to(egg, { scaleX: 1.12, scaleY: 0.86, duration: 0.09, ease: "power1.out" })
+        .to(egg, { scaleX: 1, scaleY: 1, duration: 0.3, ease: "power2.out" });
+    };
+    window.addEventListener(pk.event, onCue);
+    return () => window.removeEventListener(pk.event, onCue);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peekKey, reducedMotion]);
+
   // ---- 内层：站点上的自主小跳（真实时间） ----
   const settleRef = useRef(P.settle);
   const kickRef = useRef<(() => void) | null>(null);
@@ -344,7 +409,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
       const jump = () => {
         if (settleRef.current) return;
         // 前景漫画格在表演（切菜、表情）时，后景的蛋先不跳，避免抢眼
-        if (document.documentElement.dataset.comicPerf) { gsap.delayedCall(0.5, jump); return; }
+        if (document.documentElement.dataset.comicPerf || peekingRef.current) { gsap.delayedCall(0.5, jump); return; }
         busy = true;
         const k = idle === "pan" ? 1 : 0.8;
         gsap
@@ -362,10 +427,12 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
           .to(shadow, { scale: 1, opacity: 0.45, duration: 0.3 }, "<");
       };
       kickRef.current = () => { if (!busy) { gsap.killTweensOf(jump); jump(); } };
+      resumeIdleRef.current = () => { busy = false; gsap.killTweensOf(jump); gsap.delayedCall(1 + Math.random() * 1.2, jump); };
       gsap.delayedCall(0.3 + Math.random() * 0.3, jump);
     });
     return () => {
       kickRef.current = null;
+      resumeIdleRef.current = null;
       ctx.kill(); // 不 revert：离开站点时保持当前姿态，由外层平滑接上
       gsap.to(egg, { y: 0, scaleX: 1, scaleY: 1, rotation: 0, duration: 0.15, ease: "power1.out" });
     };
@@ -376,6 +443,7 @@ export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = 
     <FollowMid zIndex={P.z}>
       <div
         ref={wrapRef}
+        data-egg-station
         className="pointer-events-none absolute will-change-transform"
         style={{ left: REST.x - SIZE.w / 2, top: REST.y - SIZE.h, width: SIZE.w, height: SIZE.h, opacity: P.opacity }}
       >

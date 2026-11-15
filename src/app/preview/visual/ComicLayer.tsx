@@ -210,7 +210,8 @@ const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.
 /** 背景里活动蛋当前在屏幕上的范围（vw/vh）。只在蛋停在桌沿的段落读取；读不到就返回 null */
 function eggRectNow(vw: number, vh: number): Rect | null {
   if (typeof document === "undefined") return null;
-  const el = document.querySelector("img[data-active-egg]");
+  // 读蛋的站点框（不含原地小跳 / 抬头跳），格子不会跟着蛋的跳跃来回移动
+  const el = document.querySelector("[data-egg-station]") ?? document.querySelector("img[data-active-egg]");
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width < 4 || r.bottom < 0 || r.top > vh) return null;
