@@ -26,3 +26,8 @@
 
 - 音频分支（`claude/kitchen-audio-e1e194`）的混音器里同时在改 `fire()` 的 rate / gain / tag；本分支加了 rate / gain / pan，合并时对一下。
 - 眼睛补丁是代码画的一条闭合睫毛线，近看偏素；有手绘的闭眼图时直接替换同名 webp 即可（同尺寸、透明背景、只有眼睛附近有像素）。
+
+## 画格纸边（2026-11-15）
+- 图里不再带黑框：tools/panel_alpha.py 把手绘黑框整圈裁掉（框线 + 2px），补丁图 / 分层动画图用同一个框裁（tools/trim_patches.py，框记在 tools/panel_trim.json）。
+- 页面统一画纸边：`.panel-frame`（globals.css）= 奶油纸边 + 圆角，宽度 / 圆角只跟视口宽度走，所有格子一样。
+- 纸纹：PaperFrameTexture.tsx 用 @paper-design/shaders-react 的 PaperTexture 在屏外渲一次，截成 jpeg 写进 <head> 的 --paper-tex，multiply 叠在每格上；没有 WebGL 时退回平整奶油色。

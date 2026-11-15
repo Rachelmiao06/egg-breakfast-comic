@@ -43,7 +43,7 @@ export function usePerfEnabled() {
 }
 
 function boxStyle(pos: Place, aspect: number, dy: number): CSSProperties {
-  return { left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, filter: PAPER_SHADOW };
+  return { left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW };
 }
 const flag = (on: boolean) => {
   if (on) document.documentElement.dataset.comicPerf = "1";
@@ -102,7 +102,7 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   useStage(q, stage, animate, play, stop, reset);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
-    <div className="absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+    <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={p.src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -198,7 +198,7 @@ function LayersPanel({
     <img key={n} ref={ref ? (el) => { els.current[n] = el; } : undefined} src={src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={ref ? { willChange: "transform" } : undefined} />
   );
   return (
-    <div className="absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+    <div className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
       {layer("base", `${L4}${k}-base.webp`, false)}
       {layer("part", `${L4}${k}-part.webp`, true)}
       {extras.map((n) => clips[n]
@@ -358,7 +358,7 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none";
   return (
-    <div className="absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
+    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img ref={base} src={`${P3}p6e-clean.webp`} alt="" draggable={false} className={img} />
       {/* 泡本身：同一张图、不加滤镜，只露出泡形遮罩里的部分 */}
@@ -382,7 +382,7 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
 
 function StaticImg({ src, pos, aspect, dy }: { src: string; pos: Place; aspect: number; dy: number }) {
   return (
-    <div className="absolute will-change-transform" style={boxStyle(pos, aspect, dy)}>
+    <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, aspect, dy)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
     </div>
