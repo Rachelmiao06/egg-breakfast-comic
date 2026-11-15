@@ -4,11 +4,11 @@
  * 进入阶段减速入场（power3.out），停留完全静止，退出加速离场（power2.in）。
  * 第 1 段用接缝遮罩小样（CSS mask），其他格按各自方向滑入，不统一淡入。
  */
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { ChopPanel, HearPanel, SaucePanel, StirfryPanel, usePerfEnabled } from "./PanelPerf";
+import { ChopPanel, HearPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled } from "./PanelPerf";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
@@ -292,11 +292,14 @@ function FlowLayer() {
         // 格内表演的触发看格子在屏幕上的真实状态：入场结束、可见比例、是否开始离场（竖屏整列上移时也成立）
         const topVh = pos.y + dy;
         const stage = { vis: clamp01((Math.min(100, topVh + hVh) - Math.max(0, topVh)) / hVh), entered: q >= s1 - 0.02, leaving: q > e0 };
-        if (p.key === "p2b") return <ChopPanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
-        if (p.key === "p3d") return <HearPanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
-        if (p.key === "p2d") return <StirfryPanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
-        if (p.key === "p3a") return <SaucePanel key={p.key} p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />;
-        return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} />;
+        const panel =
+          p.key === "p2b" ? <ChopPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          : <FlowPanel p={p} pos={pos} dy={dy} />;
+        // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
+        return <Fragment key={p.key}>{panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
       })}
       <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} aspect={vp.w / vp.h} />
     </div>

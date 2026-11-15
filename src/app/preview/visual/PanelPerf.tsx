@@ -122,7 +122,7 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
  */
 type FrameStep = { f: number; ms: number };
 function FramesPanel({
-  p, pos, dy, q, stage, animate, dir, steps, endFrame = 1, delay = 0.3, onStep, front = false, runStatic = false,
+  p, pos, dy, q, stage, animate, dir, steps, endFrame = 1, delay = 0.3, onStep, front = false, runStatic = false, onEnd, onHalt, haltAtEnd = false,
 }: {
   p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean;
   /** 资源前缀，如 /assets/comic-v4/frames/p3a */
@@ -138,20 +138,31 @@ function FramesPanel({
   front?: boolean;
   /** 静态格（减少动态效果）时也按同样时刻跑 onStep（只放声音，画面不动） */
   runStatic?: boolean;
+  /** 所有帧播完的那一刻（静态格同一时刻） */
+  onEnd?: () => void;
+  /** 播过之后被收住（离场）或复位时（用来停掉持续的动作声） */
+  onHalt?: () => void;
+  /** 播完就算结束（动作声随动画结束）：播完时调 onHalt，之后离场不再重复调 */
+  haltAtEnd?: boolean;
 }) {
   const count = Math.max(...steps.map((s) => s.f), endFrame);
   const layers = useRef<(HTMLImageElement | null)[]>([]);
   const tl = useRef<gsap.core.Timeline | null>(null);
   const show = (f: number) => layers.current.forEach((el, i) => { if (el) el.style.opacity = i + 2 === f ? "1" : "0"; });
-  const reset = () => { tl.current?.kill(); tl.current = null; show(1); flag(false); };
-  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; show(endFrame); flag(false); };
+  /** 从 play 到 halt 之间为真：只在真的播过时才派发 onHalt */
+  const live = useRef(false);
+  const halt = () => { if (live.current) { live.current = false; onHalt?.(); } };
+  const reset = () => { tl.current?.kill(); tl.current = null; show(1); flag(false); halt(); };
+  const stop = () => { halt(); if (!tl.current) return; tl.current.kill(); tl.current = null; show(endFrame); flag(false); };
   const play = () => {
     reset();
+    live.current = true;
     if (!animate) {
-      // 静态格：画面不动，只在同样的时刻跑 onStep（例如三下落刀声）
+      // 静态格：画面不动，只在同样的时刻跑 onStep / onEnd（例如三下落刀声）
       const t = gsap.timeline({ delay, onComplete: () => { tl.current = null; } });
       let at = 0;
       steps.forEach((st, i) => { t.call(() => onStep?.(st.f, i), [], at); at += st.ms / 1000; });
+      t.call(() => { onEnd?.(); if (haltAtEnd) halt(); }, [], at);
       tl.current = t;
       return;
     }
@@ -162,7 +173,7 @@ function FramesPanel({
       t.call(() => { show(s.f); onStep?.(s.f, i); }, [], at);
       at += s.ms / 1000;
     });
-    t.call(() => show(endFrame), [], at);
+    t.call(() => { show(endFrame); onEnd?.(); if (haltAtEnd) halt(); }, [], at);
     tl.current = t;
   };
   useStage(q, stage, animate || runStatic, play, stop, reset);
@@ -182,13 +193,35 @@ function FramesPanel({
 }
 
 const F4 = "/assets/comic-v4/frames/";
+/** 声音事件（混音器在 kitchen-audio 分支接收；没收到就静音）。时刻都挂在 useStage 的真实时间轴上 */
+const oneshot = (sound: string) => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound } }));
+const action = (name: string, phase: "start" | "stop") => window.dispatchEvent(new CustomEvent("kitchen:action", { detail: { name, phase } }));
+
+/**
+ * 所有漫画格通用的"格子到位"信号：同一套 useStage 规则（到位 start、离场 stop、复位 reset），
+ * 派发 window `comic:panel` {key, phase}。声音会话按格子挂声音（例如 p4c 淋汁、p4b 放蛋），不用再改这里。
+ */
+export function PanelSignal({ k, q, stage }: { k: string; q: number; stage: Stage }) {
+  const sent = (phase: "start" | "stop" | "reset") => window.dispatchEvent(new CustomEvent("comic:panel", { detail: { key: k, phase } }));
+  const on = useRef(false); // start 之后、stop 之前
+  const armed = useRef(false); // start 之后、reset 之前（只有真的开始过才派发 reset，挂载 / 卸载不发空信号）
+  useStage(
+    q, stage, true,
+    () => { on.current = true; armed.current = true; sent("start"); },
+    () => { if (on.current) { on.current = false; sent("stop"); } },
+    () => { if (on.current) { on.current = false; sent("stop"); } if (armed.current) { armed.current = false; sent("reset"); } },
+  );
+  return null;
+}
 /**
  * 调酱汁格 p3a（new pics/C-sauce 三帧）：勺子在碗里 左 → 后 → 右前 → 左，绕两圈后停在第 1 帧（和静态格一样）。
  * 扶碗的手、碗身、瓶子、框线都在动作区域外，始终是底图。
  */
 const SAUCE_STEPS: FrameStep[] = [1, 2, 3, 1, 2, 3].map((f) => ({ f, ms: 210 }));
+/** 声音：两圈开始时 sauceStir start，两圈转完 / 离场 / 复位时 stop。静态格同一时刻派发 */
+const sauceStep = (_f: number, i: number) => { if (i === 0) action("sauceStir", "start"); };
 export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <FramesPanel {...props} dir={`${F4}p3a`} steps={SAUCE_STEPS} endFrame={1} />;
+  return <FramesPanel {...props} dir={`${F4}p3a`} steps={SAUCE_STEPS} endFrame={1} runStatic onStep={sauceStep} haltAtEnd onHalt={() => action("sauceStir", "stop")} />;
 }
 
 /**
@@ -214,8 +247,10 @@ export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: numb
  * 锅身前沿和对白泡是前景遮挡层，菜落进锅里而不是浮在锅上。"滋啦"沿用节拍表里的 stirfryIn，不另发。
  */
 const POUR_STEPS: FrameStep[] = [{ f: 1, ms: 380 }, { f: 2, ms: 520 }, { f: 3, ms: 1 }];
+/** 声音：第 2 帧（菜被推下、落进锅里）"滋啦" stirfryIn；第 3 帧（已入锅）开始翻炒声，离场 / 复位时停。静态格同一时刻派发 */
+const pourStep = (f: number) => { if (f === 2) oneshot("stirfryIn"); };
 export function StirfryPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <FramesPanel {...props} dir={`${F4}p2d`} steps={POUR_STEPS} endFrame={3} front />;
+  return <FramesPanel {...props} dir={`${F4}p2d`} steps={POUR_STEPS} endFrame={3} front runStatic onStep={pourStep} onEnd={() => action("stirfry", "start")} onHalt={() => action("stirfry", "stop")} />;
 }
 
 function StaticImg({ src, pos, aspect, dy }: { src: string; pos: Place; aspect: number; dy: number }) {

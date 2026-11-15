@@ -293,3 +293,11 @@ A、B 到位后可以去掉近景的裁切复用和主格的色块背景；C 不
 4. 录屏的声音是按页面派发的 chopHit 时刻离线混入的同一个音效文件（无头录制本身无声）；下锅和调汁片段没有声音（stirfryIn 由滚动触发，录制里没有记录它的时刻）。
 5. 旧的手臂拆层图层（`public/assets/comic-v3/perf/p2b-arm` 等、`p2d-corn*`、`p3a-*`）代码已不再引用，保留未删。
 
+### 第八轮：前景声音事件（kitchen-audio 请求，2026-11-14）
+
+全部挂在 useStage 的真实时间轴上；静态格（减少动态效果 / ?perf=0）同一时刻派发：
+- 配菜入锅 p2d：第 2 帧（菜被木铲推下落进锅）`kitchen:oneshot` {sound:"stirfryIn"}；第 3 帧（已入锅）`kitchen:action` {name:"stirfry", phase:"start"}；离场 / 复位时 {phase:"stop"}。（原请求按旧的玉米动画写的时刻，现按逐帧画面改。）
+- 调汁 p3a：两圈开始 {name:"sauceStir", phase:"start"}；两圈转完时 stop（之后离场不再重复）；没转完就离场 / 复位也 stop。
+- 每一格：`comic:panel` {key, phase:"start"|"stop"|"reset"}（同一套到位规则，ComicLayer 对所有非特写格派发；只有真的 start 过才发 stop / reset）。
+实测事件序列（1440×900，动画与减少动态效果两种）：stirfryIn 在格子到位后 0.68 s，stirfry start 1.20 s，离场 stop；sauceStir start 0.31 s、stop 1.56 s；无重复、无空信号。
+
