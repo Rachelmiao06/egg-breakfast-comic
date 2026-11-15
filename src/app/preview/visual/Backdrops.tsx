@@ -25,6 +25,8 @@ import { Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import { BG, curve, gNow } from "./motion.v2";
 import { useViewport } from "./viewport";
+import { useSlots } from "./slots";
+import { eggAtTableFor, tableWaitFor } from "./eggPath";
 
 type Keys = [string, number, number][];
 type CurveName = keyof typeof BG.curves;
@@ -79,7 +81,7 @@ export function Paper() {
           >
             {/* 新厨房直接叠化盖过旧厨房（drop 0.3–0.6，不经过整屏米白的纸面）；纸面只在新厨房未满时作底 */}
             {s.paper > SHOW && s.reading < 0.999 && <PaperSheet opacity={s.paper} />}
-            {s.reading > SHOW && <ReadingKitchen opacity={s.reading} />}
+            {s.reading > SHOW && <ReadingKitchen reveal={s.reading} />}
           </div>
         )
       ) : (s.paper > SHOW || s.table > SHOW) && (
@@ -103,10 +105,11 @@ export function Paper() {
  * 按原比例铺在 reading.box（场景像素），台面前缘对齐桌沿线，台面就是蛋站立和放碗的桌面；竖屏用竖版。
  * 两条零高度标记线（data-bg-line="top" / "edge"）= 台面后缘 / 前缘，给无头检查量“蛋脚底在桌面上”。
  */
-function ReadingKitchen({ opacity }: { opacity: number }) {
+function ReadingKitchen({ reveal }: { reveal: number }) {
   const R = BG.reading;
   const vp = useViewport();
   const { timeline: t, reducedMotion } = useScene();
+  const { cfg } = useSlots();
   const portrait = !!R.srcPortrait && vp.w / vp.h < R.portraitBelow;
   const [x, y, w, h] = portrait ? R.boxPortrait : R.box;
   const c = portrait ? R.counterPortrait : R.counter;
@@ -116,6 +119,16 @@ function ReadingKitchen({ opacity }: { opacity: number }) {
   const [iw, ih] = R.size;
   const pct = (b: number[]) => ({ left: `${(b[0] / iw) * 100}%`, top: `${(b[1] / ih) * 100}%`, width: `${(b[2] / iw) * 100}%`, height: `${(b[3] / ih) * 100}%` });
   const g = gNow(t);
+  // drop 换场：新厨房从蛋的落点（eggPath 按当前布局算出的桌沿等待点，蛋身中部）以软边圆形向外扩开，盖过旧厨房。
+  // 进度就是 curves.reading（滚动驱动、可逆）；只改 CSS mask 的半径，不重绘图片。半径到 1 时覆盖整张图的最远角，之后去掉 mask。
+  // 减少动态效果：不做扩散，改成很短的叠化（reading 0.4 → 0.6）。
+  const wait = tableWaitFor(cfg);
+  const cx = wait.x - x, cy = wait.y - 388 * eggAtTableFor(cfg) * 0.5 - y;
+  const rMax = Math.max(Math.hypot(cx, cy), Math.hypot(w - cx, cy), Math.hypot(cx, h - cy), Math.hypot(w - cx, h - cy));
+  const soft = rMax * 0.22;
+  const radius = reveal * (rMax + soft);
+  const opacity = reducedMotion ? Math.min(1, Math.max(0, (reveal - 0.4) / 0.2)) : reveal > 0.001 ? 1 : 0;
+  const mask = !reducedMotion && reveal < 0.999 ? `radial-gradient(circle at ${cx.toFixed(1)}px ${cy.toFixed(1)}px, #000 ${Math.max(0, radius - soft).toFixed(1)}px, transparent ${radius.toFixed(1)}px)` : undefined;
   // listen（接蛋前的声音停顿）：段内整张图缓慢推近，台面前沿多推一点（纵深），墙上暖光和窗光带；减少动态效果时只留静止的光
   const LS = R.listen;
   const lf = bgCurve("listenFocus", g);
@@ -138,6 +151,8 @@ function ReadingKitchen({ opacity }: { opacity: number }) {
         width: w,
         height: h,
         opacity,
+        maskImage: mask,
+        WebkitMaskImage: mask,
         transformOrigin: `${(lfoc[0] / liw) * 100}% ${(lfoc[1] / lih) * 100}%`,
         transform: lq > 0.001 ? `scale(${(1 + LS.push * lp * lq).toFixed(4)})` : undefined,
       }}
