@@ -581,7 +581,8 @@
     "action": 0,
     "hold": 0.36,
     "exit": 0.3
-   }
+   },
+   "readS": 3
   },
   {
    "id": "return",

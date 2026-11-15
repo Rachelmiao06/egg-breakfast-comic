@@ -333,13 +333,13 @@
   {
    "key": "p5e",
    "beat": "eggcall",
-   "src": "/assets/comic-v3/p5e.webp",
+   "src": "/assets/comic-v6/p5e/pose-08.webp",
    "source": "05-looking-for-baby.png E 格",
    "dialogueInImage": false,
    "x": 56,
    "y": 34,
    "w": 22,
-   "aspect": 0.9421,
+   "aspect": 0.9402,
    "from": "left",
    "order": 1,
    "role": "support"

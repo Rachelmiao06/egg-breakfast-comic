@@ -122,6 +122,39 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   );
 }
 
+/**
+ * p5e"回头"（用户 2026-11-15 送来的 9 张姿势图，public/assets/comic-v6/p5e/，472×502，整格不透明、同画布）：
+ * 背对 → 碗里的蛋招手（01/02 交替）→ 身体慢慢转（03/04/05）→ 回头惊讶（06/07）→ 落在 08（头旁三条惊讶线），停住。
+ * 时间线取自用户给的 timeline.txt（共 2.4 s，之后停在 08）。真实时间只播一次；离场收住直接落到终态 08；回滚到进入前复位到 00。
+ * 整格是同画布的姿势图，硬切（图与图之间是同一背景，不会重影）。
+ */
+const TURN_DIR = "/assets/comic-v6/p5e/";
+const TURN_FRAMES: [number, number][] = [[0, 0], [1, 0.4], [2, 0.7], [1, 1.0], [2, 1.2], [3, 1.4], [4, 1.6], [5, 1.9], [6, 2.2], [7, 2.28], [8, 2.4]];
+export function TurnPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
+  const els = useRef<(HTMLImageElement | null)[]>([]);
+  const timers = useRef<number[]>([]);
+  const show = (n: number) => els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
+  const clear = () => { timers.current.forEach((id) => window.clearTimeout(id)); timers.current = []; flag(false); };
+  const play = () => {
+    clear();
+    show(0);
+    flag(true);
+    timers.current = TURN_FRAMES.slice(1).map(([n, at]) => window.setTimeout(() => { show(n); if (n === 8) { timers.current = []; flag(false); } }, at * 1000));
+  };
+  const stop = () => { if (timers.current.length) { clear(); show(8); } };
+  const reset = () => { clear(); show(0); };
+  useStage(q, stage, animate, play, stop, reset, animate ? 2.8 : 0);
+  if (!animate) return <StaticImg src={`${TURN_DIR}pose-08.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
+  return (
+    <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+      {Array.from({ length: 9 }, (_, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={i} ref={(el) => { els.current[i] = el; }} src={`${TURN_DIR}pose-0${i}.webp`} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={{ opacity: i === 0 ? 1 : 0 }} />
+      ))}
+    </div>
+  );
+}
+
 const L4 = "/assets/comic-v4/layers/";
 const F4 = "/assets/comic-v4/frames/";
 /** 声音事件（混音器在 kitchen-audio 分支接收；没收到就静音）。时刻都挂在 useStage 的真实时间轴上 */

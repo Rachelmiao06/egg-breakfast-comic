@@ -8,7 +8,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { ChopPanel, DialoguePanel, HearPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
+import { ChopPanel, DialoguePanel, HearPanel, TurnPanel, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer } from "./Blink";
 import ReactionFace from "./ReactionFace";
 import FrameReact from "./FrameReact";
@@ -439,6 +439,7 @@ function FlowLayer() {
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          : p.key === "p5e" ? <TurnPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : <FlowPanel push={false ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
