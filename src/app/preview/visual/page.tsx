@@ -24,8 +24,11 @@ import { eggAtTableFor, fitCatchForEgg, flightApexYFor, flightEaseXFor, trajecto
 import ScenePanels from "./ScenePanels";
 import EggPoke from "./EggPoke";
 import PanelHover from "./PanelHover";
-import { DEFAULT_SLOTS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
+import { DEFAULT_SLOTS, PANELS, eggAnchorsFrom, landPoint, SlotContext, useSlots, type SlotConfig, handoffShrinkFor, eggFacesFor } from "./slots";
 import { useViewport } from "./viewport";
+
+/** 有画格的段：滚动停下时磁吸到这些段的阅读点（ScrollDriver），格内动画和声音才能在格子到位时按真实时间播 */
+const READING_BEATS = [...new Set(PANELS.filter((p) => !p.hideInFlow).map((p) => p.beat))];
 
 function Debug() {
   const { timeline: t, progress, flight, serve } = useScene();
@@ -153,7 +156,7 @@ function StageV2() {
       <SearchBackdrop />
       <ComicLayer flow />
       <StirSteam />
-      <ScrollDriver smooth />
+      <ScrollDriver smooth readingBeats={READING_BEATS} />
       <EggPoke />
       <PanelHover />
       <SoundToggle />
@@ -182,7 +185,7 @@ function Stage() {
         </KitchenScene>
       </div>
       <ComicLayer />
-      <ScrollDriver />
+      <ScrollDriver readingBeats={READING_BEATS} />
       <EggPoke />
       <SoundToggle />
       <ScrollHint />
