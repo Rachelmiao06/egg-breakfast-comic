@@ -252,7 +252,8 @@ for (const [w, h] of sizes) {
     if (inTablecall(vh) && m.eggOpacity > 0.05) {
       stat.bowlChecks++;
       const inView = m.egg.x >= 0 && m.egg.x + m.egg.w <= m.vw && m.egg.y >= 0 && m.foot <= m.vh;
-      const inBowl = m.bowlOpacity >= 0.9 && m.rimY !== null && m.foot > m.rimY;
+      // 碗和碗里的蛋一起淡入淡出（curves.bowl 与 Egg inBowl 同步）：碗至少和蛋一样实（差 ≤ 0.15），且蛋脚在碗前沿之下
+      const inBowl = m.bowlOpacity >= m.eggOpacity - 0.15 && m.rimY !== null && m.foot > m.rimY;
       if (!inView || !inBowl) { stat.bowlBad++; fails.push(`${key} ${vh}vh tablecall p${b.p.toFixed(2)}: egg foot ${m.foot}, bowl rim ${m.rimY}, bowl opacity ${m.bowlOpacity}, inView ${inView}`); }
     } else if (afterHandoff(vh) && !inTablecall(vh) && m.eggOpacity > 0.001) { stat.eggAfterHandoff++; fails.push(`${key} ${vh}vh ${b.id} p${b.p.toFixed(2)}: egg visible after handoff (opacity ${m.eggOpacity})`); }
     if (onTable(vh)) {
