@@ -215,8 +215,8 @@ export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portr
   const land = landPoint(cfg.scene.catch);
   // 最高点 Ap：listen 镜头（往上抬）画面上部、M 和铲面之间偏 M 一侧：蛋弹到这里悬住（整颗在画面内），catch 时镜头往左下走、蛋从这里落到铲面
   const lw = listenV.x1 - listenV.x0, lh = listenV.y1 - listenV.y0;
-  const ax = Math.min(Math.max(M.x + (land.x - M.x) * 0.4, listenV.x0 + 0.12 * lw), listenV.x1 - 0.12 * lw);
-  const Ap = { x: Math.round(ax), y: Math.round(listenV.y0 + 0.38 * lh) };
+  const ax = Math.min(Math.max(L.x + (land.x - L.x) * 0.55, listenV.x0 + 0.12 * lw), listenV.x1 - 0.12 * lw);
+  const Ap = { x: Math.round(ax), y: Math.round(listenV.y0 + BG.anchors.jump.apexFrac * lh) };
   const R = Ap, E = Ap; // E、R 不再是折线拐点：R 仍是“空中站点”（stationPose air），都等于最高点
   // camSM / camSC：起跳点（hear 镜头）和落铲点（catch 镜头）的屏幕缩放（屏幕像素 / 场景像素），让蛋在屏幕上的大小平滑过渡
   const camSC = vp.w / (catchV.x1 - catchV.x0);

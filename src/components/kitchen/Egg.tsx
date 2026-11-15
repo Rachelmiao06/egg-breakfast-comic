@@ -211,28 +211,15 @@ function hopBetween(A: Pt, B: Pt, t: number, scaleA: number, scaleB: number, lif
  */
 export function trajFoot(T: EggTraj, s: number): Pt {
   const k = clamp01(s);
-  const { L, M, R, C } = T;
-  if (k <= T.sM) {
-    // L → M：抛物线（用户要的就是抛物线，不是平飞）：x 匀速、y 在 L → M 的直线上再叠一个向上的拱（4u(1−u)·H），
-    // 身体顺着切线倾斜（见 trajPose）
-    const u = k / T.sM;
-    return { x: L.x + (M.x - L.x) * u, y: L.y + (M.y - L.y) * u - 4 * u * (1 - u) * flyArch(T) };
-  }
-  // 镜头编排（hear 桌面 → listen 抬高 → catch 接蛋）：
-  //   M → Ap（sM → sE）：继续向上弹到最高点，减速上升（竖直先快后慢），横向缓出缓入地偏向铲面一侧；
-  //   Ap 悬停（sE → sR，listen 停留）：在最高点轻微浮动（两端为 0，和上下两段连续）；
-  //   Ap → C（sR → 1，catch 动作）：自由落体——纵向 u² 加速，横向缓入缓出——镜头此时往左下走，所以屏幕上落成一条线。
-  const Ap = R;
-  if (k <= T.sE) {
-    const u = (k - T.sM) / (T.sE - T.sM), ey = 1 - (1 - u) * (1 - u), ex = u * u * (3 - 2 * u);
-    return { x: M.x + (Ap.x - M.x) * ex, y: M.y + (Ap.y - M.y) * ey };
-  }
-  if (k <= T.sR) {
-    const u = (k - T.sE) / (T.sR - T.sE);
-    return { x: Ap.x, y: Ap.y + 6 * Math.sin(2 * Math.PI * u) };
-  }
+  const { L, R, C } = T; // R = 最高点 Ap
+  // 一条抛物线（篮沿 L → 最高点 Ap → 铲面 C），镜头同时编排（backgrounds.json camera）：
+  //   横向：L.x → C.x 几乎匀速（35% 缓入缓出），整条路径横向速度连续；
+  //   纵向：上升（0 → sE）按 ease-out 到最高点（最高点纵向速度为 0），悬停（sE → sR）轻微浮动，下落（sR → 1）u² 自由落体。
+  const x = L.x + (C.x - L.x) * (0.35 * smooth(k) + 0.65 * k);
+  if (k <= T.sE) { const u = k / T.sE; return { x, y: L.y + (R.y - L.y) * (1 - (1 - u) * (1 - u)) }; }
+  if (k <= T.sR) { const u = (k - T.sE) / (T.sR - T.sE); return { x, y: R.y + 6 * Math.sin(2 * Math.PI * u) }; }
   const u = (k - T.sR) / (1 - T.sR);
-  return { x: Ap.x + (C.x - Ap.x) * (u * u * (3 - 2 * u)), y: Ap.y + (C.y - Ap.y) * u * u };
+  return { x, y: R.y + (C.y - R.y) * u * u };
 }
 /** 弧线在 s 处的水平速度方向（>0 向右）：给超人姿势选镜像 */
 function trajVx(T: EggTraj, s: number) {
@@ -242,32 +229,23 @@ function trajVx(T: EggTraj, s: number) {
 /** 平飞段的参数：匀速为主，起步和收尾各缓一点 */
 /** 抛物线飞行时身体倾斜的倍数：超人姿势图本身已朝飞行方向倾斜，切线只再叠加一部分 */
 const LEAN = 0.35;
-/** 抛物线拱高（场景像素）：随水平距离，至少 40 */
-const flyArch = (T: EggTraj) => 40 + 0.25 * Math.abs(T.M.x - T.L.x);
 function trajPose(T: EggTraj, s: number): Pose {
   const f = trajFoot(T, s);
   const sm = (q: number) => { const c = clamp01(q); return c * c * (3 - 2 * c); };
-  // 缩放：起跳前 scaleL；之后让蛋在“屏幕上”的大小从起跳点平滑过渡到落铲点（镜头也在 hear → catch 之间变，所以按屏幕大小插值再除以当时的镜头缩放），
-  // 不再到了最后一段才突然缩小
-  let scale = T.scaleL;
-  if (s > T.sM && T.camSM && T.camSC) {
-    const u = sm((s - T.sM) / (1 - T.sM));
-    const cam = T.camSM + (T.camSC - T.camSM) * sm((s - T.sM) / (T.sR - T.sM));
-    scale = (T.scaleL * T.camSM + (T.scaleC * T.camSC - T.scaleL * T.camSM) * u) / cam;
-  } else if (s > T.sR) scale = T.scaleL + (T.scaleC - T.scaleL) * ((s - T.sR) / (1 - T.sR));
-  const u2 = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
-  // 身体顺着切线倾斜：L → M 抛物线（最多 80°，起飞瞬间从 0 缓入、到 M 回正）；M → R 弧线按速度方向倾斜，到 R 渐退到 0；R → C 接铲面倾角
-  let lean = 0;
-  if (s < T.sM) {
-    const v = s / T.sM;
-    const tx = T.M.x - T.L.x, ty = T.M.y - T.L.y - 4 * (1 - 2 * v) * flyArch(T);
-    const ang = Math.max(-80, Math.min(80, (Math.atan2(tx, -ty) * 180) / Math.PI));
-    lean = LEAN * ang * sm(v / 0.1) * (1 - sm((v - 0.85) / 0.15));
-  } else if (s < T.sE) {
-    const a = trajFoot(T, s - 0.01), b = trajFoot(T, s + 0.01);
-    const ang = Math.max(-80, Math.min(80, (Math.atan2(b.x - a.x, -(b.y - a.y)) * 180) / Math.PI));
-    lean = LEAN * ang * (1 - sm((s - T.sM) / (T.sE - T.sM)));
+  // 缩放：让蛋在“屏幕上”的大小从起跳到落铲平滑过渡（镜头缩放在 hear → catch 间只有一点变化，按 s 线性插值当时的镜头缩放再除掉）
+  let scale = T.scaleL + (T.scaleC - T.scaleL) * sm(s);
+  if (T.camSM && T.camSC) {
+    const cam = T.camSM + (T.camSC - T.camSM) * sm(s / T.sR);
+    scale = (T.scaleL * T.camSM + (T.scaleC * T.camSC - T.scaleL * T.camSM) * sm(s)) / cam;
   }
+  // 倾斜：上升段顺着轨迹切线（超人姿势），到最高点渐退为 0；下落段（fly 图朝左下）只叠加铲面倾角
+  let lean = 0;
+  if (s < T.sE) {
+    const a = trajFoot(T, Math.max(0, s - 0.01)), b = trajFoot(T, s + 0.01);
+    const ang = Math.max(-80, Math.min(80, (Math.atan2(b.x - a.x, -(b.y - a.y)) * 180) / Math.PI));
+    lean = LEAN * ang * sm(s / 0.06) * (1 - sm(s / T.sE));
+  }
+  const u2 = s > T.sR ? (s - T.sR) / (1 - T.sR) : 0;
   return { x: f.x - REST.x, y: f.y - REST.y, scale, rotation: T.tiltC * u2 + lean };
 }
 
@@ -418,7 +396,7 @@ function createJumpController(env: JumpEnv) {
     // 腾空：L → M → E（出画前）用超人飞行姿势，之后（R → C，朝妈妈下落）换回 fly 图
     // 超人姿势：L → M 朝左上（镜像），M 之后朝弧线的水平方向（向右不镜像、向左镜像）；快到铲面（R 之后）换回朝左下的 fly 图
     const lv0 = env.live.current;
-    if (x < T.sR && !lv0.reduced) { lv0.setFace("soar"); lv0.setSoarFlip(x < T.sM || trajVx(T, x) < 0); } else lv0.setFace("fly");
+    if (x < T.sR && !lv0.reduced) { lv0.setFace("soar"); lv0.setSoarFlip(trajVx(T, x) <= 0); } else lv0.setFace("fly");
     gsap.set(w, { x: p.x, y: p.y, scale: p.scale, rotation: p.rotation, transformOrigin: "50% 100%", overwrite: true });
     dotAt(p.x + REST.x, p.y + REST.y);
   };
@@ -559,16 +537,20 @@ function scrollParam(t: Timeline, beats: Beat[], T: EggTraj, mToE: [number, numb
   const ci = beats.findIndex((b, i) => i > ai && b.egg === "flight");
   if (hi < 0 || ai < 0 || ci < 0) return 0;
   const cur = vhAt(beats, t.index, t.p);
-  const l0 = vhAt(beats, hi, lToM), a0 = vhAt(beats, hi, mToE[0]), a1 = vhAt(beats, ai, mToE[1]);
+  const l0 = vhAt(beats, hi, lToM), a1 = vhAt(beats, ai, mToE[1]);
   const tr = eggTravel(beats[ci]);
   const b1 = vhAt(beats, ci, tr?.start ?? 0.22), c1 = vhAt(beats, ci, tr?.land ?? 0.8);
-  if (cur < l0) return 0;
-  if (cur < a0) return (T.sM * (cur - l0)) / (a0 - l0);
-  if (cur < a1) return T.sM + ((T.sE - T.sM) * (cur - a0)) / (a1 - a0);
-  if (cur < b1) return T.sE + ((T.sR - T.sE) * (cur - a1)) / (b1 - a1);
-  if (cur < c1) return T.sR + ((1 - T.sR) * (cur - b1)) / (c1 - b1);
-  return 1;
+  // 分段线性：上升（hear q0.5 → listen q0.12）→ 悬停（→ catch 动作开始）→ 下落（catch 动作）。
+  // 分段处斜率不同，速度会突变，所以再用 ±SMOOTH_VH 的三角窗平滑一次（模拟里把屏幕轨迹的最大折点降到 1/2）
+  const lin = (v: number) => (v < l0 ? 0 : v < a1 ? (T.sE * (v - l0)) / (a1 - l0) : v < b1 ? T.sE + ((T.sR - T.sE) * (v - a1)) / (b1 - a1) : v < c1 ? T.sR + ((1 - T.sR) * (v - b1)) / (c1 - b1) : 1);
+  if (cur <= l0) return 0;
+  if (cur >= c1) return 1; // 落铲点之后蛋已经在铲面上（站点逻辑接手），不能被窗口拖回 < 1
+  const n = 10;
+  let sum = 0, wsum = 0;
+  for (let i = -n; i <= n; i++) { const w = 1 - Math.abs(i) / (n + 1); sum += w * lin(cur + (SMOOTH_VH * i) / n); wsum += w; }
+  return sum / wsum;
 }
+const SMOOTH_VH = 40;
 const trailOn = () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("trail") === "1";
 
 export default function Egg({ src = "/assets/scene/egg.webp", anchors, direct = false, faces }: { src?: string; anchors?: Partial<EggAnchors>; direct?: boolean; faces?: EggFaces }) {
