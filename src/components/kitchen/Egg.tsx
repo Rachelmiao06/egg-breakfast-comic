@@ -29,7 +29,8 @@ import { KITCHEN_ONESHOT_EVENT } from "./useKitchenAudio";
 
 const { eggRest: REST, eggSize: SIZE } = ANCHORS;
 
-export type Pt = { x: number; y: number };
+/** d：景深缩放系数（桌面站点才有；1 = 桌沿，越靠后越小），乘在 eggAtTable 上 */
+export type Pt = { x: number; y: number; d?: number };
 
 /** 蛋落地（真实时间的小跳落回桌面 / 锅里的那一下）：页面里的画框读它做"被震到"的小抖动。detail: { kind: "pan" | "table" } */
 export const EGG_LAND_EVENT = "egg:land";
@@ -137,7 +138,7 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 function stationPose(st: Station, a: EggAnchors): Pose {
   const air = a.traj?.R ?? { x: a.tableWait.x, y: -400 };
   const p = st === "pan" ? a.panLaunch : st === "table" ? a.tableWait : st === "spatula" ? a.spatulaLand : st === "air" ? air : a.bowlLand;
-  const scale = st === "pan" ? 1 : st === "table" || st === "air" ? a.eggAtTable : st === "spatula" ? a.eggOnSpatula : a.eggInBowl;
+  const scale = st === "pan" ? 1 : st === "table" ? a.eggAtTable * (a.tableWait.d ?? 1) : st === "air" ? a.eggAtTable : st === "spatula" ? a.eggOnSpatula : a.eggInBowl;
   return { x: p.x - REST.x, y: p.y - REST.y, scale, rotation: st === "spatula" ? (a.spatulaTilt ?? 0) : 0 };
 }
 
@@ -175,11 +176,11 @@ export function flightPoint(A: Pt, B: Pt, apexY: number, t: number, apexAt = 0.6
  * 桌面上换站（两站之间按滚动走）：贴着桌面连跳几下（每 ~180 场景像素一下，至少两下），抬得低，
  * 不会升进上方漫画格的范围被格子挡住；每一下身体往前进方向轻轻一歪，缩放不变。
  */
-function hopBetween(A: Pt, B: Pt, t: number, scale: number, lift: number, spin: number): Pose {
+function hopBetween(A: Pt, B: Pt, t: number, scaleA: number, scaleB: number, lift: number, spin: number): Pose {
   const k = clamp01(t);
   const n = Math.max(2, Math.round(Math.abs(B.x - A.x) / 180));
   const ph = (k * n) % 1, hop = k >= 1 ? 0 : Math.sin(Math.PI * ph);
-  return { x: A.x + (B.x - A.x) * k - REST.x, y: A.y + (B.y - A.y) * k - lift * hop - REST.y, scale, rotation: spin * hop };
+  return { x: A.x + (B.x - A.x) * k - REST.x, y: A.y + (B.y - A.y) * k - lift * hop - REST.y, scale: scaleA + (scaleB - scaleA) * smooth(k), rotation: spin * hop };
 }
 /** 三次贝塞尔（一个坐标） */
 const cub = (a: number, b: number, c: number, d: number, t: number) => (1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t * t * c + t ** 3 * d;
@@ -257,7 +258,7 @@ function plan(t: Timeline, beats: Beat[], a0: EggAnchors): Plan {
       const rest = stationPose("table", a);
       if (from && (from.x !== to.x || from.y !== to.y) && t.phase === "enter") {
         const k = smooth(t.phaseP);
-        return { pose: hopBetween(from, to, k, a.eggAtTable, 42, to.x > from.x ? 7 : -7), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest };
+        return { pose: hopBetween(from, to, k, a.eggAtTable * (from.d ?? 1), a.eggAtTable * (to.d ?? 1), 42 * Math.min(from.d ?? 1, to.d ?? 1), to.x > from.x ? 7 : -7), station: null, idle: null, settle: false, z: Z.eggOnTable, opacity: 1, landing: null, rest };
       }
       const P = base("table", b.egg === "ready" ? "ready" : "table", Z.eggOnTable);
       P.rest = rest;

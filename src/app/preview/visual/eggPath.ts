@@ -15,7 +15,7 @@
 import { BG } from "./motion.v2";
 import { landPoint, PANELS, type SlotConfig } from "./slots";
 
-type Pt = { x: number; y: number };
+type Pt = { x: number; y: number; d?: number };
 const EGG = 388;
 const BASE_BOX_W = 900; // slots.json 里接蛋格的设计宽度（横版不缩放）
 
@@ -130,13 +130,21 @@ const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, 
 export function wanderPointsFor(cfg: SlotConfig, view: View & { s?: number }): Pt[] {
   const Wd = BG.anchors.wander;
   const w = EGG * eggAtTableFor(cfg);
-  const y = cfg.narrow ? BG.anchors.portraitTableWait.y : BG.anchors.tableWait.y;
+  // 纵深：台面后沿（backY）到前沿（frontY）之间，每个站点给一个深度 depth ∈ [0,1]（0 = 桌沿、1 = 台面后沿），
+  // y 在桌沿高度和台面后沿之间插值，蛋随之缩小（depthScale），之字形走：不再总贴着桌沿
+  const front = cfg.narrow ? BG.anchors.portraitTableWait.y : BG.anchors.tableWait.y;
+  const R0 = BG.reading;
+  const portrait = (view.x1 - view.x0) / (view.y1 - view.y0) < R0.portraitBelow;
+  const back = (portrait ? R0.counterPortrait.backY : R0.counter.backY) + Wd.backInset;
   // 右下角留给声音按钮（屏幕像素 → 场景像素）：右侧的点不压到按钮
   const reserve = view.s ? Wd.rightReservePx / view.s : 0;
   const lo = Math.max(view.x0 + Wd.margin + w / 2, Wd.minX), hi = Math.min(view.x1 - Wd.margin - reserve - w / 2, Wd.maxX);
   const L = clampN(Wd.x[0], lo, hi), R = clampN(Wd.x[2], lo, hi);
   const M = clampN(Wd.x[1], L + (R - L) * 0.3, R - (R - L) * 0.3);
-  return [L, M, R].map((x) => ({ x: Math.round(x), y }));
+  return [L, M, R].map((x, i) => {
+    const depth = Wd.depth[i];
+    return { x: Math.round(x), y: Math.round(front + (back - front) * depth), d: +(1 - (1 - Wd.backScale) * depth).toFixed(3) };
+  });
 }
 /** 每段的桌面站点（段 id → 脚底点），给 Egg 的 tableAt */
 export function wanderTableFor(cfg: SlotConfig, view: View & { s?: number }): Record<string, Pt> {
@@ -184,7 +192,7 @@ export function hearPanelRect(vw: number, vh: number, portrait: boolean) {
 }
 
 export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portrait: boolean }, hear: Cam, catchV: View, L: Pt): Traj {
-  const scaleL = eggAtTableFor(cfg);
+  const scaleL = eggAtTableFor(cfg) * (L.d ?? 1);
   const h = EGG * scaleL; // 蛋高（场景像素），布局框近似正方形
   const eggS = h * hear.s; // hear 镜头下蛋在屏幕上的大小
   const margin = 14;
