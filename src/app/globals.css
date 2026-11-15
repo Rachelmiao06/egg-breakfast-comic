@@ -34,8 +34,8 @@ body {
 /* 画格 = 一张贴在墙上的相纸（docs/PAPER-WORLD.md）。图里不再自带黑框（tools/panel_alpha.py 已裁掉），
    所有格子的纸边一样宽、圆角一样大，与图片缩放比例无关。
    ::after = 奶油纸边（inset 阴影，内圆角自动 = 外圆角 − 边宽）+ 内缘一道极细的暖棕线；
-   ::before = PaperTexture shader 烘出的纸纹（--paper-tex，见 PaperFrameTexture.tsx），multiply 叠在整格上，
-   纸边有纤维颗粒，画面也像印在纸上。没有纹理（--paper-tex: none）时就是平整的奶油色。 */
+   ::before = PaperTexture shader 烘出的纸纹（--paper-tex，见 PaperFrameTexture.tsx），multiply 只叠在纸边环上，
+   纸边有纤维颗粒，画面保持原样（叠在整格上会让画面发糙）。没有纹理（--paper-tex: none）时就是平整的奶油色。 */
 .panel-frame {
   --pf-w: max(6px, 0.6vw);
   --pf-r: max(10px, 1.1vw);
@@ -49,19 +49,31 @@ body {
   border-radius: inherit;
   pointer-events: none;
   z-index: 60;
+  /* 前景感：一道随鼠标左右扫过的柔和高光（--kl-mouse-x 来自 KitchenLayers，-1…1，触屏 / 减少动态效果时为 0），
+     加左上角的一点打光。画在画面上、被下面的纸边 inset 阴影盖住，所以纸边始终是平整的奶油色。 */
+  background:
+    linear-gradient(112deg, transparent calc(50% + var(--kl-mouse-x, 0) * 38% - 16%), rgba(255, 250, 236, 0.2) calc(50% + var(--kl-mouse-x, 0) * 38%), transparent calc(50% + var(--kl-mouse-x, 0) * 38% + 16%)),
+    radial-gradient(130% 100% at 12% 0%, rgba(255, 248, 228, 0.16), transparent 62%);
   box-shadow:
     inset 0 0 0 var(--pf-w) #fbf3e2,
     inset 0 0 0 calc(var(--pf-w) + 1px) rgba(120, 82, 46, 0.28);
 }
 .panel-frame::before {
+  /* 纸纹只落在纸边上（不碰画面）：整格铺纹理，再用「整个盒子 − 内容盒」的遮罩只留下边框环；
+     内容盒的圆角 = 外圆角 − 边宽，和 ::after 的奶油边内缘一致。 */
   content: "";
   position: absolute;
   inset: 0;
+  padding: var(--pf-w);
   border-radius: inherit;
   pointer-events: none;
   z-index: 61;
   background-image: var(--paper-tex, none);
   background-size: 1024px 1024px;
+  background-origin: border-box;
   mix-blend-mode: multiply;
-  opacity: 0.3;
+  opacity: 0.7;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
