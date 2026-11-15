@@ -12,10 +12,12 @@
  */
 import gsap from "gsap";
 import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
-import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
+import { KITCHEN_ONESHOT_EVENT, KITCHEN_PAN_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
 
 type Place = { x: number; y: number; w: number };
+/** 声像跟着格子：按格子中心在屏幕上的横向位置给 -0.7…0.7（左边的格声音偏左，右边偏右）；厨房声不受影响 */
+const panFor = (pos: Place) => Math.max(-0.7, Math.min(0.7, ((pos.x + pos.w / 2) / 50 - 1) * 0.7));
 /** 格子在屏幕上的状态（ComicLayer 按布局算）：可见比例、入场是否结束、是否开始离场 */
 export type Stage = { vis: number; entered: boolean; leaving: boolean };
 /** 可见 ≥ 90% 且入场结束才开始；可见 < 60% 或开始离场就收住；几乎看不见（< 12%）或退回入场前才复位，下次进入再播 */
@@ -88,7 +90,7 @@ export function ChopPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   const play = () => {
     const el = arm.current;
     reset();
-    const contact = () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit" } }));
+    const contact = () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit", pan: panFor(pos) } }));
     const C = CHOP;
     const firstContact = C.delay + C.raise + C.pause + C.drop;
     const every = C.raise + C.pause + C.drop + C.recoil + C.settle + C.gap;
@@ -257,6 +259,12 @@ export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; po
     tl.current = t;
   };
   useStage(q, stage, animate, play, stop, reset);
+  // 搅汁循环声的声像：格子在屏幕哪一侧，声音就在哪一侧；格子离开（卸载）时回到中间
+  const sauceX = pos.x + pos.w / 2;
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(KITCHEN_PAN_EVENT, { detail: { sound: "sauce", pan: panFor({ x: sauceX, y: 0, w: 0 }) } }));
+    return () => { window.dispatchEvent(new CustomEvent(KITCHEN_PAN_EVENT, { detail: { sound: "sauce", pan: 0 } })); };
+  }, [sauceX]);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   const origin = `${SAUCE.cx * 100}% ${SAUCE.cy * 100}%`;
   return (

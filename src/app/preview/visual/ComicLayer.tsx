@@ -10,6 +10,7 @@ import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
 import { ChopPanel, HearPanel, SaucePanel, StirfryPanel, usePerfEnabled } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer, ClosingBlink } from "./Blink";
+import FrameReact from "./FrameReact";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -274,7 +275,7 @@ function FlowLayer() {
     }
   }
   return (
-    <div className="pointer-events-none fixed inset-0 z-10">
+    <div data-comic-flow className="pointer-events-none fixed inset-0 z-10">
       {visible.map((p) => {
         const q = g - index[p.beat];
         if (p.role === "closeup") return <CloseupShot key={p.key} p={p} q={q} portrait={vp.portrait} vw={vp.w} reducedMotion={reducedMotion} seconds={beats[index[p.beat]].seconds} />;
@@ -302,6 +303,7 @@ function FlowLayer() {
         return <FlowPanel key={p.key} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} />;
       })}
       <SoundText g={g} index={index} beats={beats} portrait={vp.portrait} aspect={vp.w / vp.h} />
+      {perf && <FrameReact />}
     </div>
   );
 }

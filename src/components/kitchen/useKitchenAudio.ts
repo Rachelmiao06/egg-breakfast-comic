@@ -31,7 +31,11 @@
  * - audio-map 的扩展：ramps（段内定时的电平斜坡）和 lowpass（段内定时的低通，目前给 steps 由远到近），见 MappedBeat。
  * - 动画逐帧触发的单次音效（切菜格的 chopHit、结尾三个点的 hopTap1/2/3）：监听 window 事件 "kitchen:oneshot"（detail.sound），收到就播一次。
  *   解码成 AudioBuffer，每次新建 BufferSource，快速连刀可以重叠；静音、未解锁（AudioContext 未 running）、后台时丢弃不补播。
- *   detail 可选 rate（播放速度，0.5–2，音高跟着变）和 gain（在登记电平上再乘一个 0–1），结尾三个点用它做"音高逐个下降"。
+ *   detail 可选 rate（播放速度，0.5–2，音高跟着变）、gain（在登记电平上再乘一个 0–2）和 pan（声像 -1…1，覆盖登记值）：
+ *   结尾三个点用 rate / gain 做"音高逐个下降"，切菜按该格在屏幕上的位置给 pan，点蛋的"啵"每次随机一个 rate。
+ * - 声像跟着格子：切菜（逐刀事件带 pan）和搅汁（循环声挂了 StereoPanner，页面派发 "kitchen:pan" {sound:"sauce", pan} 更新）
+ *   在格子所在的那一侧；厨房声保持居中偏宽。
+ * - 点火：从关到开（有用户手势、且在开场段）时先响两下很脆的"咔哒"（hopTap 升调），sizzle 用约 3 秒从 0 慢慢升起，像灶火被点着。
  * - 隔着画框：room 也挂一个低通。audio-map 每段可写 roomHz（该段停留时 room 的截止频率），没写 = 全开。
  *   漫画格在场的段压到 2.5 kHz 左右（像隔着一层纸听厨房），没有漫画格的环境段（prejump / listen / tablecall）和开场全开；
  *   换段时在进入阶段内按对数频率从上一段的值渐变到本段的值（和 loopLevels 的进入渐变同一个规则）。
@@ -61,8 +65,12 @@ type EventSound = "chopHit";
 type ShotSound = OneShotSound | EventSound;
 const EVENT_SOUNDS: readonly EventSound[] = ["chopHit"];
 /** 解码成 AudioBuffer 播放：每次触发新建节点，快速连续触发可以重叠，并可以带声像 */
-const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3"];
+const BUFFER_SOUNDS: readonly ShotSound[] = ["chopHit", "hopTap1", "hopTap2", "hopTap3", "pop"];
 export const KITCHEN_ONESHOT_EVENT = "kitchen:oneshot";
+/** 页面告诉混音器某个循环声现在在屏幕的哪一侧（detail: { sound: "sauce", pan: -1…1 }） */
+export const KITCHEN_PAN_EVENT = "kitchen:pan";
+/** 声像只给这些循环声挂 StereoPanner */
+const PAN_SOUNDS: readonly string[] = ["sauce"];
 /** 单次音效：文件与播放音量（素材已统一到约 -18 LUFS，这里是相对电平） */
 const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number }> = {
   stirfryIn: { file: "stirfry-in.mp3", volume: 0.6 },
@@ -224,6 +232,8 @@ const MAX_CROSS_VH = 40;
 
 /** 平滑速度：音量每秒最多变化这么多（满量程），只用于去掉跳变，节奏由节拍表决定 */
 const SLEW_PER_SEC = 2.5;
+/** 点火时 sizzle 的升起速度（满量程 / 秒）和持续时间 */
+const IGNITE_RISE_PER_SEC = 0.17, IGNITE_MS = 3200;
 const TICK_MS = 50;
 /** sizzle 低通：远（flight 0）→ 近（flight 1）；全开 = 不起作用 */
 const LOWPASS_FAR = 1500, LOWPASS_NEAR = 16000, LOWPASS_OPEN = 20000;
@@ -236,6 +246,8 @@ type Channel = {
   gain: GainNode | null;
   /** 只有 sizzle 有：由远到近的低通 */
   lowpass: BiquadFilterNode | null;
+  /** 只有 PAN_SOUNDS 里的循环声有：跟着画格位置的声像 */
+  panner: StereoPannerNode | null;
   /** 文件可播（canplay 到过） */
   ok: boolean;
   /** 当前施加的电平 0–1 */
@@ -264,6 +276,10 @@ class KitchenMixer {
   private lastTick = 0;
   private settled = 0;
   private disposed = false;
+  /** 点火：这个时间之前 sizzle 用很慢的速度升起 */
+  private igniteUntil = 0;
+  /** 有过用户手势（点火的"咔哒"才允许响） */
+  private gestured = false;
 
   constructor(private onAvailable: (ok: boolean) => void) {
     this.root = document.createElement("div");
@@ -289,6 +305,7 @@ class KitchenMixer {
     window.addEventListener("touchend", this.onGesture, { passive: true });
     window.addEventListener("keydown", this.onGesture, { passive: true });
     window.addEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
+    window.addEventListener(KITCHEN_PAN_EVENT, this.onPanEvent);
     this.lastTick = performance.now();
     this.timer = window.setInterval(this.tick, TICK_MS);
   }
@@ -303,22 +320,27 @@ class KitchenMixer {
     el.dataset.target = "0";
     el.dataset.fired = "0";
     el.dataset.ok = "pending";
-    const ch: Channel = { name, el, gain: null, lowpass: null, ok: false, level: 0, target: 0, priming: false, fired: 0 };
+    const ch: Channel = { name, el, gain: null, lowpass: null, panner: null, ok: false, level: 0, target: 0, priming: false, fired: 0 };
     if (this.ctx) {
       try {
         const src = this.ctx.createMediaElementSource(el);
         ch.gain = this.ctx.createGain();
         ch.gain.gain.value = 0;
+        let tail: AudioNode = src.connect(ch.gain);
         if (LOWPASS_SOUNDS.includes(name) && kind === "loop") {
           ch.lowpass = this.ctx.createBiquadFilter();
           ch.lowpass.type = "lowpass";
           ch.lowpass.Q.value = 0.7;
           ch.lowpass.frequency.value = LOWPASS_OPEN;
           el.dataset.lowpass = String(LOWPASS_OPEN);
-          src.connect(ch.gain).connect(ch.lowpass).connect(this.ctx.destination);
-        } else {
-          src.connect(ch.gain).connect(this.ctx.destination);
+          tail = tail.connect(ch.lowpass);
         }
+        if (PAN_SOUNDS.includes(name) && kind === "loop" && typeof this.ctx.createStereoPanner === "function") {
+          ch.panner = this.ctx.createStereoPanner();
+          el.dataset.pan = "0";
+          tail = tail.connect(ch.panner);
+        }
+        tail.connect(this.ctx.destination);
         el.volume = 1;
       } catch {
         ch.gain = null;
@@ -372,6 +394,7 @@ class KitchenMixer {
   }
 
   private onGesture = () => {
+    this.gestured = true;
     if (this.ctx && this.ctx.state !== "running") this.ctx.resume().catch(() => {});
     if (this.unlocked) return;
     for (const ch of this.all(this.loops)) {
@@ -398,14 +421,24 @@ class KitchenMixer {
 
   /** 页面事件：前景动画在落刀那一帧派发 */
   private onShotEvent = (e: Event) => {
-    const detail = (e as CustomEvent<{ sound?: unknown; rate?: unknown; gain?: unknown }>).detail;
+    const detail = (e as CustomEvent<{ sound?: unknown; rate?: unknown; gain?: unknown; pan?: unknown }>).detail;
     const name = detail?.sound;
     if (typeof name !== "string" || !(name in ONESHOTS)) {
       warnOnce(`${KITCHEN_ONESHOT_EVENT}: 未登记的声音 ${String(name)}`);
       return;
     }
     const num = (v: unknown, lo: number, hi: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined);
-    this.fire(name as ShotSound, { rate: num(detail?.rate, 0.5, 2), gain: num(detail?.gain, 0, 1) });
+    this.fire(name as ShotSound, { rate: num(detail?.rate, 0.5, 2), gain: num(detail?.gain, 0, 2), pan: num(detail?.pan, -1, 1) });
+  };
+
+  /** 页面：某个循环声现在在屏幕的哪一侧 */
+  private onPanEvent = (e: Event) => {
+    const d = (e as CustomEvent<{ sound?: unknown; pan?: unknown }>).detail;
+    const ch = typeof d?.sound === "string" ? (this.loops as Record<string, Channel | undefined>)[d.sound] : undefined;
+    const pan = typeof d?.pan === "number" && Number.isFinite(d.pan) ? Math.min(1, Math.max(-1, d.pan)) : 0;
+    if (!ch?.panner || !this.ctx) return;
+    ch.panner.pan.setTargetAtTime(pan, this.ctx.currentTime, 0.08);
+    ch.el.dataset.pan = pan.toFixed(2);
   };
 
   private stopVoices() {
@@ -427,11 +460,14 @@ class KitchenMixer {
 
   private tick = () => {
     const now = performance.now();
-    const step = ((now - this.lastTick) / 1000) * SLEW_PER_SEC;
+    const dt = (now - this.lastTick) / 1000;
+    const step = dt * SLEW_PER_SEC;
     this.lastTick = now;
     for (const ch of this.all(this.loops)) {
       const target = this.soundOn && !this.hidden && ch.ok ? ch.target : 0;
-      const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), step);
+      // 点火：sizzle 在 igniteUntil 之前每秒最多升 0.17（0.45 的目标约 3 秒升满）
+      const st = ch.name === "sizzle" && now < this.igniteUntil ? dt * IGNITE_RISE_PER_SEC : step;
+      const v = ch.level + Math.sign(target - ch.level) * Math.min(Math.abs(target - ch.level), st);
       const level = Math.min(1, Math.max(0, v));
       if (level !== ch.level) this.apply(ch, level);
       if (target > 0 && ch.el.paused && !ch.priming && (this.unlocked || !this.gestureNeeded)) this.play(ch);
@@ -448,14 +484,28 @@ class KitchenMixer {
   }
   private triedOnce = false;
 
-  setSoundOn(on: boolean) {
+  /** ignite：这次"开"发生在开场段，要有点火的感觉（需要此前有过用户手势） */
+  setSoundOn(on: boolean, ignite = false) {
+    const was = this.soundOn;
     this.soundOn = on;
+    if (on && !was && ignite && this.gestured && !this.hidden) this.ignite();
     if (!on) {
       this.stopVoices();
       for (const ch of this.all(this.shots)) {
         if (!ch.el.paused) { ch.el.pause(); ch.el.currentTime = 0; }
       }
     }
+  }
+
+  /** 灶火点着：两下升调的"咔哒"，sizzle 随后慢慢升起（tick 里按 igniteUntil 放慢升速） */
+  private ignite() {
+    this.igniteUntil = performance.now() + IGNITE_MS;
+    const go = () => {
+      this.fire("hopTap2", { rate: 1.55, gain: 1.8, pan: 0 });
+      window.setTimeout(() => this.fire("hopTap1", { rate: 2, gain: 1.5, pan: 0 }), 120);
+    };
+    if (this.ctx && this.ctx.state !== "running") this.ctx.resume().then(go).catch(() => {});
+    else go();
   }
 
   /** 蛋的飞行进度 → sizzle 低通截止频率（null = 全开） */
@@ -487,7 +537,7 @@ class KitchenMixer {
    * - 有解码好的 AudioBuffer（事件触发的 chopHit）：每次新建 BufferSource，允许快速连续触发、彼此重叠。
    * - 其它：同一音效只有一个 <audio>，重触发 = 从头重放，不叠加。
    */
-  fire(name: ShotSound, opts?: { rate?: number; gain?: number }) {
+  fire(name: ShotSound, opts?: { rate?: number; gain?: number; pan?: number }) {
     const ch = this.shots[name];
     if (!ch || !this.soundOn || this.hidden) return; // 空位或不可播
     const buf = this.buffers[name];
@@ -498,7 +548,7 @@ class KitchenMixer {
       const g = this.ctx.createGain();
       g.gain.value = ONESHOTS[name].volume * (opts?.gain ?? 1);
       if (opts?.rate) src.playbackRate.value = opts.rate;
-      const pan = ONESHOTS[name].pan;
+      const pan = opts?.pan ?? ONESHOTS[name].pan;
       const panner = pan !== undefined && pan !== 0 && typeof this.ctx.createStereoPanner === "function" ? this.ctx.createStereoPanner() : null;
       if (panner && pan !== undefined) { panner.pan.value = pan; src.connect(g).connect(panner).connect(this.ctx.destination); }
       else src.connect(g).connect(this.ctx.destination);
@@ -526,6 +576,7 @@ class KitchenMixer {
     window.removeEventListener("touchend", this.onGesture);
     window.removeEventListener("keydown", this.onGesture);
     window.removeEventListener(KITCHEN_ONESHOT_EVENT, this.onShotEvent);
+    window.removeEventListener(KITCHEN_PAN_EVENT, this.onPanEvent);
     this.stopVoices();
     for (const ch of [...this.all(this.loops), ...this.all(this.shots)]) {
       ch.el.pause();
@@ -552,7 +603,9 @@ export function useKitchenAudio() {
     return () => { m.dispose(); mixer.current = null; };
   }, []);
 
-  useEffect(() => { mixer.current?.setSoundOn(soundOn); }, [soundOn]);
+  const indexRef = useRef(0);
+  useEffect(() => { indexRef.current = rawTimeline.index; }, [rawTimeline.index]);
+  useEffect(() => { mixer.current?.setSoundOn(soundOn, indexRef.current === 0); }, [soundOn]);
   useEffect(() => { mixer.current?.setFlight(flight); }, [flight]);
 
   // 目标音量：完全由节拍表推导
