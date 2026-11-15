@@ -16,7 +16,10 @@ import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
 
 type Place = { x: number; y: number; w: number };
-const START = 0.36, RESET = 0.3, LEAVE = 0.72;
+/** 格子在屏幕上的状态（ComicLayer 按布局算）：可见比例、入场是否结束、是否开始离场 */
+export type Stage = { vis: number; entered: boolean; leaving: boolean };
+/** 可见 ≥ 90% 且入场结束才开始；可见 < 60% 或开始离场就收住；几乎看不见（< 12%）或退回入场前才复位，下次进入再播 */
+const READY_VIS = 0.9, LEAVE_VIS = 0.6, GONE_VIS = 0.12, BEFORE_Q = 0.2;
 const P = "/assets/comic-v3/perf/";
 
 export function usePerfEnabled() {
@@ -36,69 +39,72 @@ const flag = (on: boolean) => {
 };
 
 /**
- * 越过 START 时触发一次；q < RESET 时复位；q > LEAVE 时收住。
- * - 首次挂载时若格子已经稳定在 [START, LEAVE)（刷新或快速跳到中段）也播一次；
- * - 关掉表演（减少动态效果 / ?perf=0）时立即收住，避免分离的时间轴继续派发落刀声；
- * - 卸载时收住（离场、回滚出可见范围），重新进入是新实例，重新判断。
+ * 统一播放规则：滚动只负责格子的进入、停留、离场；格内动作在格子"真的在阅读位置"时按真实时间播一小段，然后停稳。
+ * - 开始：入场结束且可见 ≥ 90%（不看段内进度，所以竖屏整列上移、屏幕外都不会提前播）；停止滚动也照样播完。
+ * - 收住：开始离场或可见 < 60%，交给各格的 stop()（落到稳定的终态）。
+ * - 复位：几乎看不见（< 12%）或退回入场之前；之后再次满足开始条件就再播一次（从前面、从后面重新进入规则一样）。
+ *   在边缘来回滚动不会反复触发：播过之后，没有离开到复位线以外就不会再播。
+ * - 关掉表演（减少动态效果 / ?perf=0）时立即复位；卸载时复位。
  */
-function useCrossing(q: number, enabled: boolean, play: () => void, stop: () => void, reset: () => void) {
-  const prev = useRef<number | null>(null);
+function useStage(q: number, stage: Stage, enabled: boolean, play: () => void, stop: () => void, reset: () => void) {
   const played = useRef(false);
   const wasEnabled = useRef(enabled);
   useEffect(() => {
-    const pq = prev.current;
-    prev.current = q;
     if (!enabled) {
       if (wasEnabled.current) { wasEnabled.current = false; played.current = false; reset(); }
       return;
     }
     wasEnabled.current = true;
-    if (q < RESET) { if (played.current) { played.current = false; reset(); } return; }
-    if (q > LEAVE) { stop(); return; }
-    const crossed = pq !== null && pq < START && q >= START;
-    const landedInside = pq === null && q >= START;
-    if ((crossed || landedInside) && !played.current) { played.current = true; play(); }
+    if (stage.vis < GONE_VIS || (q < BEFORE_Q && !stage.entered)) { if (played.current) { played.current = false; reset(); } return; }
+    if (stage.leaving || stage.vis < LEAVE_VIS) { stop(); return; }
+    if (stage.entered && stage.vis >= READY_VIS && !played.current) { played.current = true; play(); }
   });
   useEffect(() => () => { reset(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-export function ChopPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; animate: boolean }) {
+/** 切菜动作参数（秒 / 百分比）。抬刀约为格高的 11%（正常桌面大小约 30 屏幕像素） */
+const CHOP = { delay: 0.35, cuts: 3, raise: 0.22, pause: 0.06, drop: 0.09, recoil: 0.05, settle: 0.1, gap: 0.12, lift: { rot: -6, x: -4, y: -11 } };
+export function ChopPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const arm = useRef<HTMLImageElement>(null);
   const tl = useRef<gsap.core.Timeline | null>(null);
   /** 硬复位：卸载、回滚到进入前、关掉表演 */
-  const reset = () => { tl.current?.kill(); tl.current = null; if (arm.current) gsap.set(arm.current, { rotation: 0, yPercent: 0 }); flag(false); };
+  const reset = () => { tl.current?.kill(); tl.current = null; if (arm.current) gsap.set(arm.current, { rotation: 0, xPercent: 0, yPercent: 0 }); flag(false); };
   /** 格子开始离开：停掉后续刀数，刀若在半空就 0.15 秒缓落回原位（不发声），不瞬移 */
   const stop = () => {
     if (!tl.current) return;
     tl.current.kill();
     tl.current = null;
-    if (arm.current) gsap.to(arm.current, { rotation: 0, yPercent: 0, duration: 0.15, ease: "power1.out", overwrite: true });
+    if (arm.current) gsap.to(arm.current, { rotation: 0, xPercent: 0, yPercent: 0, duration: 0.15, ease: "power1.out", overwrite: true });
     flag(false);
   };
   const play = () => {
     const el = arm.current;
     reset();
     const contact = () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "chopHit" } }));
+    const C = CHOP;
+    const firstContact = C.delay + C.raise + C.pause + C.drop;
+    const every = C.raise + C.pause + C.drop + C.recoil + C.settle + C.gap;
     if (!animate || !el) {
-      // 静态格（减少动态效果 / ?perf=0）：画面不动，刀声按同样的节奏响三下（切菜循环已撤，否则这一段没有刀声）
-      const t = gsap.timeline({ delay: 0.3 + 0.295, onComplete: () => { tl.current = null; } });
-      t.call(contact).call(contact, [], "+=0.58").call(contact, [], "+=0.58");
+      // 静态格（减少动态效果 / ?perf=0）：画面不动，刀声按和动画完全相同的时刻响三下
+      const t = gsap.timeline({ delay: firstContact, onComplete: () => { tl.current = null; } });
+      t.call(contact).call(contact, [], `+=${every}`).call(contact, [], `+=${every}`);
       tl.current = t;
       return;
     }
     flag(true);
-    const t = gsap.timeline({ delay: 0.3, onComplete: () => { tl.current = null; flag(false); } });
-    for (let i = 0; i < 3; i++) {
-      t.to(el, { rotation: -9, yPercent: -3, duration: 0.17, ease: "power2.out" }) // 抬刀（绕袖口）
-        .to(el, { rotation: 0, yPercent: 0, duration: 0.075, ease: "power3.in" }, "+=0.05") // 停一下再落刀
-        .call(contact) // 刀刃接触食材：落刀声
-        .to(el, { rotation: 0.8, duration: 0.035, ease: "power1.out" }) // 接触的反作用
-        .to(el, { rotation: 0, duration: 0.09, ease: "power1.inOut" });
-      if (i < 2) t.to({}, { duration: 0.16 });
+    const t = gsap.timeline({ delay: C.delay, onComplete: () => { tl.current = null; flag(false); } });
+    for (let i = 0; i < C.cuts; i++) {
+      // 抬刀：以上提为主（刀尖从扶胡萝卜的指节前面抬起），只带一点倾角，正常大小下一眼能看出来
+      t.to(el, { rotation: C.lift.rot, xPercent: C.lift.x, yPercent: C.lift.y, duration: C.raise, ease: "power2.out" })
+        .to(el, { rotation: 0, xPercent: 0, yPercent: 0, duration: C.drop, ease: "power3.in" }, `+=${C.pause}`) // 停一下再落刀
+        .call(contact) // 刀刃落到砧板、切到胡萝卜的那一帧：落刀声
+        .to(el, { yPercent: 0.8, rotation: 0.6, duration: C.recoil, ease: "power1.out" }) // 接触的反作用
+        .to(el, { yPercent: 0, rotation: 0, duration: C.settle, ease: "power1.inOut" });
+      if (i < C.cuts - 1) t.to({}, { duration: C.gap });
     }
     tl.current = t;
   };
-  useCrossing(q, true, play, stop, reset); // 静态格也走同一套越过 / 复位逻辑（只放刀声）
+  useStage(q, stage, true, play, stop, reset); // 静态格也走同一套越过 / 复位逻辑（只放刀声）
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -115,7 +121,7 @@ export function ChopPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place
   );
 }
 
-export function HearPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; animate: boolean }) {
+export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const eyes = useRef<HTMLImageElement>(null);
   const puzz = useRef<HTMLImageElement>(null);
   const timers = useRef<number[]>([]);
@@ -137,7 +143,7 @@ export function HearPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place
   // 否则停在"抬眼"半途，回滚回来也一直是半截表情。已播完时什么都不做。
   const stop = () => { if (timers.current.length) { clear(); show(2); } };
   const reset = () => { clear(); show(0); };
-  useCrossing(q, animate, play, stop, reset);
+  useStage(q, stage, animate, play, stop, reset);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -162,7 +168,7 @@ const CORNS = [
   { src: "p2d-corn1", pile: 75.6, fall: 17.5 }, // 原位置顶边 59% / 底边 73.4%
   { src: "p2d-corn3", pile: 79.6, fall: 15 }, // 原位置顶边 65.7% / 底边 79.2%
 ] as const;
-export function StirfryPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; animate: boolean }) {
+export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const corns = useRef<(HTMLImageElement | null)[]>([]);
   const tl = useRef<gsap.core.Timeline | null>(null);
   const els = () => corns.current.filter(Boolean) as HTMLImageElement[];
@@ -189,7 +195,7 @@ export function StirfryPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Pl
     drop(1.25, -6); // 第二批：从铲边稍高处出现
     tl.current = t;
   };
-  useCrossing(q, animate, play, stop, reset);
+  useStage(q, stage, animate, play, stop, reset);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
     <div className="absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
@@ -207,12 +213,12 @@ export function StirfryPanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Pl
 }
 
 /**
- * 调酱汁格 p3a：手臂 + 勺子单独成层，画三个约 3px 的小圈（底图在手臂边缘向内补了手臂外的颜色，只会露出约 3px 的一条）；
+ * 调酱汁格 p3a：手臂 + 勺子单独成层；
  * 酱面高光细线单独成层，在椭圆里沿酱面转动（先拉成圆、转、再压回椭圆），裁在酱面遮罩里，不露边。
- * 搅三圈后酱面带着余势再转一点停住；停 4.5 秒后若还在这一格，再搅两圈（只重复一次）。碗、扶碗的手、瓶子不动。
+ * 手和勺子一起画两个约 10px 的圈（底图里手臂背后用周围非描边颜色平滑补过），酱面带着余势再转一点后停稳；不重复。碗、扶碗的手、瓶子不动。
  */
-const SAUCE = { cx: 290 / 511, cy: 300 / 448, k: 27 / 88, r: 3 / 511, ry: 1.2 / 448 };
-export function SaucePanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; animate: boolean }) {
+const SAUCE = { cx: 290 / 511, cy: 300 / 448, k: 27 / 88, r: 10 / 511, ry: 4 / 448 };
+export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const arm = useRef<HTMLImageElement>(null);
   const swirl = useRef<HTMLImageElement>(null);
   const tl = useRef<gsap.core.Timeline | null>(null);
@@ -236,16 +242,12 @@ export function SaucePanel({ p, pos, dy, q, animate }: { p: PanelSlot; pos: Plac
     const o = st.current;
     const turn = 2 * Math.PI;
     const t = gsap.timeline({ delay: 0.3, onUpdate: apply, onComplete: () => { tl.current = null; flag(false); } });
-    t.to(o, { a: 3 * turn, duration: 2.1, ease: "sine.inOut" }) // 搅三圈
-      .to(o, { rot: 100, duration: 2.1, ease: "sine.inOut" }, "<") // 酱面跟着转
-      .to(o, { rot: 118, duration: 0.7, ease: "power2.out" }) // 余势
-      .call(() => flag(false))
-      .to(o, { a: 5 * turn, duration: 1.4, ease: "sine.inOut", onStart: () => flag(true) }, "+=4.5") // 停一下，再搅两圈（只这一次）
-      .to(o, { rot: 190, duration: 1.4, ease: "sine.inOut" }, "<")
-      .to(o, { rot: 202, duration: 0.6, ease: "power2.out" });
+    t.to(o, { a: 2 * turn, duration: 1.9, ease: "sine.inOut" }) // 握勺的手和勺子一起在碗里搅两圈（勺头一直在碗里）
+      .to(o, { rot: 140, duration: 1.9, ease: "sine.inOut" }, "<") // 酱面跟着转
+      .to(o, { rot: 156, duration: 0.7, ease: "power2.out" }); // 余势，然后停稳
     tl.current = t;
   };
-  useCrossing(q, animate, play, stop, reset);
+  useStage(q, stage, animate, play, stop, reset);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   const origin = `${SAUCE.cx * 100}% ${SAUCE.cy * 100}%`;
   return (
