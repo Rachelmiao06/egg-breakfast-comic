@@ -318,8 +318,7 @@ export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: num
 /**
  * 对白分层样板：结尾回答格 p6e "没事，是我拉肚子了。"（只在 punchline 段出现）。
  * 不是打字机：原漫画、气泡轮廓和构图都不动，只把气泡里的旧字清掉（tools/replace_bubble_text.py --clean-only → p6e-clean.webp），
- * 对白换成网页文字，字体、粗细、墨色、字距、位置照原排字（Lantinghei SC Heavy，字高 29 px / 506 px 宽，墨色 rgb(48,19,9)）；
- * 浏览器拿不到 Lantinghei 时回退到苹方 / 冬青黑，用同色描边把笔画加粗到接近原字（不额外下载字体）。
+ * 对白换成透明字层 p6e-text.webp（同一套字形预先排好，不依赖浏览器字体；旧版用网页文字回退苹方加描边，和其它对白字形不一致）。
  * 播放（格子进入并稳定后，按真实时间）：
  *   1. 短暂停顿；
  *   2. 气泡以外的画面轻微降饱和、降对比（底图加 CSS filter）；气泡本身用精确的泡形遮罩（tools/dialogue_layers.py → p6e-bubble.webp，
@@ -330,17 +329,16 @@ export function SaucePanel(props: { p: PanelSlot; pos: Place; dy: number; q: num
  */
 const P3 = "/assets/comic-v3/";
 const P6E_TEXT = "没事，是我拉肚子了。";
-const INK = "48, 19, 9";
 const DIM = { saturate: 0.68, contrast: 0.9, brightness: 1.02 };
 export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
   const base = useRef<HTMLImageElement>(null);
-  const text = useRef<HTMLDivElement>(null);
+  const text = useRef<HTMLImageElement>(null);
   const tl = useRef<gsap.core.Timeline | null>(null);
   const look = useRef({ dim: 0, ink: 0, show: 0 });
   const apply = () => {
     const { dim, ink, show } = look.current;
     if (base.current) base.current.style.filter = `saturate(${1 - (1 - DIM.saturate) * dim}) contrast(${1 - (1 - DIM.contrast) * dim}) brightness(${1 + (DIM.brightness - 1) * dim})`;
-    if (text.current) { text.current.style.opacity = String(show); text.current.style.color = `rgba(${INK}, ${0.22 + 0.78 * ink})`; }
+    if (text.current) text.current.style.opacity = String(show * (0.22 + 0.78 * ink)); // 字是图层（tools/replace_bubble_text.py --text-layer），淡入就是透明度
   };
   const setLook = (v: { dim: number; ink: number; show: number }) => { look.current = { ...v }; apply(); };
   const reset = () => { tl.current?.kill(); tl.current = null; setLook({ dim: 0, ink: 0, show: 0 }); };
@@ -358,24 +356,16 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none";
   return (
-    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
+    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img ref={base} src={`${P3}p6e-clean.webp`} alt="" draggable={false} className={img} />
       {/* 泡本身：同一张图、不加滤镜，只露出泡形遮罩里的部分 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={`${P3}p6e-clean.webp`} alt="" draggable={false} className={img}
         style={{ maskImage: `url(${P3}p6e-bubble.webp)`, WebkitMaskImage: `url(${P3}p6e-bubble.webp)`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" }} />
-      <div ref={text} aria-label={P6E_TEXT}
-        className="pointer-events-none absolute select-none whitespace-nowrap"
-        style={{
-          left: "53.7%", top: "20.3%", transform: "translate(-50%, -50%)", opacity: 0, color: `rgba(${INK}, 0.22)`,
-          fontFamily: '"Lantinghei SC", "PingFang SC", "Hiragino Sans GB", "Heiti SC", "Noto Sans SC", sans-serif',
-          fontWeight: 800, fontSize: "6.05cqw", lineHeight: 1, letterSpacing: "-0.119cqw",
-          // Lantinghei SC Heavy 不是网页里一定有的字体（系统按需下载的字体浏览器拿不到），回退到苹方 / 冬青黑时用同色描边加粗到接近原来的笔画粗细
-          WebkitTextStroke: "0.05em currentColor", paintOrder: "stroke fill",
-        }}>
-        {P6E_TEXT}
-      </div>
+      {/* 新对白：和图里其它对白同一套字形（Lantinghei SC Heavy 排好的透明层），不依赖浏览器有没有这个字体 */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img ref={text} src={`${P3}p6e-text.webp`} alt={P6E_TEXT} draggable={false} className={`${img} pointer-events-none`} style={{ opacity: 0 }} />
     </div>
   );
 }
