@@ -42,6 +42,10 @@ export function usePerfEnabled() {
   );
 }
 
+/** 开发模式下把各格的时间线挂到 window.__perf，方便在浏览器里按时间点定位（隐藏窗格里 GSAP 不走帧时也能逐帧检查）；生产构建不挂 */
+declare global { interface Window { __perf?: Record<string, gsap.core.Timeline> } }
+const debugTl = (k: string, t: gsap.core.Timeline) => { if (process.env.NODE_ENV !== "production") (window.__perf ??= {})[k] = t; };
+
 function boxStyle(pos: Place, aspect: number, dy: number): CSSProperties {
   return { left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW };
 }
@@ -210,36 +214,58 @@ function LayersPanel({
 }
 
 /**
- * 切胡萝卜格 p2b：握刀的手（连袖口和刀）整体往下切，绕袖口与手腕交界轻微转动。
- * 最低姿态取自 A-chopping 第 3 帧相对第 1 帧的位姿（下移 18% 画布高、转 1°）；刀尖落进胡萝卜后面（胡萝卜、扶菜的手、对白泡、框线都是遮挡层）。
-
- * CHOP_STROKES 刀：小抬 → 快落 → 刀刃接触的那一刻派发 chopHit → 短停 → 抬回 → 停顿；三刀后停在抬刀姿态（和静态格一样）。
- * 静态格画面不动，三下刀声照常、时刻相同。
+ * 切胡萝卜格 p2b（2026-11-15 用新图重做，tools/prepare_p2b_layers.py，public/assets/comic-v5/p2b/）。
+ * 以前是整只手带刀垂直平移 18%（像一张贴图在抖）；现在是真的逐帧：握刀的手＋刀有三个姿态，胡萝卜有三个状态。
+ *   层（自下而上）：base0 / base1 / base2（整根 → 切掉一半 → 基本切完，扶菜的手随胡萝卜移动，丁越堆越多，不透明）
+ *   → knifeA（刀放平压下去）/ knifeB（中间）/ knifeC（刀跟抬起，刀尖仍在案板上）→ front（对白泡抠出的不透明层：抬刀时袖口在泡下面，泡不被手挡住）。
+ * 每一刀：B → C（抬）→ 停一小会 → B → A（压下去，刀刃接触的那一刻派发 chopHit）→ 短停。姿态是硬切（同一时刻换图，不交叉淡入，不会有两把刀）。
+ * 越切越快（停顿 0.22 → 0.12 s）；第 3 刀接触时胡萝卜切到一半（base1 快淡入 0.12 s），第 6 刀接触时基本切完（base2）。共 8 刀，约 4.5 s（用户要求切菜声持续更久，声音逐刀跟着动画）。
+ * 终态（播完、离场）：刀停在压下去的姿态，胡萝卜基本切完；复位回到整根。静态格（减少动态效果）＝整根 + 刀压下 + 泡，三下刀声照常、时刻相同。
  */
-/**
- * 2026-11-15 重做：以前整只手带刀垂直平移 18%（刀尖穿过胡萝卜，像整块贴图在抖）。
- * 真正的切法是刀尖几乎不离开案板，刀跟（连手）抬起再压下：所以支点放在刀尖（ChopPanel pivot），
- * 抬刀 = 绕刀尖顺时针转几度（手随之抬高），落刀 = 转回并略过零点（压进菜里），再带一点往前推的位移。
- * 每刀幅度、节奏略有不同，越切越顺（后面几刀更快更短），不再像节拍器。
- */
+const P2B = "/assets/comic-v5/p2b/";
 const CHOP_STROKES = 8;
-function chopScript(tl: gsap.core.Timeline, t: Targets, pan: number) {
-  let at = 0;
-  for (let i = 0; i < CHOP_STROKES; i++) {
-    const k = 1 - 0.35 * (i / (CHOP_STROKES - 1)); // 越切越快、越短
-    const lift = (i % 2 ? 7.5 : 9) * (0.8 + 0.2 * k);
-    tl.to(t.part, { rotation: lift, yPercent: -1.2, xPercent: -0.4, duration: 0.2 * k + 0.08, ease: "power2.out" }, at); // 抬刀跟：刀尖留在案板上
-    at += (i === 0 ? 0.26 : 0.2) * k + 0.08;
-    tl.to(t.part, { rotation: -1.6, yPercent: 0.9, xPercent: 0.7, duration: 0.11, ease: "power3.in" }, at); // 压下去，略微往前推
-    at += 0.11;
-    tl.call(() => oneshot("chopHit", pan), [], at); // 刀刃接触
-    at += 0.05;
-    tl.to(t.part, { rotation: 0, yPercent: 0, xPercent: 0, duration: 0.16, ease: "power2.out" }, at); // 回到静止
-    at += 0.16 + (i === CHOP_STROKES - 1 ? 0 : 0.08 * k);
-  }
-}
-export function ChopPanel(props: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
-  return <LayersPanel {...props} k="p2b" pivot={[56.4, 68.7]} delay={0.35} build={chopScript} runStatic />;
+const P2B_LAYERS = ["base0", "base1", "base2", "knifeA", "knifeB", "knifeC", "front"];
+const P2B_INIT: Record<string, number> = { base0: 1, base1: 0, base2: 0, knifeA: 1, knifeB: 0, knifeC: 0, front: 1 };
+const P2B_END: Record<string, number> = { base0: 1, base1: 1, base2: 1, knifeA: 1, knifeB: 0, knifeC: 0, front: 1 };
+export function ChopPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
+  const els = useRef<Record<string, HTMLImageElement | null>>({});
+  const tl = useRef<gsap.core.Timeline | null>(null);
+  const apply = (v: Record<string, number>) => Object.entries(v).forEach(([n, o]) => { const el = els.current[n]; if (el) gsap.set(el, { opacity: o }); });
+  const reset = () => { tl.current?.kill(); tl.current = null; apply(P2B_INIT); flag(false); };
+  const settle = () => { apply(P2B_END); flag(false); };
+  const stop = () => { if (!tl.current) return; tl.current.kill(); tl.current = null; settle(); };
+  const play = () => {
+    reset();
+    const pan = panFor(pos);
+    const t = gsap.timeline({ delay: 0.35, onComplete: () => { tl.current = null; if (animate) settle(); } });
+    const g = (n: string): gsap.TweenTarget => (animate && els.current[n]) || {}; // 静态格：空对象，画面不动，声音时刻不变
+    const pose = (k: "knifeA" | "knifeB" | "knifeC", at: number) => (["knifeA", "knifeB", "knifeC"] as const).forEach((n) => t.set(g(n), { opacity: n === k ? 1 : 0 }, at));
+    if (animate) flag(true);
+    let at = 0.1;
+    for (let i = 0; i < CHOP_STROKES; i++) {
+      const hold = 0.22 - 0.1 * (i / (CHOP_STROKES - 1));
+      pose("knifeB", at); at += 0.11;
+      pose("knifeC", at); at += hold; // 刀跟抬起，停一小会
+      pose("knifeB", at); at += 0.06;
+      pose("knifeA", at); // 压下去
+      t.call(() => oneshot("chopHit", pan), [], at); // 刀刃接触
+      if (i === 2) t.to(g("base1"), { opacity: 1, duration: 0.12, ease: "none" }, at);
+      if (i === 5) t.to(g("base2"), { opacity: 1, duration: 0.12, ease: "none" }, at);
+      at += 0.22;
+    }
+    tl.current = t;
+    debugTl("p2b", t);
+  };
+  useStage(q, stage, true, play, stop, reset);
+  if (!animate) return <StaticImg src={`${P2B}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
+  return (
+    <div className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+      {P2B_LAYERS.map((n) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P2B}${n}.webp`} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none pointer-events-none" style={{ opacity: P2B_INIT[n] }} />
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -327,6 +353,7 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
     t.call(() => oneshot("stirfryIn", pan), [], 0.45 + 0.34); // 第一颗菜落进锅里
     t.call(() => snd.start(pan), [], 2.3);
     tl.current = t;
+    debugTl("p2d", t);
   };
   useStage(q, stage, true, play, stop, reset);
   if (!animate) return <StaticImg src={`${P2D}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;

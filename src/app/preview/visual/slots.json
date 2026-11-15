@@ -74,13 +74,13 @@
   {
    "key": "p2b",
    "beat": "chop",
-   "src": "/assets/comic-v4/frames/p2b-f1.webp",
+   "src": "/assets/comic-v5/p2b/static.webp",
    "source": "new pics/A-chopping frame-01（静态格 / 减少动态效果用原图；动画用分层 comic-v4/layers/p2b-base、part、front，tools/split_layers.py）",
    "dialogueInImage": true,
    "x": 24,
    "y": 41,
    "w": 31,
-   "aspect": 1.5457,
+   "aspect": 1.5453,
    "from": "left",
    "order": 1,
    "role": "hero"
