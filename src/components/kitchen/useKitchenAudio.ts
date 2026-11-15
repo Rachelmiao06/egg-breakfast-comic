@@ -110,10 +110,10 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number; 
   // 不在 audio-map available 里、不加载；等这些格有了放菜 / 舀菜的动作帧，再加进 available 和 cues.panel
   bagRustle: { file: "bag-rustle.mp3", volume: 0.3 }, // p1a 俯身拿购物袋：纸袋窸窣
   bagDown: { file: "bag-down.mp3", volume: 0.45, skip: 0.2 }, // p1b 购物袋放到台面上：从 0.2 s 开始，落台面在约 0.1 s
-  vegTable: { file: "veg-table.mp3", volume: 0.45, skip: 0.05 }, // p1d 把菜摆到桌上：三下轻的木头碰触
+  vegTable: { file: "veg-table.mp3", volume: 0.8, skip: 0.05 }, // p1d 把菜摆到桌上：三下轻的木头碰触
   vegBoard: { file: "veg-board.mp3", volume: 0.45, skip: 0.15 }, // p2a 把菜放到案板上：两下放下 + 轻滑
   boardScrape: { file: "board-scrape.mp3", volume: 0.35 }, // p2c 切好的菜：刀面在案板上推两下
-  vegBowl: { file: "veg-bowl.mp3", volume: 0.4 }, // 调汁段 p3b 把菜舀进饭碗：三小下菜粒落在饭上
+  vegBowl: { file: "veg-bowl.mp3", volume: 0.8 }, // 调汁段 p3b 把菜舀进饭碗：三小下菜粒落在饭上
   // 翻炒：木铲在钢锅里推菜、轻刮锅，3.2 s 一段（kitchen:action stirfry）
   stirfryStir: { file: "stirfry-stir.mp3", volume: 0.3 },
   // 调汁：木勺在碗里轻搅、碰碗，2.6 s 一段；前景两圈约 1.25 s，转完时的停止事件把它淡出（kitchen:action sauceStir）
