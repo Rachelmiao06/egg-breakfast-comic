@@ -1,5 +1,7 @@
 """从原画 source/kitchen-main.png 抽出火苗和锅里的油（与 kitchen-clean 逐像素对齐，可直接叠加）。
-输出 public/assets/scene/flame.png、oil.png（1536×1024 透明），以及 tools/fx_check.png 检查图。
+输出 public/assets/scene/flame.webp、oil.webp：裁到不透明包围盒外扩 4px 的无损 webp（整张 1536×1024 透明画布
+里只有 2–3% 是火苗/油，整张 PNG 要 3 MB，裁完不到 50 KB），以及 tools/fx_check.png 检查图。
+每张图的场景坐标会打印出来，需要同步到 src/lib/scene.ts 的 ANCHORS.flameSprite / oilSprite。
 """
 import cv2
 import numpy as np
@@ -11,9 +13,14 @@ clean = np.array(Image.open("source/kitchen-clean.png").convert("RGB"))
 hsv = cv2.cvtColor(orig, cv2.COLOR_RGB2HSV)  # H 0-179
 h, s, v = hsv[:, :, 0].astype(int), hsv[:, :, 1].astype(int), hsv[:, :, 2].astype(int)
 
+PAD = 4
+
 def save(name, rgb, alpha):
-    rgba = np.dstack([rgb, alpha.astype(np.uint8)])
-    Image.fromarray(rgba, "RGBA").save(f"public/assets/scene/{name}.png", optimize=True)
+    rgba = Image.fromarray(np.dstack([rgb, alpha.astype(np.uint8)]), "RGBA")
+    x0, y0, x1, y1 = rgba.getchannel("A").getbbox()
+    box = (max(0, x0 - PAD), max(0, y0 - PAD), min(W, x1 + PAD), min(H, y1 + PAD))
+    rgba.crop(box).save(f"public/assets/scene/{name}.webp", "WEBP", lossless=True, quality=100, method=6)
+    print(f"{name}Sprite: [{box[0]}, {box[1]}, {box[2]}, {box[3]}]  ({box[2]-box[0]}×{box[3]-box[1]})")
 
 # ---- 火苗：燃烧器区域里的高饱和橙黄色 + 蓝色 ----
 fx0, fy0, fx1, fy1 = 580, 715, 880, 805

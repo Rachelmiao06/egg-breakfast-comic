@@ -1,8 +1,8 @@
 "use client";
-/** 锅里的油：原画抽出的 oil.png，轻微的明暗呼吸，像热油在微微晃。 */
+/** 锅里的油：原画抽出的 oil.webp（已裁到包围盒，按 ANCHORS.oilSprite 摆回原位），轻微的明暗呼吸，像热油在微微晃。 */
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { SCENE_H, SCENE_W, Z } from "@/lib/scene";
+import { ANCHORS, boxStyle, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import FollowMid from "./FollowMid";
 
@@ -26,11 +26,11 @@ export default function PanOil() {
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img
       ref={ref}
-      src="/assets/scene/oil.png"
+      src="/assets/scene/oil.webp"
       alt=""
       draggable={false}
-      className="pointer-events-none absolute inset-0 select-none"
-      style={{ width: SCENE_W, height: SCENE_H }}
+      className="pointer-events-none select-none"
+      style={boxStyle(ANCHORS.oilSprite)}
     />
     </FollowMid>
   );

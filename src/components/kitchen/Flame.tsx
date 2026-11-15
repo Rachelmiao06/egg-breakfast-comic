@@ -1,13 +1,15 @@
 "use client";
-/** 锅底火苗：原画抽出的 flame.png，两份叠加做轻微纵向伸缩和亮度闪烁。原点在火苗底部。 */
+/** 锅底火苗：原画抽出的 flame.webp（已裁到包围盒，按 ANCHORS.flameSprite 摆回原位），两份叠加做轻微纵向伸缩和亮度闪烁。原点在火苗底部。 */
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { ANCHORS, SCENE_H, SCENE_W, Z } from "@/lib/scene";
+import { ANCHORS, boxStyle, Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import FollowMid from "./FollowMid";
 
 const [fx0, , fx1, fy1] = ANCHORS.flameBox;
-const ORIGIN = `${(fx0 + fx1) / 2}px ${fy1 + 6}px`;
+const [sx0, sy0] = ANCHORS.flameSprite;
+// 变换原点仍是场景坐标里的火苗底部，换算成相对裁切图左上角
+const ORIGIN = `${(fx0 + fx1) / 2 - sx0}px ${fy1 + 6 - sy0}px`;
 
 export default function Flame() {
   const a = useRef<HTMLImageElement>(null);
@@ -38,18 +40,18 @@ export default function Flame() {
     return () => ctx.revert();
   }, [reducedMotion]);
 
-  const style = { width: SCENE_W, height: SCENE_H } as const;
+  const style = boxStyle(ANCHORS.flameSprite);
   return (
     <FollowMid zIndex={Z.fx}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={a} src="/assets/scene/flame.png" alt="" draggable={false} className="pointer-events-none absolute inset-0 select-none" style={style} />
+      <img ref={a} src="/assets/scene/flame.webp" alt="" draggable={false} className="pointer-events-none select-none" style={style} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={b}
-        src="/assets/scene/flame.png"
+        src="/assets/scene/flame.webp"
         alt=""
         draggable={false}
-        className="pointer-events-none absolute inset-0 select-none"
+        className="pointer-events-none select-none"
         style={{ ...style, filter: "brightness(1.12) saturate(1.05)" }}
       />
     </FollowMid>
