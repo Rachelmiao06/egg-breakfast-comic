@@ -190,12 +190,13 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
   const L = portrait ? LS.lightPortrait : LS.light;
   const lx = L.from[0] + (L.to[0] - L.from[0]) * lp, ly = L.from[1] + (L.to[1] - L.from[1]) * lp;
   const lpct = (b: number[]) => ({ left: `${(b[0] / liw) * 100}%`, top: `${(b[1] / lih) * 100}%`, width: `${(b[2] / liw) * 100}%`, height: `${(b[3] / lih) * 100}%` });
-  // 纵深（reading.planes，横版拆层时）：远景平面（墙、层板、菜篮、小角色、窗）比主体层少动，近景平面（台面前半）和蛋一起动；
+  // 纵深（reading.planes，横版拆层时）：远景平面（墙、层板、菜篮、小角色、窗）比主体层少动（只在横向：切缝在横木纹上，竖向错位会在羽化带里叠影），
+  // 近景平面（台面前半）和蛋一起动；
   // 画格在场时远景软化（预烘的软化版叠化进来，小角色和窗玻璃加一点模糊）。竖版没有拆层，保持单张。
   const PL = !portrait && actors.length ? R.planes : null;
   const farSoft = PL && !reducedMotion ? panelPresence(t, beats) : 0;
   const farShift = PL
-    ? `calc(var(--kl-mouse-x, 0) * ${PL.far.mouse}px + var(--kl-depth-x, 0px) * ${PL.far.depth}) calc(var(--kl-mouse-y, 0) * ${(PL.far.mouse * 0.6).toFixed(2)}px + var(--kl-depth-y, 0px) * ${PL.far.depth} + var(--kl-drift, 0) * ${PL.far.drift}px)`
+    ? `calc(var(--kl-mouse-x, 0) * ${PL.far.mouse}px + var(--kl-depth-x, 0px) * ${PL.far.depth}) calc(var(--kl-mouse-y, 0) * ${PL.far.mouseY}px)`
     : undefined;
   const blur = (px: number): CSSProperties | undefined => (PL && farSoft > 0.01 ? { filter: `blur(${(px * farSoft).toFixed(2)}px)` } : undefined);
   const actorEls = actors.map((a) => {

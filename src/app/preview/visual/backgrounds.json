@@ -111,7 +111,7 @@
   "status": "已替换。横版缩放 1.05（场景像素 / 图片像素），竖版 0.9；box 由 counter 对齐和可见范围算出",
   "srcBase": "/assets/bg/kitchen-friends-base.webp",
   "planes": {
-   "note": "纵深：横版底图拆成远、近两个平面（tools/prepare_planes.py）。远景平面 = 墙、瓷砖、窗、层板、菜篮、小角色（站在台面后沿的东西都在这里），相对主体层多一点位移：鼠标偏移 × mouse 像素、镜头景深位移 × depth、阅读漂移 × drift 像素（KitchenLayers 发布的 --kl-mouse-* / --kl-depth-* / --kl-drift；系数对应厨房分层 far 组：amp 1.5 → 5−1.5，f 0.92 → 1−0.92，drift 1 → 6−1）。近景平面 = 台面前半，蛋站在这里，和主体层一起动。切缝在台面中段的木纹上，near 的上沿羽化接到 far 的台面。soft 是远景的预烘软化版（模糊、低饱和、略亮），画格在场时叠化进来（Backdrops panelPresence），小角色和窗玻璃同时加 friendsBlur / windowBlur 像素的模糊；windowMouse 是窗玻璃在远景平面之上再多的横向鼠标视差（像素）。图片像素。",
+   "note": "纵深：横版底图拆成远、近两个平面（tools/prepare_planes.py）。远景平面 = 墙、瓷砖、窗、层板、菜篮、小角色（站在台面后沿的东西都在这里），相对主体层多一点位移，只在横向：鼠标偏移 × mouse 像素、镜头景深位移 × depth（KitchenLayers 发布的 --kl-mouse-* / --kl-depth-*；对应厨房分层 far 组 amp 1.5 → 5−1.5、f 0.92 → 1−0.92）；竖向只有 mouseY 像素的鼠标量。竖向不做景深和漂移：切缝在横木纹上，两份木纹上下错开十几像素会在羽化带里出现叠影（2026-11-15 listen 段穿帮），左右错开看不出来。近景平面 = 台面前半，蛋站在这里，和主体层一起动。切缝在台面中段的木纹上，near 的上沿羽化接到 far 的台面。soft 是远景的预烘软化版（模糊、低饱和、略亮），画格在场时叠化进来（Backdrops panelPresence），小角色和窗玻璃同时加 friendsBlur / windowBlur 像素的模糊；windowMouse 是窗玻璃在远景平面之上再多的横向鼠标视差（像素）。图片像素。",
    "far": {
     "src": "/assets/bg/kitchen-friends-far.webp",
     "img": [
@@ -121,8 +121,8 @@
      826
     ],
     "mouse": 3.5,
-    "depth": 0.08,
-    "drift": 5
+    "mouseY": 0.9,
+    "depth": 0.08
    },
    "near": {
     "src": "/assets/bg/kitchen-friends-near.webp",
