@@ -109,6 +109,11 @@ build() {
     stirfry-loop)     # 炒菜段持续的翻炒声（2026-11-15 用户要求更长更明显）：同一原档 stirfry-stir，取 [15.5, 27.5]（木铲在钢锅里推、轻刮，避开 5 / 11.75 / 14.75 s 的重敲）
                       # → 12 s 循环，旋转 0.8 s、交叉淡化 0.4 s
       loop_seam "$RAW/stirfry-stir.mp3" "$wav" 15.5 27.5 0.8 0.4; finalize "$wav" "$out" 10 192k loop ;;
+    jazz-brunch)      # 咖啡店爵士背景乐（Kevin MacLeod "Jazz Brunch"，CC BY 3.0，incompetech.com，原档 5:23、-17.8 LUFS）：
+                      # 取 [20, 140] 共 120 s（避开开头），旋转 0.8 s、交叉淡化 3 s 做成无缝循环 → 117 s；目标 -20 LUFS（和其它配乐 stem 一致），96 kbps。
+                      # 原始下载在 tools/music_raw/jazz-brunch/，署名见 SoundToggle 的"音效致谢"
+      out="$OUT/music/jazz-brunch.mp3"
+      loop_seam "$ROOT/tools/music_raw/jazz-brunch/Jazz Brunch.mp3" "$wav" 20 140 0.8 3.0; finalize "$wav" "$out" 6 96k loop ;;
     sauce-stir-loop)  # 原档 18.81 s，前 0.8 s 静音；取 [0.80, 18.70]（两端都在勺声间隙里）→ 17.7 s 循环
       loop_seam "$raw" "$wav" 0.80 18.70 0.6 0.2;    finalize "$wav" "$out" 10 192k loop ;;
     stirfry-in-water) # 旧版下锅声（水滴进热锅的一声爆发，没有食材落锅）：原档 7.9 s，起音 0.88 s；取 [0.86, 2.66]，尾部 0.7 s 淡出 → 1.8 s。

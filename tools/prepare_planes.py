@@ -48,6 +48,8 @@ FAR_SEEDS: list[tuple[int, int]] = []
 # 强制归墙的区域（x0, y0, x1, y1）：葱叶子角色层下面那块模糊补的瓷砖，照旧留在远景层里（角色层盖住它）；补墙时也不拿它当来源
 FAR_BOXES = [(1325, 373, 1440, 522)]
 NO_SOURCE = [(1325, 373, 1470, 522), (190, 250, 360, 420)]  # 后一块是糖罐角色层下面补的那片木色，不能当墙面来源
+SPLIT_X = 1385  # 葱身子和菜篮的分界（图片 x）
+SCALLION_Y = 470  # 葱身子的最高一行（图片 y，叶子角色层在它上面）
 SMALL = 1500  # 小于这个面积的色块看邻居
 RING = 4  # 看邻居时向外看的像素
 AVOID = 20  # 补墙的来源离物件至少这么远
@@ -102,6 +104,71 @@ def fill_rows(img: np.ndarray, hole: np.ndarray, usable: np.ndarray, feather: in
                     w = np.linspace(1, 0, n + 2)[1:-1, None]
                     out[y, b - n : b] = img[y, b] * (1 - w) + seg[need - n :] * w
     return out
+
+
+# 蛋是金棕色细线描边，胡萝卜和葱原来是深棕黑的粗墨线，不是一个画风（2026-11-15 用户：蛋的边不动；蔬菜的描边要和各自本来的颜色相近、粗细和蛋差不多）。
+# 做法：大块的墨线（轮廓，面积 ≥ min_area；眼睛、嘴是小块，保持深色）加粗 1 像素，每个轮廓像素取最近的“非墨线”像素的颜色，
+# 压暗、略加饱和；线收细（INK_CORE）——绿叶的轮廓是深绿，白的葱身是暖棕，橙色胡萝卜是深橙。区域是图片像素 (x0, y0, x1, y1)。
+INK_BOXES = [
+    (1445, 320, 1565, 505),  # 胡萝卜（叶子 + 身子 + 手）
+    (1296, 519, 1400, 710),  # 葱身子
+]
+LEAVES_SRC = ROOT / "source/bg-v3/friends-scallion-leaves.orig.png"  # 葱叶角色层原图（tools/prepare_friends.py 的输出备份）
+LEAVES_PNG = ROOT / "public/assets/bg/friends-scallion-leaves.png"
+INK_DARKEN, INK_SAT = 0.45, 1.5
+INK_CORE = 80  # 线芯亮度阈值（原墨线 ≤ INK=105；取最暗的部分，越小越细）
+
+
+def tinted_ink(rgb: np.ndarray, alpha: np.ndarray | None = None, min_area: int = 800) -> np.ndarray:
+    """返回墨线换成“本色深色”后的 rgb（只改大块墨线）。alpha 给了就只看 alpha > 128 的像素（透明背景的角色图）。"""
+    lum = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    hue = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)[..., 0] * 2
+    greenish = (hue >= 60) & (hue <= 170)
+    ink = (lum <= INK) & ~greenish
+    if alpha is not None:
+        ink &= alpha > 128
+    lab, n = ndimage.label(ink)
+    sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+    keep = np.isin(lab, [i + 1 for i, a in enumerate(sizes) if a >= min_area])
+    # 区域 R = 墨线外扩 1 像素；线芯 core = 墨线内缩 1 像素（比原线细 2 像素，和蛋利落的细描边接近）。
+    # R 里先整体补回旁边的底色（抹掉原来的黑线），再在 core 上画本色的深色线
+    region = ndimage.binary_dilation(keep, iterations=1)
+    # 线芯：墨线里最暗的部分（比整体内缩更连续，不会断成点线），闭运算补小断口，去掉零星小点
+    core = ndimage.binary_dilation(keep, iterations=1) & (lum <= INK_CORE)
+    core = ndimage.binary_closing(core, iterations=1)
+    cl, cn = ndimage.label(core)
+    csz = ndimage.sum(np.ones_like(cl), cl, range(1, cn + 1))
+    core = np.isin(cl, [i + 1 for i, a in enumerate(csz) if a >= 12])
+    if alpha is not None:
+        region &= alpha > 0
+        core &= alpha > 0
+    iy, ix = ndimage.distance_transform_edt(region, return_distances=False, return_indices=True)
+    # 补底色和线色都不模糊（模糊会在线旁边抹出一圈脏边）：补色取最近的非墨线像素原值，线色取该点补色的深色
+    fill = rgb[iy, ix].astype(np.float32)
+    hsv = cv2.cvtColor(fill.astype(np.uint8), cv2.COLOR_RGB2HSV).astype(np.float32)
+    hsv[..., 1] = np.clip(hsv[..., 1] * INK_SAT + 25, 0, 255)
+    hsv[..., 2] = hsv[..., 2] * INK_DARKEN
+    tint = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+    wr = region.astype(np.float32)[..., None]  # 硬边：补底色只落在原墨线（外扩 1 像素）里
+    wc = cv2.GaussianBlur(core.astype(np.float32), (3, 3), 0.6)[..., None]  # 线只抗锯齿半个像素，保持实、利落
+    painted = fill * (1 - wc) + tint * wc
+    return np.clip(rgb.astype(np.float32) * (1 - wr) + painted * wr, 0, 255).astype(np.uint8)
+
+
+def soften_ink(rgb: np.ndarray) -> np.ndarray:
+    out = rgb.copy()
+    for x0, y0, x1, y1 in INK_BOXES:
+        out[y0:y1, x0:x1] = tinted_ink(rgb[y0:y1, x0:x1])
+    return out
+
+
+def tint_leaves() -> None:
+    a = np.asarray(Image.open(LEAVES_SRC).convert("RGBA"))
+    out = tinted_ink(a[..., :3], a[..., 3])
+    alpha = a[..., 3].copy()
+    alpha[-5:, :] = 0  # 原图下边 / 右边几行是补瓷砖的半透明模糊边，叠在篮沿上就是一条淡线
+    alpha[:, -4:] = 0
+    Image.fromarray(np.dstack([out, alpha])).save(LEAVES_PNG, optimize=True)
 
 
 def classify(rgb: np.ndarray) -> tuple[np.ndarray, dict]:
@@ -212,7 +279,30 @@ def main() -> None:
     W, H = im.size
     rgb = np.asarray(im)
     objects, stats = classify(rgb)
-    near = objects.copy()
+    # 道具拆成独立图片（props-*.png，RGBA，裁到包围盒）：蛋要站上去、躲到后面，层序要能单独调。
+    # 近景层只剩台面（后沿以下），道具不再在里面，页面上按同样位置另画（Backdrops planes.props）。
+    # 切割线：左区域 x < 420 = 层板架（连罐子、盆栽、油瓶）；右区域 x ≥ SPLIT_X 且在葱身子之外 = 菜篮（连菜、格纹布）；
+    # 右区域 x < SPLIT_X、y > SCALLION_Y 的是葱角色的身子（叶子是另一个角色层）。
+    # 每个像素只属于一张切片（按位置硬分），透明度都来自整体羽化后的同一张 alpha，所以切片之间没有接缝
+    # （各自羽化再叠会在分界线上露出底下的墙，是一条亮线）
+    rgb = soften_ink(rgb)
+    tint_leaves()
+    yy, xx = np.mgrid[0:H, 0:W]
+    full = cv2.GaussianBlur(objects.astype(np.float32), (3, 3), 0)
+    part = full > 0
+    left = part & (xx < ZONES[0][2])
+    right = part & (xx >= ZONES[1][0])
+    scallion = right & (xx < SPLIT_X) & (yy > SCALLION_Y)
+    props = {"shelf": left, "scallion": scallion, "basket": right & ~scallion}
+    prop_boxes = {}
+    for name, m in props.items():
+        a = full * m
+        ys, xs = np.where(a > 0)
+        x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+        rgba = np.dstack([rgb, np.round(a * 255).astype(np.uint8)])[y0:y1, x0:x1]
+        Image.fromarray(rgba).save(OUT / f"props-{name}.png", optimize=True)
+        prop_boxes[name] = [int(x0), int(y0), int(x1 - x0), int(y1 - y0)]
+    near = np.zeros_like(objects)
     near[BACK:, :] = True
 
     # 近景层：台面 + 物件，边缘 3×3 羽化；裁到最高一行
@@ -252,6 +342,7 @@ def main() -> None:
     for name in ("kitchen-friends-near", "kitchen-friends-far", "kitchen-friends-far-soft"):
         print(f"{name}.webp  {(OUT / f'{name}.webp').stat().st_size // 1024} KB")
     print(f"components: {stats}")
+    print(f"props.img = {prop_boxes}")
     print(f"near.img = [0, {top}, {W}, {H - top}]   far.img = [0, 0, {W}, {BACK + EXT}]")
 
 

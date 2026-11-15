@@ -146,6 +146,40 @@ function Panel({ p, k, opacity, exitShift, seamProgress, place }: { p: PanelSpec
   );
 }
 
+/**
+ * 蛋坐在漫画格上沿（egg-sit.webp = pose-set-v2 04-sitting/variant-02，tools/prepare_poses.py 抠图；
+ * 用户 2026-11-15：从格子后面探头太不明显，改成坐在格子上）。画格有 overflow: hidden，所以蛋是格子旁边的独立元素
+ * （DOM 里排在格子后面 = 画在格子前面，腿垂在格子画面上），位置按格子的 pos / dy 算（vw / vh）：
+ * 蛋身底边（图高 SEAT 处）对齐格子上沿。格子可见过半后蛋从上方落下来坐稳（带一点过冲），离场前淡出。
+ * 蛋在格子上的投影用 drop-shadow（落在格子画面上）。
+ */
+const PERCH_PANEL = "p1b"; // bag 段右侧小格：上方没有别的格子，蛋有地方；也就是“袋子”那格
+const SIT = { cx: 0.6, width: 0.46, aspect: 0.9383, seat: 0.8423, sink: 0.02 };
+function PerchEgg({ pos, dy, show }: { pos: Place; dy: number; show: boolean }) {
+  const seat = SIT.seat * 100 - SIT.sink * 100; // 蛋身底边略沉进格子的纸边
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/assets/scene/egg-sit.webp"
+      alt=""
+      draggable={false}
+      className="pointer-events-none absolute select-none"
+      style={{
+        left: `${pos.x + pos.w * (SIT.cx - SIT.width / 2)}vw`,
+        top: `${pos.y + dy}vh`,
+        width: `${pos.w * SIT.width}vw`,
+        aspectRatio: `${SIT.aspect}`,
+        // 没出现：在上方 35% 处、透明；出现：坐稳
+        transform: `translateY(${show ? -seat : -seat - 35}%)`,
+        opacity: show ? 1 : 0,
+        filter: "drop-shadow(0 0.25vw 0.3vw rgba(60,35,15,0.4)) drop-shadow(0 0.05vw 0.08vw rgba(60,35,15,0.35))",
+        transition: show ? "transform 0.7s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.3s ease-out" : "transform 0.25s ease-in, opacity 0.2s ease-in",
+        zIndex: 1,
+      }}
+    />
+  );
+}
+
 /** 竖屏手机：本段各格按顺序纵向堆叠（保持原比例）；reserveBottom 给桌沿上的蛋留出底部空间 */
 function stackPlaces(list: PanelSpec[], vw: number, vh: number, reserveBottom = 0): Record<string, Place> {
   const sorted = [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -356,7 +390,14 @@ function FlowLayer() {
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : <FlowPanel p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
-        return <Fragment key={p.key}>{wrap ? <div style={wrap}>{panel}</div> : panel}<PanelSignal k={p.key} q={q} stage={stage} /></Fragment>;
+        const perch = p.key === PERCH_PANEL && !vp.portrait;
+        return (
+          <Fragment key={p.key}>
+            {wrap ? <div style={wrap}>{panel}</div> : panel}
+            {perch && <PerchEgg pos={pos} dy={dy} show={stage.vis > 0.55 && !stage.leaving} />}
+            <PanelSignal k={p.key} q={q} stage={stage} />
+          </Fragment>
+        );
       })}
       {perf && <FrameReact />}
     </div>

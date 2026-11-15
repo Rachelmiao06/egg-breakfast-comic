@@ -15,7 +15,7 @@
 import { BG } from "./motion.v2";
 import { landPoint, PANELS, type SlotConfig } from "./slots";
 
-type Pt = { x: number; y: number };
+type Pt = { x: number; y: number; d?: number };
 const EGG = 388;
 const BASE_BOX_W = 900; // slots.json 里接蛋格的设计宽度（横版不缩放）
 
@@ -130,13 +130,27 @@ const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, 
 export function wanderPointsFor(cfg: SlotConfig, view: View & { s?: number }): Pt[] {
   const Wd = BG.anchors.wander;
   const w = EGG * eggAtTableFor(cfg);
-  const y = cfg.narrow ? BG.anchors.portraitTableWait.y : BG.anchors.tableWait.y;
+  // 纵深：台面后沿（backY）到前沿（frontY）之间，每个站点给一个深度 depth ∈ [0,1]（0 = 桌沿、1 = 台面后沿），
+  // y 在桌沿高度和台面后沿之间插值，蛋随之缩小（depthScale），之字形走：不再总贴着桌沿
+  const front = cfg.narrow ? BG.anchors.portraitTableWait.y : BG.anchors.tableWait.y;
+  const R0 = BG.reading;
+  const portrait = (view.x1 - view.x0) / (view.y1 - view.y0) < R0.portraitBelow;
+  const back = (portrait ? R0.counterPortrait.backY : R0.counter.backY) + Wd.backInset;
   // 右下角留给声音按钮（屏幕像素 → 场景像素）：右侧的点不压到按钮
   const reserve = view.s ? Wd.rightReservePx / view.s : 0;
   const lo = Math.max(view.x0 + Wd.margin + w / 2, Wd.minX), hi = Math.min(view.x1 - Wd.margin - reserve - w / 2, Wd.maxX);
   const L = clampN(Wd.x[0], lo, hi), R = clampN(Wd.x[2], lo, hi);
   const M = clampN(Wd.x[1], L + (R - L) * 0.3, R - (R - L) * 0.3);
-  return [L, M, R].map((x) => ({ x: Math.round(x), y }));
+  const pts: Pt[] = [L, M, R].map((x, i) => {
+    const depth = Wd.depth[i];
+    return { x: Math.round(x), y: Math.round(front + (back - front) * depth), d: +(1 - (1 - Wd.backScale) * depth).toFixed(3) };
+  });
+  // 第三站：能放进镜头就换成菜篮边沿上的支点（横版拆层才有道具切片），否则留在台面上
+  const Pc = Wd.perch;
+  // 边沿在半空，不挡右下角声音按钮，所以不留 reserve；蛋心离镜头右缘留 10 + 0.35 个蛋宽就行（半个蛋探出一点也是站在边沿上）
+  const perchHi = view.x1 - 10 - w * 0.35;
+  if (!portrait && perchHi >= Pc.minX) pts[2] = { x: Math.round(Math.min(Pc.x, perchHi, Pc.maxX)), y: Pc.y, d: Pc.d };
+  return pts;
 }
 /** 每段的桌面站点（段 id → 脚底点），给 Egg 的 tableAt */
 export function wanderTableFor(cfg: SlotConfig, view: View & { s?: number }): Record<string, Pt> {
@@ -158,11 +172,12 @@ export function airPointFor(cfg: SlotConfig, catchView: View): Pt {
  *   M 视线相遇点：hear 格（p3d，左下）右上方、她抬眼的视线方向上；格子位置按 ComicLayer 的排版算出（单格：横屏按 fitPlaces，
  *     竖屏用 portraitPlace），再用 hear 停留时的镜头换成场景坐标。蛋心在格子右缘外 0.62 个蛋宽、格子上沿再往上 10% 格高之上，
  *     整颗在画面内（margin），不压格子和对白。
- *   E 出画点：M 正上方、画布上沿之外（整颗蛋在任何取景之外）。
- *   R 重新入画点：catch 取景上缘之外半个多蛋高、铲面右上方（在接蛋取景横向范围内），从这里落下不经过对白泡。
+ *   M → Ap（E = R = Ap）：继续向上弹到最高点（减速上升），Ap 在 listen 镜头（往上抬）画面内：妈妈“嗯？”时蛋弹得很高，镜头跟着抬上去；
+ *   listen 停留：蛋在最高点悬住，轻微浮动；catch：镜头往左下走，蛋从最高点自由落体落到铲面（加速下落，横向缓入）。
+ *   三段分别对应镜头的三个状态（桌面 → 抬高 → 接蛋），蛋的轨迹由“蛋在场景里的位置 + 镜头的位移”叠出一条线。
  *   C 铲面接触点 = landPoint。
  */
-export type Traj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number };
+export type Traj = { L: Pt; M: Pt; E: Pt; R: Pt; C: Pt; sM: number; sE: number; sR: number; scaleL: number; scaleC: number; tiltC: number; camSM: number; camSC: number };
 type Cam = { s: number; tx: number; ty: number }; // 场景 → 屏幕：X = x * s + tx
 
 /** hear 格在屏幕上的位置（像素），与 ComicLayer 对单格的排版一致 */
@@ -183,8 +198,8 @@ export function hearPanelRect(vw: number, vh: number, portrait: boolean) {
   return { x0, y0, x1: x0 + wp, y1: y0 + wp / p.aspect };
 }
 
-export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portrait: boolean }, hear: Cam, catchV: View, L: Pt): Traj {
-  const scaleL = eggAtTableFor(cfg);
+export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portrait: boolean }, hear: Cam, catchV: View, L: Pt, listenV: View): Traj {
+  const scaleL = eggAtTableFor(cfg) * (L.d ?? 1);
   const h = EGG * scaleL; // 蛋高（场景像素），布局框近似正方形
   const eggS = h * hear.s; // hear 镜头下蛋在屏幕上的大小
   const margin = 14;
@@ -198,9 +213,12 @@ export function trajectoryFor(cfg: SlotConfig, vp: { w: number; h: number; portr
   cy = Math.max(cy, margin + eggS / 2);
   const M = { x: Math.round((cx - hear.tx) / hear.s), y: Math.round((cy - hear.ty) / hear.s + h / 2) };
   const land = landPoint(cfg.scene.catch);
-  const Wd = BG.anchors.wander;
-  const rx = Math.max(land.x, Math.min(land.x + Wd.airDxEggW * h, catchV.x1 - 0.6 * h));
-  const R = { x: Math.round(rx), y: Math.round(catchV.y0 - 0.55 * h) };
-  const E = { x: M.x, y: Math.round(-h - Wd.airAbove) };
-  return { L, M, E, R, C: land, sM: 0.3, sE: 0.5, sR: 0.7, scaleL, scaleC: cfg.egg.onSpatulaScale, tiltC: cfg.egg.onSpatulaTilt ?? 0 };
+  // 最高点 Ap：listen 镜头（往上抬）画面上部、M 和铲面之间偏 M 一侧：蛋弹到这里悬住（整颗在画面内），catch 时镜头往左下走、蛋从这里落到铲面
+  const lw = listenV.x1 - listenV.x0, lh = listenV.y1 - listenV.y0;
+  const ax = Math.min(Math.max(L.x + (land.x - L.x) * 0.55, listenV.x0 + 0.12 * lw), listenV.x1 - 0.12 * lw);
+  const Ap = { x: Math.round(ax), y: Math.round(listenV.y0 + BG.anchors.jump.apexFrac * lh) };
+  const R = Ap, E = Ap; // E、R 不再是折线拐点：R 仍是“空中站点”（stationPose air），都等于最高点
+  // camSM / camSC：起跳点（hear 镜头）和落铲点（catch 镜头）的屏幕缩放（屏幕像素 / 场景像素），让蛋在屏幕上的大小平滑过渡
+  const camSC = vp.w / (catchV.x1 - catchV.x0);
+  return { L, M, E, R, C: land, sM: 0.3, sE: 0.5, sR: 0.7, scaleL, scaleC: cfg.egg.onSpatulaScale, tiltC: cfg.egg.onSpatulaTilt ?? 0, camSM: hear.s, camSC };
 }

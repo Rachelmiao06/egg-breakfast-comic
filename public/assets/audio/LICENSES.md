@@ -54,3 +54,11 @@ Freesound 原文件（wav / flac）需要登录，本轮用的是公开 HQ 预�
 ## 人声语气词（voice/）
 
 `voice/mom-*.mp3` 由 ElevenLabs（eleven_v4，声音 Yating Lin - Relaxed & Spontaneous，库内声音）生成，用户本人账号（免费额度）；原始文件在 `tools/voice_raw/`。**商用 / 公开发布前请核对 ElevenLabs 对应套餐的使用条款**（免费额度通常要求署名、不含商用授权）。
+
+## 背景音乐（music/jazz-brunch.mp3）— **需要署名（CC BY 3.0）**
+
+- 曲目：**Jazz Brunch**，作者 **Kevin MacLeod**（incompetech.com），ISRC USUAN1700074，原档 5:23、256 kbps
+- 来源：https://incompetech.com/music/royalty-free/mp3-royaltyfree/Jazz%20Brunch.mp3 （曲目页 https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700074 ）
+- 许可：Creative Commons Attribution 3.0（https://creativecommons.org/licenses/by/3.0/）：可商用、可修改，**必须署名**。网页右下角"音效致谢"里已写出标题、作者、来源、许可、是否修改。
+- 处理：`tools/audio_build.sh jazz-brunch`：取 [20 s, 140 s]，旋转 + 3 s 交叉淡化做成约 119 s 的无缝循环，-18 LUFS，96 kbps（1.4 MB）。原始下载放在 `tools/music_raw/jazz-brunch/`（已 gitignore，需要时重新下载）。
+- 2026-11-15 用户要求用"咖啡店的音乐"，在网上找现成的，不自己合成。

@@ -15,20 +15,25 @@ const CREDITS = [
   { title: "Stir fry 07", author: "LG", url: "https://freesound.org/people/LG/sounds/77923/", use: "配菜落锅" },
   { title: "Pouring oil (SoundAction 072)", author: "alexarje", url: "https://freesound.org/people/alexarje/sounds/721754/", use: "淋汁" },
 ];
+/** 背景音乐（CC BY 3.0，要求署名）：Kevin MacLeod，incompetech.com */
+const MUSIC_CREDIT = { title: "Jazz Brunch", author: "Kevin MacLeod", url: "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700074" };
+const CC_BY_3 = "https://creativecommons.org/licenses/by/3.0/";
 const CC_BY = "https://creativecommons.org/licenses/by/4.0/";
 
 export default function SoundToggle() {
   const { soundOn, setSoundOn } = useScene();
-  const { available } = useKitchenAudio();
+  const { available, locked, unlock } = useKitchenAudio();
   useEffect(() => {
     try { if (localStorage.getItem(KEY) === "1") setSoundOn(true); } catch { /* 隐私模式等 */ }
   }, [setSoundOn]);
   const toggle = () => {
+    // 声音记着是"开"，但浏览器还没放行（刷新后第一次）：这一下只负责放行，不把声音关掉（不用再"关一下再开一下"）
+    if (soundOn && locked) { unlock(); return; }
     const next = !soundOn;
     setSoundOn(next);
     try { localStorage.setItem(KEY, next ? "1" : "0"); } catch { /* 忽略 */ }
   };
-  const label = soundOn ? "关闭声音" : "打开声音";
+  const label = soundOn ? (locked ? "点一下，开始出声" : "关闭声音") : "打开声音";
   const [credits, setCredits] = useState(false);
   useEffect(() => {
     if (!credits) return;
@@ -58,6 +63,10 @@ export default function SoundToggle() {
             </li>
           ))}
         </ul>
+        <p className="mt-1.5">
+          背景音乐：<a href={MUSIC_CREDIT.url} target="_blank" rel="noopener noreferrer" className="underline decoration-ink/30 underline-offset-2">“{MUSIC_CREDIT.title}”</a>，作者 {MUSIC_CREDIT.author}（incompetech.com），
+          <a href={CC_BY_3} target="_blank" rel="noopener noreferrer" className="underline decoration-ink/30 underline-offset-2">CC BY 3.0</a>，已裁剪并做成循环、调整响度。
+        </p>
         <p className="mt-1.5 text-ink/60">其余音效来自 Freesound（CC0）、Pixabay、Mixkit 的免费素材。</p>
       </div>
     )}
@@ -67,7 +76,7 @@ export default function SoundToggle() {
       aria-label={label}
       aria-pressed={soundOn}
       title={available === false ? `${label}（音效待添加）` : label}
-      className="fixed bottom-5 right-5 z-50 grid h-10 w-10 place-items-center rounded-full bg-cream/80 text-ink shadow-[0_1px_4px_rgba(107,74,43,0.25)] ring-1 ring-ink/15 backdrop-blur-sm transition hover:bg-cream"
+      className={`fixed bottom-5 right-5 z-50 grid h-10 w-10 place-items-center rounded-full bg-cream/80 text-ink shadow-[0_1px_4px_rgba(107,74,43,0.25)] ring-1 backdrop-blur-sm transition hover:bg-cream ${locked ? "animate-pulse ring-2 ring-[#d9822b]" : "ring-ink/15"}`}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="currentColor" fillOpacity="0.12" />

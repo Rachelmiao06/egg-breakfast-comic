@@ -56,3 +56,6 @@ next-env.d.ts
 
 # 厨房分层的整画布中间文件（tools/split_scene.py 输出，页面加载的是打包后的 webp）
 source/layers/
+
+# 背景音乐原始下载（10 MB，来源见 public/assets/audio/LICENSES.md，可重新下载）
+/tools/music_raw/

@@ -1,0 +1,125 @@
+{
+  "_note": "厨房音效的来源清单。audio_fetch.sh 按这里下载（都是无需登录的公开地址），audio_build.py 按这里处理。许可见 public/assets/audio/LICENSES.md。",
+  "sources": {
+    "fs-543801": {
+      "title": "eggs frying 2017.wav",
+      "author": "bennrush",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/bennrush/sounds/543801/",
+      "url": "https://cdn.freesound.org/previews/543/543801_6424945-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-455826": {
+      "title": "room tone medium or small kitchen fridge light drips.flac",
+      "author": "kyles",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/kyles/sounds/455826/",
+      "url": "https://cdn.freesound.org/previews/455/455826_612689-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-205165": {
+      "title": "KITCHEN_AMBIENCE_ROOMTONE_01.wav",
+      "author": "justingregoire",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/justingregoire/sounds/205165/",
+      "url": "https://cdn.freesound.org/previews/205/205165_2328350-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-459398": {
+      "title": "VEGETABLES CUTTING",
+      "author": "SamuelGremaud",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/SamuelGremaud/sounds/459398/",
+      "url": "https://cdn.freesound.org/previews/459/459398_8031303-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-679946": {
+      "title": "frying rice on a wok.wav",
+      "author": "soundofsong",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/soundofsong/sounds/679946/",
+      "url": "https://cdn.freesound.org/previews/679/679946_9782868-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-741620": {
+      "title": "Cooking - Frying onions - sizzling - stirring",
+      "author": "GoatsheadCastle",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/GoatsheadCastle/sounds/741620/",
+      "url": "https://cdn.freesound.org/previews/741/741620_14605753-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-417995": {
+      "title": "Food in a frying pan",
+      "author": "derjuli",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/derjuli/sounds/417995/",
+      "url": "https://cdn.freesound.org/previews/417/417995_2573247-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-554557": {
+      "title": "stirring bowl.wav",
+      "author": "dynamique",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/dynamique/sounds/554557/",
+      "url": "https://cdn.freesound.org/previews/554/554557_456862-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-119083": {
+      "title": "Egg; dumped onto frying pan_1-2.aif",
+      "author": "domrodrig",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/domrodrig/sounds/119083/",
+      "url": "https://cdn.freesound.org/previews/119/119083_1550701-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "fs-546452": {
+      "title": "Plastic Spatula on Non Stick pan.wav",
+      "author": "miwilson",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/miwilson/sounds/546452/",
+      "url": "https://cdn.freesound.org/previews/546/546452_12082327-hq.mp3",
+      "kind": "Freesound HQ preview (mp3)"
+    },
+    "mk-123": {
+      "title": "Frying fish on a hot pan",
+      "author": "Mixkit",
+      "license": "Mixkit Sound Effects Free License",
+      "page": "https://mixkit.co/free-sound-effects/food/",
+      "url": "https://assets.mixkit.co/active_storage/sfx/123/123.wav",
+      "kind": "Mixkit download (wav)"
+    },
+    "mk-134": {
+      "title": "Chopping food on the table",
+      "author": "Mixkit",
+      "license": "Mixkit Sound Effects Free License",
+      "page": "https://mixkit.co/free-sound-effects/food/",
+      "url": "https://assets.mixkit.co/active_storage/sfx/134/134.wav",
+      "kind": "Mixkit download (wav)"
+    },
+    "mk-2835": {
+      "title": "Stirring cutlery in ceramic plate",
+      "author": "Mixkit",
+      "license": "Mixkit Sound Effects Free License",
+      "page": "https://mixkit.co/free-sound-effects/kitchen/",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2835/2835.wav",
+      "kind": "Mixkit download (wav)"
+    },
+    "mk-1799": {
+      "title": "Bowl placed on table",
+      "author": "Mixkit",
+      "license": "Mixkit Sound Effects Free License",
+      "page": "https://mixkit.co/free-sound-effects/cooking/",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1799/1799.wav",
+      "kind": "Mixkit download (wav)"
+    },
+    "mk-2934": {
+      "title": "Bowl put in table",
+      "author": "Mixkit",
+      "license": "Mixkit Sound Effects Free License",
+      "page": "https://mixkit.co/free-sound-effects/food/",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2934/2934.wav",
+      "kind": "Mixkit download (wav)"
+    }
+  }
+}

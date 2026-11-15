@@ -151,7 +151,7 @@ def glide(m_from, m_to, dur, tau, vel=1.0):
 
 
 # ---------------------------------------------------------------- 和弦
-QUAL = {"M": [0, 4, 7], "m": [0, 3, 7], "M7": [0, 4, 7, 11], "m7": [0, 3, 7, 10], "sus4": [0, 5, 7]}
+QUAL = {"7": [0, 4, 7, 10], "M": [0, 4, 7], "m": [0, 3, 7], "M7": [0, 4, 7, 11], "m7": [0, 3, 7, 10], "sus4": [0, 5, 7]}
 ROOTS = {"C": 48, "D": 50, "E": 52, "F": 53, "G": 55, "A": 57}
 
 
@@ -168,6 +168,9 @@ def bass_root(name):
 
 
 HOME = [("C", "M"), ("A", "m"), ("F", "M"), ("G", "M"), ("C", "M"), ("E", "m"), ("F", "M"), ("G", "M")]
+# 爵士版的"家"：根音与 HOME 完全一致（C Am F G C Em F G），只是换成七和弦，所以旧的垫音 / 旋律 / 指弹 stem 叠上去不打架
+HOMEJ = [("C", "M7"), ("A", "m7"), ("F", "M7"), ("G", "7"), ("C", "M7"), ("E", "m7"), ("F", "M7"), ("G", "7")]
+SWING = 2.0 / 3.0  # 摇摆八分音符：后半拍落在 2/3 拍处
 CUR = [("F", "M7"), ("E", "m7"), ("D", "m7"), ("G", "sus4"), ("F", "M7"), ("E", "m7"), ("D", "m7"), ("G", "sus4")]
 EMPTY = [("A", "m"), ("A", "m"), ("F", "M"), ("F", "M"), ("D", "m"), ("D", "m"), ("E", "sus4"), ("E", "sus4")]
 
@@ -282,28 +285,78 @@ def stem_home_pad():
     return tr, 0.30
 
 
+def ep(m, vel=1.0, dur=1.4):
+    """温暖的电钢琴（FM）：音头有一点点"叮"，很快变圆；整体低通 2.8 kHz"""
+    f = hz(m); t = tt(dur)
+    mod = (1.6 * np.exp(-t / 0.12) + 0.25) * np.sin(2 * np.pi * f * t)
+    y = np.sin(2 * np.pi * f * t + mod) * np.exp(-t / 0.7)
+    y += 0.25 * np.sin(2 * np.pi * f * 2 * t) * np.exp(-t / 0.3)
+    return vel * lowpass(attack(y, t, 0.002), 2800, 2) * 0.8
+
+
+def jvoice(name, q):
+    """爵士无根音和弦（3 音、7 音、9 / 13 音），放在中央 C 附近"""
+    iv = {"M7": [4, 7, 11, 14], "m7": [3, 7, 10, 14], "7": [4, 9, 10, 14]}[q]
+    v = [ROOTS[name] + 12 + i for i in iv]
+    while max(v) > 77:
+        v = [x - 12 for x in v]
+    return v
+
+
 def stem_home_pluck():
-    """尤克里里扫弦，反拍：嗒-嗒哒-嗒"""
+    """爵士电钢琴的"查尔斯顿"伴奏：第 1 拍一下、第 2 拍的摇摆后半拍一下，轻、短、暖。（stem 名沿用 home-pluck）"""
     tr = Track()
-    hits = [(2.0, "d", 0.95), (2.5, "u", 0.45), (3.5, "u", 0.55), (4.0, "d", 0.85)]
-    for b, (n, q) in enumerate(HOME):
-        v = voicing(n, q, lift=12, top=79)
-        for beat, d, vel in hits:
-            order = v if d == "d" else v[::-1]
-            for i, m in enumerate(order):
-                tr.add(soft_nylon(m, vel * RNG.uniform(0.85, 1.0), 1.1), T(b, beat) + i * 0.014, pan=-0.25 + 0.5 * i / max(1, len(v) - 1))
-        for k in range(8):  # 轻刷沙锤：八分音符，反拍略重
-            tr.add(shaker(0.8 if k % 2 else 0.45), T(b, 1 + k * 0.5), pan=0.2)
-    return tr, 0.16
+    for b, (n, q) in enumerate(HOMEJ):
+        v = jvoice(n, q)
+        for beat, vel in ((1.0, 0.85), (2 + SWING - 1 + 0.0, 0.7), (3.0 + 1.0 * SWING, 0.45)):
+            for i, m in enumerate(v):
+                tr.add(ep(m, vel * RNG.uniform(0.88, 1.0), 0.9), T(b, beat) + i * 0.012, pan=-0.2 + 0.1 * i)
+    return tr, 0.14
 
 
 def stem_home_bass():
+    """直立贝斯的行走低音：每小节 4 个四分音符（根音、三音、五音、半音趋近下一个根音）"""
     tr = Track()
-    for b, (n, q) in enumerate(HOME):
+    for b, (n, q) in enumerate(HOMEJ):
         r = bass_root(n)
-        for beat, m, vel, d in [(1.0, r, 1.0, 0.9), (2.5, r + 7, 0.7, 0.5), (3.0, r + 12, 0.8, 0.5), (4.5, r + 7, 0.6, 0.4)]:
-            tr.add(bass_pluck(m, vel, d + 0.3), T(b, beat), pan=0.0)
+        third = 3 if q == "m7" else 4
+        nxt = bass_root(HOMEJ[(b + 1) % 8][0])
+        approach = nxt + (1 if nxt < r + 6 else -1)
+        for beat, m, vel in ((1.0, r, 1.0), (2.0, r + third, 0.75), (3.0, r + 7, 0.8), (4.0, approach, 0.7)):
+            tr.add(bass_pluck(m, vel, 0.55), T(b, beat) + RNG.uniform(-0.004, 0.004), pan=0.0)
     return tr, 0.08
+
+
+def ride(vel=1.0, dur=0.45):
+    t = tt(dur)
+    y = np.zeros_like(t)
+    for fr, a, tau in ((3100, 1.0, 0.16), (4700, 0.7, 0.12), (6300, 0.5, 0.09), (8200, 0.4, 0.07)):
+        y += a * np.sin(2 * np.pi * fr * t + RNG.uniform(0, 6.28)) * np.exp(-t / tau)
+    y += 0.5 * highpass(RNG.standard_normal(len(t)), 5000, 2) * np.exp(-t / 0.05)
+    return vel * attack(y, t, 0.0008) * 0.35
+
+
+def hat(vel=1.0):
+    t = tt(0.06)
+    return vel * highpass(RNG.standard_normal(len(t)), 6500, 2) * np.exp(-t / 0.014) * 0.5
+
+
+def swish(vel=1.0):
+    t = tt(0.22)
+    n = bandpass(RNG.standard_normal(len(t)), 1800, 7000)
+    return vel * n * np.minimum(1, t / 0.05) * np.exp(-np.maximum(t - 0.05, 0) / 0.08) * 0.3
+
+
+def stem_home_drums():
+    """爵士鼓刷子 / 叮叮镲的"滴——滴答、滴——滴答"：镲在 1、2、2 摇摆后半拍、3、4、4 摇摆后半拍，2 / 4 拍脚踩镲，2 / 4 拍轻刷"""
+    tr = Track()
+    for b in range(LOOP_BARS):
+        for beat, vel in ((1.0, 1.0), (2.0, 0.8), (2 + SWING, 0.55), (3.0, 1.0), (4.0, 0.8), (4 + SWING, 0.55)):
+            tr.add(ride(vel * RNG.uniform(0.85, 1.0)), T(b, beat), pan=0.3)
+        for beat in (2.0, 4.0):
+            tr.add(hat(0.7), T(b, beat), pan=-0.2)
+            tr.add(swish(0.6), T(b, beat + 0.02), pan=-0.1)
+    return tr, 0.1
 
 
 THEME = [  # (小节, 拍, midi, 时值（拍）, 力度)  妈妈的主题（卡林巴）
@@ -386,7 +439,8 @@ def stem_empty():
 
 STEMS = {
     "home-pad": (stem_home_pad, 0.28),
-    "home-pluck": (stem_home_pluck, 0.2),
+    "home-pluck": (stem_home_pluck, 0.14),
+    "home-drums": (stem_home_drums, 0.1),
     "home-bass": (stem_home_bass, 0.1),
     "home-melody": (stem_home_melody, 0.3),
     "home-sparkle": (stem_home_sparkle, 0.22),
@@ -484,21 +538,39 @@ def stinger_cricket():
 
 
 def stinger_ooze():
-    """蛋黄流出来：黏稠、缓慢、湿润的流动声（低通噪声 + 缓慢起伏）+ 几个小气泡 "咕噜"。合成的，不是录音 """
-    d = 2.4
+    """蛋黄流出来（2026-11-15 用户：几乎听不到，要明显得多）：慢放降调的真实倒油录音（pour.mp3，液体质感）+ 合成的黏稠湿润流动 +
+    一串"咕噜"气泡（上滑的短音）+ 开头勺子划开的"啵"。比上一版响得多、频带更宽（不再只是低通噪声）"""
+    d = 2.8
     t = tt(d)
-    n = lowpass(RNG.standard_normal(len(t)), 700, 2) + 0.6 * bandpass(RNG.standard_normal(len(t)), 250, 500)
-    wob = lowpass(RNG.standard_normal(len(t)), 3, 2)
-    wob = 0.65 + 0.35 * wob / (np.abs(wob).max() + 1e-9)
-    env = (1 - np.exp(-t / 0.18)) * np.exp(-np.maximum(t - 1.3, 0) / 0.45)
-    y = n * wob * env * 0.5
-    for bt, f0 in ((0.45, 180), (0.9, 220), (1.25, 170), (1.7, 200)):
-        tb = tt(0.12)
-        f = f0 * (1 + 1.4 * tb / 0.12)
+    # 1 真实液体质感：pour.mp3 慢放到 0.78 倍、低通 3.5 kHz
+    pour = None
+    try:
+        raw = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", os.path.join(ROOT, "public/assets/audio/pour.mp3"), "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"], capture_output=True, check=True).stdout
+        pw = np.frombuffer(raw, dtype="<f4").astype(float)
+        idx = np.arange(0, len(pw) - 1, 0.78)
+        pour = np.interp(idx, np.arange(len(pw)), pw)
+        pour = lowpass(pour, 3500, 2)
+        pour = pour / (np.abs(pour).max() + 1e-9)
+        pour = pour * np.exp(-np.maximum(np.arange(len(pour)) / SR - 1.2, 0) / 0.5)
+    except Exception:
+        pour = None
+    y = np.zeros(len(t))
+    if pour is not None:
+        n_ = min(len(y), len(pour)); y[:n_] += 0.6 * pour[:n_]
+    # 2 黏稠湿润的流动：中频带通噪声 + 缓慢起伏
+    n = bandpass(RNG.standard_normal(len(t)), 350, 2600)
+    wob = lowpass(RNG.standard_normal(len(t)), 5, 2)
+    wob = 0.55 + 0.45 * wob / (np.abs(wob).max() + 1e-9)
+    env = (1 - np.exp(-t / 0.1)) * np.exp(-np.maximum(t - 1.7, 0) / 0.5)
+    y += n * wob * env * 0.5
+    # 3 咕嘟气泡（用户：咕嘟咕嘟咕嘟要更大声）：8 个，音量是其它层的约 2.5 倍，频率稍低、更"咕"，衰减长一点
+    for bt, f0 in ((0.05, 300), (0.35, 230), (0.62, 280), (0.9, 210), (1.15, 260), (1.45, 200), (1.75, 240), (2.05, 190)):
+        tb = tt(0.22)
+        f = f0 * (1 + 1.5 * tb / 0.22)
         ph = 2 * np.pi * np.cumsum(f) / SR
-        b = np.sin(ph) * np.exp(-tb / 0.035) * (1 - np.exp(-tb / 0.003))
+        b = (np.sin(ph) + 0.35 * np.sin(2 * ph)) * np.exp(-tb / 0.07) * (1 - np.exp(-tb / 0.002))
         i = int(bt * SR)
-        y[i:i + len(b)] += 0.55 * b
+        y[i:i + len(b)] += 2.2 * b
     return render_once([(0.0, y, 0.0, 1.0)], 0.12, 0.8, 0.4)
 
 
@@ -533,7 +605,7 @@ def main():
             continue
         tr, _ = fn()
         L, R = reverb(tr.L, tr.R, wet, rt60=1.9 if name == "empty" else 1.5)
-        finish(name, L, R, loop=True, target_lufs=-20.0, peak_db=-3.0)
+        finish(name, L, R, loop=True, target_lufs=-20.0, peak_db=-3.0, warm=9000 if name == "home-drums" else 3000)
     print("stinger（单次）")
     for name, fn in STINGERS.items():
         if want and name not in want:

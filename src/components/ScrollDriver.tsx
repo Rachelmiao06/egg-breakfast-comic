@@ -7,7 +7,9 @@
  */
 import { useEffect, useRef } from "react";
 import Lenis from "lenis";
-import { locate, totalVh } from "@/lib/beats";
+import Snap from "lenis/snap";
+import gsap from "gsap";
+import { locate, phaseEdges, totalVh } from "@/lib/beats";
 import { setScrollVelocity } from "@/lib/scroll-velocity";
 import { useScene } from "@/lib/scene-context";
 import { REPLAY_EVENT } from "@/lib/replay";
@@ -17,7 +19,7 @@ import { REPLAY_EVENT } from "@/lib/replay";
  * 时间轴在 Lenis 的每帧 scroll 回调里更新；此时不再注册 window scroll 监听，保证只有一套。
  * smooth = false：原生滚动（旧版对比用）。
  */
-export default function ScrollDriver({ smooth = false }: { smooth?: boolean }) {
+export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
   const { beats, setTimeline } = useScene();
   const last = useRef({ index: -1, p: -1 });
 
@@ -61,19 +63,51 @@ export default function ScrollDriver({ smooth = false }: { smooth?: boolean }) {
     };
     update();
     let lenis: Lenis | null = null;
-    let lenisRaf = 0;
-    if (smooth) {
-      lenis = new Lenis({ lerp: 0.12, wheelMultiplier: 0.9, smoothWheel: true, syncTouch: false });
+    let tick: ((time: number) => void) | null = null;
+    let snapCleanup: (() => void) | null = null;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (smooth && !reduce) {
+      // 手感：滚轮/触控板经过一层长尾的指数缓动（duration 1.25s，expo-out），停手后慢慢"滑停"，不是线性跟随
+      lenis = new Lenis({
+        duration: 1.25,
+        easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+        wheelMultiplier: 0.8,
+        touchMultiplier: 1.4,
+        smoothWheel: true,
+        syncTouch: false, // 触屏保留系统原生惯性
+        anchors: true,
+      });
       lenis.on("scroll", () => {
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
         update();
       });
-      const loop = (time: number) => {
-        lenis?.raf(time);
-        lenisRaf = requestAnimationFrame(loop);
+      // 与 GSAP 共用同一个 ticker：Lenis、速度、画格动效在同一帧里更新，不会各走各的 rAF
+      // 阅读停留处轻微吸附：只有带画格的段，在"停留"阶段中点附近 proximity 吸附（离得近才吸，不抢走用户的滚动）
+      const snap = new Snap(lenis, { type: "proximity", distanceThreshold: "9%", debounce: 220, duration: 0.9 });
+      const addSnaps = () => {
+        removers.forEach((r) => r());
+        removers = [];
+        let startVh = 0;
+        for (const b of beats) {
+          if (["chop", "stirfry", "sauce", "notice"].includes(b.id)) {
+            const e = phaseEdges(b);
+            const mid = (e[2] + e[3]) / 2;
+            removers.push(snap.add(((startVh + b.lengthVh * mid) / 100) * window.innerHeight));
+          }
+          startVh += b.lengthVh;
+        }
       };
-      lenisRaf = requestAnimationFrame(loop);
+      let removers: (() => boolean)[] = [];
+      addSnaps();
+      window.addEventListener("resize", addSnaps);
+      snapCleanup = () => {
+        window.removeEventListener("resize", addSnaps);
+        snap.destroy();
+      };
+      tick = (time) => lenis?.raf(time * 1000);
+      gsap.ticker.add(tick);
+      gsap.ticker.lagSmoothing(0);
     } else {
       window.addEventListener("scroll", onScroll, { passive: true });
     }
@@ -92,7 +126,8 @@ export default function ScrollDriver({ smooth = false }: { smooth?: boolean }) {
     return () => {
       window.removeEventListener(REPLAY_EVENT, onReplay);
       if (lenis) {
-        cancelAnimationFrame(lenisRaf);
+        snapCleanup?.();
+        if (tick) gsap.ticker.remove(tick);
         lenis.destroy();
       } else {
         window.removeEventListener("scroll", onScroll);
