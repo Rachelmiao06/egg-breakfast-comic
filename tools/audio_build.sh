@@ -106,6 +106,9 @@ build() {
       loop_seam "$raw" "$wav" 0 40.5 1.0 0.5;        finalize "$wav" "$out" 6 128k loop ;;
     chop-loop)        # 原档 6.34 s；末尾补 0.29 s 让首尾衔接处的刀声间隔≈其他间隔（约 1.05 s），接缝在静音段内
       loop_seam "$raw" "$wav" 0 6.34 0.5 0.1 0.29;   finalize "$wav" "$out" 3 192k loop ;;
+    stirfry-loop)     # 炒菜段持续的翻炒声（2026-11-15 用户要求更长更明显）：同一原档 stirfry-stir，取 [15.5, 27.5]（木铲在钢锅里推、轻刮，避开 5 / 11.75 / 14.75 s 的重敲）
+                      # → 12 s 循环，旋转 0.8 s、交叉淡化 0.4 s
+      loop_seam "$RAW/stirfry-stir.mp3" "$wav" 15.5 27.5 0.8 0.4; finalize "$wav" "$out" 10 192k loop ;;
     sauce-stir-loop)  # 原档 18.81 s，前 0.8 s 静音；取 [0.80, 18.70]（两端都在勺声间隙里）→ 17.7 s 循环
       loop_seam "$raw" "$wav" 0.80 18.70 0.6 0.2;    finalize "$wav" "$out" 3 192k loop ;;
     stirfry-in-water) # 旧版下锅声（水滴进热锅的一声爆发，没有食材落锅）：原档 7.9 s，起音 0.88 s；取 [0.86, 2.66]，尾部 0.7 s 淡出 → 1.8 s。
@@ -176,6 +179,6 @@ build() {
 }
 
 names=("$@")
-if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3 stirfry-stir sauce-stir pour egg-hop egg-rice bag-rustle bag-down veg-table veg-board board-scrape veg-bowl); fi
+if [ ${#names[@]} -eq 0 ]; then names=(sizzle-loop room-loop chop-loop stirfry-loop sauce-stir-loop stirfry-in catch footsteps-loop pop chop-hit hop-tap-1 hop-tap-2 hop-tap-3 stirfry-stir sauce-stir pour egg-hop egg-rice bag-rustle bag-down veg-table veg-board board-scrape veg-bowl); fi
 for n in "${names[@]}"; do build "$n"; done
 echo "完成。测量：tools/audio_measure.sh"

@@ -31,8 +31,8 @@ const STINGER_SOUNDS = ["idea-ding", "missing-q", "catch-chord", "handoff-bell",
 const LEVEL_TC = 0.35;
 /** 配乐总线整体电平（相对 stem 的 -20 LUFS；各场景电平再乘它） */
 const BUS = 0.7;
-/** 前景动作声响起时配乐的避让：压到 0.7（约 -3 dB），0.25 s 后以 0.25 s 的时间常数回来 */
-const DUCK_TO = 0.7, DUCK_HOLD_S = 0.25, DUCK_RELEASE_TC = 0.25;
+/** 前景动作声响起时配乐的避让：压到 0.5（约 -6 dB），0.3 s 后以 0.25 s 的时间常数回来 */
+const DUCK_TO = 0.5, DUCK_HOLD_S = 0.3, DUCK_RELEASE_TC = 0.25;
 /** 蛋的五声音阶（相对 C5 的变速）：C D E G A */
 const BLOOP_RATES = [1, 1.122, 1.26, 1.498, 1.682];
 const MAX_CROSS_VH = 40;

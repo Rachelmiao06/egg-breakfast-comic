@@ -101,7 +101,7 @@ const ONESHOTS: Record<ShotSound, { file: string; volume: number; pan?: number; 
   pop: { file: "pop.mp3", volume: 0.5 }, // "啵！"：蛋的轻快小声（峰值瞬时响度与 catch 相当，所以略低）
   eggSmall: { file: "egg-small.mp3", volume: 0.5 }, // 暂无素材：蛋小声"我在这儿……"
   // 切菜格逐刀：从 chop-loop 同一原档切出的一刀，0.26 s；电平 0.5 = 原来 chop 循环里每一刀的电平
-  chopHit: { file: "chop-hit.mp3", volume: 0.5, skip: 0.03 }, // 保留 12 ms 刀切进胡萝卜的声音，刀碰案板落在接触帧后约 12 ms
+  chopHit: { file: "chop-hit.mp3", volume: 0.9, skip: 0.03 }, // 保留 12 ms 刀切进胡萝卜的声音，刀碰案板落在接触帧后约 12 ms
   // 开场蛋在锅里跳的落地声：很软的"噗"（湿的小拍击，2 kHz 低通），很轻
   eggHop: { file: "egg-hop.mp3", volume: 0.16, skip: 0.006 },
   // 蛋被铲子放到饭上（p4b）：比落铲更闷的一声 plop（和 catch 同一原档的第二声，2.5 kHz 低通）。"碗放到桌上"另用 bowlDown（p4e）
