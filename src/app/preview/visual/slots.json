@@ -144,8 +144,8 @@
   {
    "key": "p3b",
    "beat": "sauce",
-   "src": "/assets/comic-v3/p3b.webp",
-   "source": "03-something-is-missing.png B 格",
+   "src": "/assets/comic-v6/p3b/frame-06.webp",
+   "source": "p3b-sauce-animation（comic-v6/p3b，SeqPanel 由滚动带动，静态取末帧）",
    "dialogueInImage": false,
    "x": 60,
    "y": 40,
