@@ -26,6 +26,8 @@ const ENTER_VH = 75, EXIT_VH = 45;
 const LATE_BEATS = new Set(["yolk", "search", "eggcall", "return", "recognize", "worry", "punchline"]);
 /** 炒菜段也要划两三下才过得去（用户 2026-11-15） */
 const TIGHT_BEATS = new Set(["chop", "stirfry", "call"]);
+/** 蛋高跳那几段（起跳前蓄力 → 起跳 → 悬停 → 接蛋）不跟着前半段一起拉长：蛋的飞行是按这几段的滚动距离算的，拉长 = 蛋在空中悬得更久、"卡住"（用户 2026-11-15：我滚两下它还没往上飞，应该边滚边飞） */
+const FLIGHT_BEATS = new Set(["prejump", "hear", "listen", "catch"]);
 const LATE_VH_PER_S = 85;
 /** 后半段单次甩出的距离上限（vh）：一格的进入 + 动画要划两三下才过得去（用户 2026-11-15："最起码划两下"） */
 const LATE_THROW_VH = 35;
@@ -49,7 +51,7 @@ export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as
     const enter = ENTER_VH / len, exit = EXIT_VH / len;
     b = { ...b, lengthVh: len, phases: { enter, action: 0, hold: 1 - enter - exit, exit } };
   }
-  return { ...b, ...(LATE_BEATS.has(b.id) || TIGHT_BEATS.has(b.id) ? { throwVh: LATE_THROW_VH } : {}), lengthVh: Math.round(b.lengthVh * (LATE_BEATS.has(b.id) ? 1 : LEN_SCALE)) };
+  return { ...b, ...(LATE_BEATS.has(b.id) || TIGHT_BEATS.has(b.id) ? { throwVh: LATE_THROW_VH } : {}), lengthVh: Math.round(b.lengthVh * (LATE_BEATS.has(b.id) || FLIGHT_BEATS.has(b.id) ? 1 : LEN_SCALE)) };
 }) as (Beat & { camera: string })[];
 
 export const BG = bg;
