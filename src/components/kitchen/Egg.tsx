@@ -90,7 +90,7 @@ export type EggAnchors = {
  * 两颗蛋按蛋黄中心对位，活动蛋整颗盖住画里的蛋（slots.json scene.handoff），所以这期间只看得到一颗蛋；
  * 交接格完全不透明后，在 swap 这一点活动蛋瞬时消失（不淡化），画里的蛋接手。ScenePanels 读同一组数。
  */
-export const HANDOFF = { straighten: [0, 0.35], panelIn: [0.47, 0.5], swap: 0.5, catchOut: [0.5, 0.68] } as const;
+export const HANDOFF = { straighten: [0, 0.5], panelIn: [0.62, 0.65], swap: 0.65, catchOut: [0.65, 0.71] } as const; // 2026-11-16 用户：交接格出现太早、和接蛋格重叠：整体后移，接蛋格在换蛋后很快淡出（0.06 段）
 
 /** 可选的表情图：与 egg.webp 同画布、同轮廓、同脚底锚点，只改脸。没给（null）就一直用原图 */
 /**
