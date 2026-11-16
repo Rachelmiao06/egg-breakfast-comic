@@ -173,16 +173,19 @@ export function TurnPanel({ p, pos, dy, scrub, animate }: { p: PanelSlot; pos: P
 export type SeqText = { size: [number, number]; rows: { str: string; x0: number; x1: number; y0: number; y1: number }[]; plan: { row: number; at: number; per: number }[] };
 /** 对白用真字体渲染（2026-11-15 用户：从图里减出来的字层又糊又锯齿、字体也不一致）：黑体粗字，墨色，逐字显示；字号按原格里每个字的宽度（cqw = 格宽的 1%） */
 const SEQ_FONT = '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif';
-export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop, hits }: {
+export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop, hits, scrubLoop }: {
   p: PanelSlot; pos: Place; dy: number; scrub: number; animate: boolean;
   frames: string[]; schedule: [number, number][]; text?: SeqText; staticSrc: string;
   /** 循环周期（秒）：给了就按真实时间不停循环（炒菜这类一直在做的动作），不再由滚动带动 */
   loop?: number;
   /** 循环模式下，每圈里这些时刻（秒）各响一声刀刃落案板 */
   hits?: number[];
+  /** 滚动循环：滚动进度 0–1 走 cycles 圈（每圈 period 秒的帧表），帧由滚动带动；hitFrames 里的帧每次切入时响一声刀刃落案板 */
+  scrubLoop?: { period: number; cycles: number; hitFrames?: number[] };
 }) {
   const els = useRef<(HTMLImageElement | null)[]>([]);
   const rowEls = useRef<(HTMLDivElement | null)[]>([]);
+  const lastN = useRef(0);
   // 总时长 = 最后一次换图 / 最后一个字出现的时刻；滚动进度 × 总时长 = 当前"动画时间"，帧和字都由它决定（滚动直接带动，可倒放）
   const total = Math.max(schedule[schedule.length - 1][1], ...(text?.plan.map((pl) => pl.at + [...(text.rows[pl.row].str)].length * pl.per) ?? [0]));
   useEffect(() => {
@@ -202,9 +205,13 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
   }, [loop, animate, schedule, hits]);
   useEffect(() => {
     if (loop) return;
-    const t = scrub * total;
+    const t = scrubLoop ? (scrub * scrubLoop.cycles * scrubLoop.period) % scrubLoop.period : scrub * total;
     let n = 0;
     for (const [i, at] of schedule) if (at <= t + 1e-6) n = i;
+    if (scrubLoop?.hitFrames) {
+      if (n !== lastN.current && scrubLoop.hitFrames.includes(n) && scrub > 0 && scrub < 1) oneshot("chopHit", 0);
+      lastN.current = n;
+    }
     els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
     text?.rows.forEach((row, r) => {
       const plan = text.plan.find((pl) => pl.row === r);
