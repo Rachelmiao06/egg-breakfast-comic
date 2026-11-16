@@ -181,16 +181,16 @@
   "actors": [
    {
     "id": "soy",
-    "src": "/assets/bg/friends-soy.png",
+    "src": "/assets/bg/friends-soy-hires.webp",
     "img": [
-     299,
-     440,
-     69,
-     240
+     300,
+     449,
+     67,
+     233
     ],
     "pivot": [
      330,
-     676
+     678
     ],
     "curve": "friendSoy",
     "range": [
@@ -200,16 +200,16 @@
    },
    {
     "id": "jar",
-    "src": "/assets/bg/friends-jar.png",
+    "src": "/assets/bg/friends-jar-hires.webp",
     "img": [
-     196,
-     232,
-     158,
-     157
+     194,
+     230,
+     162,
+     161
     ],
     "pivot": [
      274,
-     380
+     382
     ],
     "curve": "friendJar",
     "range": [
@@ -240,12 +240,12 @@
   "occluders": [
    {
     "id": "oil",
-    "src": "/assets/bg/friends-oil.png",
+    "src": "/assets/bg/friends-oil-hires.webp",
     "img": [
-     203,
+     205,
      394,
-     96,
-     286
+     102,
+     304
     ]
    },
    {
