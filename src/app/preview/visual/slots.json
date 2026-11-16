@@ -456,8 +456,8 @@
  "scene": {
   "catch": {
    "label": "第 3 页 E 格：\"哎？慢点！\" 妈妈伸出空锅铲（画里没有蛋，后景的蛋飞进来）",
-   "src": "/assets/comic-v3/p3e.webp",
-   "source": "03-something-is-missing.png E 格",
+   "src": "/assets/comic-v6/p3e.webp",
+   "source": "用户 2026-11-15 重画的 p3e（1685×933，comic-v6/p3e.webp）；铲面落点按新图铲子位置 fx 0.86",
    "dialogueInImage": true,
    "box": [
     395,
@@ -466,8 +466,8 @@
     483
    ],
    "land": {
-    "fx": 0.7838,
-    "fy": 0.4903
+    "fx": 0.86,
+    "fy": 0.49
    },
    "frameSrc": null,
    "occluderSrc": null,
