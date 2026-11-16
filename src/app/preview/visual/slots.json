@@ -74,13 +74,13 @@
   {
    "key": "p2b",
    "beat": "chop",
-   "src": "/assets/comic-v4/frames/p2b-f1.webp",
-   "source": "new pics/A-chopping frame-01（静态格 / 减少动态效果用原图；动画用分层 comic-v4/layers/p2b-base、part、front，tools/split_layers.py）",
+   "src": "/assets/comic-v6/p2b/frame-01.webp",
+   "source": "p2b-scroll-connected（comic-v6/p2b，6 张完整姿态，SeqPanel 由滚动带动 3 圈；对白泡在图里）",
    "dialogueInImage": true,
    "x": 24,
    "y": 41,
    "w": 31,
-   "aspect": 1.5024,
+   "aspect": 1.5021,
    "from": "left",
    "order": 1,
    "role": "hero"
