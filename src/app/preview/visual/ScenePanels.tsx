@@ -101,8 +101,10 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
           // 伸手序列：妈妈随接蛋段进度把手臂伸出去（交叉淡化），末帧 = 接蛋姿势；其它段（交接）一直是末帧
           const n = slot.frames.length;
           const u = t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.06) / 0.36)) : 1;
-          const pos = u * (n - 1), i0 = Math.min(n - 1, Math.floor(pos)), fr = pos - i0, sm = fr * fr * (3 - 2 * fr);
-          const op = (i: number) => (i === i0 ? 1 : i === i0 + 1 ? sm : 0);
+          // 硬切、不交叉淡化（2026-11-16 用户：手一会儿弯一会儿直）：交叉淡化时相邻两帧的手臂叠在一起，看着是"又弯又直"。
+          // 手臂姿势单调：先弯着（第 1 帧）→ 逐渐伸直（第 4 帧 = 接蛋姿势），按进度单向走，不回头。
+          const i0 = Math.min(n - 1, Math.floor(u * n));
+          const op = (i: number) => (i === i0 ? 1 : 0);
           const prog = t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.25) / 0.2)) : 1;
           return (
             <>
