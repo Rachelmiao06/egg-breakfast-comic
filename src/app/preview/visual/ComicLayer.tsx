@@ -8,6 +8,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
+import { BubbleText, BUBBLES } from "./BubbleText";
 import { DialoguePanel, HearPanel, SeqPanel, TurnPanel, type SeqText, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer } from "./Blink";
 import ReactionFace from "./ReactionFace";
@@ -507,7 +508,7 @@ function FlowLayer() {
           : p.key === "p2a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2A_FRAMES} schedule={P2A_SCHEDULE} blend staticSrc={P2A_FRAMES[5]} />
           : p.key === "p2b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2B_FRAMES} schedule={P2B_SCHEDULE} scrubLoop={{ period: P2B_SEQ.length * P2B_STEP, cycles: 2, hitFrames: [4] }} staticSrc={P2B_FRAMES[0]} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} textP={Math.min(1, scrub * 2.2)} />
           : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} loop={P2E_LOOP} staticSrc={P2E_FRAMES[0]} />
           : p.key === "p3b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={Math.min(1, scrub * 2)} animate={perf} frames={P3B_FRAMES} schedule={P3B_SCHEDULE} staticSrc={P3B_FRAMES[5]} />
           : p.key === "p4b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4B_FRAMES} schedule={P4B_SCHEDULE} staticSrc={P4B_FRAMES[5]} />
@@ -520,7 +521,7 @@ function FlowLayer() {
           : p.key === "p5b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P5B_FRAMES} schedule={P5B_SCHEDULE} text={P5B_TEXT} staticSrc="/assets/comic-v3/p5b.webp" />
           : p.key === "p5e" ? <TurnPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : <FlowPanel push={false ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} />;
+          : <FlowPanel push={false ? clamp01((q - (beats[index[p.beat]].phases?.enter ?? 0.3)) / Math.max(0.05, 1 - (beats[index[p.beat]].phases?.enter ?? 0.3))) : 0} p={p} pos={pos} dy={dy} blink={perf && BLINK_PANELS.has(p.key) ? reading : null} idle={perf && IDLE[p.key] ? stage.entered && !stage.leaving && stage.vis >= 0.5 : null} textP={perf && BUBBLES[p.key] ? Math.min(1, scrub * 2.2) : undefined} />;
         // 每一格都派发 comic:panel（到位 / 离场 / 复位），声音会话按格子挂声音
         const perch = p.key === PERCH_PANEL && !vp.portrait;
         return (
@@ -665,10 +666,10 @@ function Reveal({ on, off, scale, origin, reduced, children }: { on: boolean; of
   );
 }
 
-function FlowPanel({ p, pos, dy, blink = null, idle = null, push = 0 }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null; idle?: boolean | null; push?: number }) {
+function FlowPanel({ p, pos, dy, blink = null, idle = null, push = 0, textP }: { p: PanelSpec; pos: Place; dy: number; blink?: boolean | null; idle?: boolean | null; push?: number; textP?: number }) {
   const aspect = useNaturalAspect(p.src, p.aspect);
   return (
-    <div data-panel={p.key} className="panel-frame absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW }}>
+    <div data-panel={p.key} className="panel-frame absolute will-change-transform" style={{ left: `${pos.x}vw`, top: `${pos.y}vh`, width: `${pos.w}vw`, aspectRatio: `${aspect}`, transform: `translate3d(0, ${dy}vh, 0)`, boxShadow: PAPER_SHADOW, containerType: "inline-size" }}>
       {p.src && idle !== null ? (
         <IdleStack k={p.key} src={p.src} active={idle} />
       ) : p.src ? (
@@ -679,6 +680,7 @@ function FlowPanel({ p, pos, dy, blink = null, idle = null, push = 0 }: { p: Pan
         <Placeholder label={p.label ?? ""} />
       )}
       {blink !== null && <BlinkLayer panelKey={p.key} active={blink} />}
+      {textP !== undefined && BUBBLES[p.key] && <BubbleText k={p.key} progress={textP} />}
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { useScene } from "@/lib/scene-context";
 import { Placeholder } from "./ComicLayer";
 import { BG, cameraV2, gNow } from "./motion.v2";
 import { useViewport } from "./viewport";
+import { BubbleText } from "./BubbleText";
 import { handoffBox, landedEgg, landPoint, useSlots } from "./slots";
 
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -68,11 +69,12 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
     hand && hb && handIn > 0 && t.beat.id === "handoff" ? (
       <div
         className="panel-frame pointer-events-none absolute"
-        style={{ left: hb[0], top: hb[1], width: hb[2], height: hb[3], zIndex: Z.mom + 2, opacity: handOp }}
+        style={{ left: hb[0], top: hb[1], width: hb[2], height: hb[3], zIndex: Z.mom + 2, opacity: handOp, containerType: "inline-size" }}
       >
         {/* 挖蛋遮罩只作用在图片上，纸边和纸纹始终完整 */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={hand.src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={eggHole} />
+        <BubbleText k="handoff" progress={t.phase === "enter" ? 0 : t.phase === "hold" ? Math.min(1, t.phaseP / 0.5) : 1} />
       </div>
     ) : null;
   if (k <= 0) return handNode;
@@ -92,7 +94,7 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
     <>
       <div
         className="panel-frame pointer-events-none absolute"
-        style={{ left: x, top: y, width: w, height: h, zIndex: flow ? Z.catchPanel : Z.mom, opacity: flow ? 1 : Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * (flow ? 560 : 70)}px)` }}
+        style={{ left: x, top: y, width: w, height: h, zIndex: flow ? Z.catchPanel : Z.mom, opacity: flow ? 1 : Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * (flow ? 560 : 70)}px)`, containerType: "inline-size" }}
       >
         {slot.src ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -100,6 +102,7 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
         ) : (
           <Placeholder label={slot.label} align="bottom" />
         )}
+        {slot.src && <BubbleText k="catch" progress={t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.25) / 0.2)) : 1} />}
       </div>
       {slot.occluderSrc && (
         // eslint-disable-next-line @next/next/no-img-element

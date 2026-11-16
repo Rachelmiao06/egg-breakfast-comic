@@ -13,6 +13,7 @@
  */
 import gsap from "gsap";
 import { useEffect, useId, useRef, useSyncExternalStore, type CSSProperties } from "react";
+import { BubbleText, BUBBLES, BUBBLE_FONT } from "./BubbleText";
 import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import type { PanelSlot } from "./slots";
 import { PAPER_SHADOW } from "./paper";
@@ -172,7 +173,7 @@ export function TurnPanel({ p, pos, dy, scrub, animate }: { p: PanelSlot; pos: P
  */
 export type SeqText = { size: [number, number]; rows: { str: string; x0: number; x1: number; y0: number; y1: number }[]; plan: { row: number; at: number; per: number }[] };
 /** 对白用真字体渲染（2026-11-15 用户：从图里减出来的字层又糊又锯齿、字体也不一致）：黑体粗字，墨色，逐字显示；字号按原格里每个字的宽度（cqw = 格宽的 1%） */
-const SEQ_FONT = '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif';
+const SEQ_FONT = BUBBLE_FONT;
 export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop, hits, scrubLoop, blend, loopOn = true }: {
   p: PanelSlot; pos: Place; dy: number; scrub: number; animate: boolean;
   frames: string[]; schedule: [number, number][]; text?: SeqText; staticSrc: string;
@@ -251,6 +252,7 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
           </div>
         );
       })}
+      {!text && BUBBLES[p.key] && <BubbleText k={p.key} progress={Math.min(1, scrub * 2.2)} />}
       <span className="sr-only">{text?.rows.map((r) => r.str).join("")}</span>
     </div>
   );
@@ -422,7 +424,7 @@ function useActionSound(name: string) {
     stop: () => { if (on.current) { on.current = false; action(name, "stop"); } },
   };
 }
-export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean }) {
+export function StirfryPanel({ p, pos, dy, q, stage, animate, textP }: { p: PanelSlot; pos: Place; dy: number; q: number; stage: Stage; animate: boolean; textP?: number }) {
   const snd = useActionSound("stirfry");
   const els = useRef<Record<string, HTMLImageElement | null>>({});
   const box = useRef<HTMLDivElement>(null);
@@ -479,13 +481,14 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
     <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P2D}${n}.webp`} alt="" draggable={false} className={img} style={{ opacity: P2D_INIT[n] }} />
   );
   return (
-    <div ref={box} className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+    <div ref={box} className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
       {P2D_BACK.map(layer)}
       {DROPS.map((d, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={`drop${i}`} ref={(el) => { els.current[`drop${i}`] = el; }} src={`${P2D}d-${d.s}.webp`} alt="" draggable={false}
           className="absolute block select-none pointer-events-none" style={{ width: `${dropW(d.w)}%`, height: "auto", opacity: 0, transform: "translate(-50%, -50%)" }} />
       ))}
+      {textP !== undefined && <BubbleText k={p.key} progress={textP} />}
       {P2D_FRONT.map(layer)}
     </div>
   );
