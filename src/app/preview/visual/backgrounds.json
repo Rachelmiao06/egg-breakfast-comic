@@ -122,8 +122,8 @@
     ],
     "mouse": 3.5,
     "mouseY": 2.1,
-    "depth": 0.08,
-    "depthY": 0.08,
+    "depth": 0.2,
+    "depthY": 0.14,
     "drift": 5
    },
    "near": {

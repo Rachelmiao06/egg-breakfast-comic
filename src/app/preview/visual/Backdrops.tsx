@@ -301,7 +301,7 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
       {PL ? (
         <>
           {/* 远景层：墙、瓷砖、吊柜、窗；比主体层少动（ticker 写 translate）。台面后沿以下多画了几十行墙，往上走时不露底 */}
-          <div ref={farRef} data-plane="far" className="absolute inset-0" style={{ willChange: "translate" }}>
+          <div ref={farRef} data-plane="far" className="absolute inset-0" style={{ willChange: "translate", scale: "1.05", transformOrigin: "50% 100%" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={UPPER.src} alt="" draggable={false} className="absolute select-none" style={pct([0, -(UPPER.h - UPPER.overlap), UPPER.w, UPPER.h])} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
