@@ -21,8 +21,8 @@ import { scrollHeld } from "@/lib/scroll-gate";
  * smooth = false：原生滚动（旧版对比用）。
  */
 /** 一次甩出去的距离上限（vh）；读带格内动画的格子时用更小的上限 */
-const THROW_VH = 120;
-const THROW_READING_VH = 60;
+const THROW_VH = 40; // 2026-11-15 用户：特别快地滑一下就整页划过、读不明白、没有 buttery 的手感 → 单次甩出上限 120 → 40vh，配合下面 Lenis 的 lerp 平滑，峰值速度有上限（约 lerp × 上限 ≈ 每帧 1.8vh）
+const THROW_READING_VH = 35;
 
 /** 读格门的位置：当前段"停留"结束处（px）。格内动画没播完（scrollHeld）时，故事不能越过它 */
 function gatePx(beats: { lengthVh: number; phases: { enter: number; action: number; hold: number } }[], scrollPx: number) {
@@ -86,8 +86,10 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
     if (smooth && !reduce) {
       // 手感：滚轮/触控板经过一层长尾的指数缓动（duration 1.25s，expo-out），停手后慢慢"滑停"，不是线性跟随
       lenis = new Lenis({
-        duration: 1.3,
-        easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+        // buttery（2026-11-15）：原来是 duration 1.3 s 的 expo-out——每次滚轮增量都从最大速度开始再长尾减速，快甩一下就是猛冲一下。
+        // 改成 lerp（每帧走剩余距离的 4.5%）：速度随"还剩多少没走"平滑变化，起步是渐进的（一次滚动的增量逐个累加），
+        // 峰值速度 = lerp × 排队距离上限，不会因为甩得猛就猛冲；停手后是长而柔的尾巴。
+        lerp: 0.045,
         wheelMultiplier: 0.6, // 2026-11-15 用户：所有滚动都太快，动画没看清就滑走：0.8 → 0.65
         touchMultiplier: 1.4,
         smoothWheel: true,
