@@ -106,7 +106,7 @@
    "backY": 892,
    "frontY": 995
   },
-  "portraitBelow": 0.6,
+  "portraitBelow": 0.85,
   "source": "source/bg-v3/BG-kitchen-secret-friends.png（横版）、source/bg-v3/kitchen-friends-portrait.png（竖版，桌面原件 new pics/hallway-portrait.png 的副本；内容是同一套厨房）",
   "status": "已替换。横版缩放 1.05（场景像素 / 图片像素），竖版 0.9；box 由 counter 对齐和可见范围算出",
   "srcBase": "/assets/bg/kitchen-friends-base.webp",
