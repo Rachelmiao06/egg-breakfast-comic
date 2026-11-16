@@ -456,8 +456,8 @@
  "scene": {
   "catch": {
    "label": "第 3 页 E 格：\"哎？慢点！\" 妈妈伸出空锅铲（画里没有蛋，后景的蛋飞进来）",
-   "src": "/assets/comic-v6/p3e/frame-05.webp",
-   "source": "new-chat-7 p3e-reach-frames（5 帧伸手动画，comic-v6/p3e；末帧 5 是接蛋姿势，铲面落点 fx 0.847 fy 0.54；第 4 帧对话泡整体右移约 90px）",
+   "src": "/assets/comic-v6/p3e/frame-04.webp",
+   "source": "new-chat-7 p3e-reach-corrected（4 帧：3 帧伸手 + 原图作末帧，976×541，comic-v6/p3e）；铲面落点沿用原图 fx 0.7838 fy 0.4903",
    "dialogueInImage": true,
    "box": [
     395,
@@ -466,8 +466,8 @@
     483
    ],
    "land": {
-    "fx": 0.847,
-    "fy": 0.54
+    "fx": 0.7838,
+    "fy": 0.4903
    },
    "frameSrc": null,
    "occluderSrc": null,
@@ -479,8 +479,7 @@
     "/assets/comic-v6/p3e/frame-01.webp",
     "/assets/comic-v6/p3e/frame-02.webp",
     "/assets/comic-v6/p3e/frame-03.webp",
-    "/assets/comic-v6/p3e/frame-04.webp",
-    "/assets/comic-v6/p3e/frame-05.webp"
+    "/assets/comic-v6/p3e/frame-04.webp"
    ]
   },
   "handoff": {

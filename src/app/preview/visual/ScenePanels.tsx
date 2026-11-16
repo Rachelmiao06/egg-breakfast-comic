@@ -103,17 +103,14 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
           const u = t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.06) / 0.36)) : 1;
           const pos = u * (n - 1), i0 = Math.min(n - 1, Math.floor(pos)), fr = pos - i0, sm = fr * fr * (3 - 2 * fr);
           const op = (i: number) => (i === i0 ? 1 : i === i0 + 1 ? sm : 0);
-          // 第 4 帧妈妈身体后仰、对话泡整体右移约 90px：它的字单独盖、单独出
           const prog = t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.25) / 0.2)) : 1;
-          const o4 = op(3), oRest = Math.max(op(0), op(1), op(2), op(4));
           return (
             <>
               {slot.frames.map((src, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={src} src={src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none object-contain" style={{ opacity: op(i) }} />
               ))}
-              <div className="absolute inset-0" style={{ opacity: oRest }}><BubbleText k="catch" progress={prog} /></div>
-              <div className="absolute inset-0" style={{ opacity: o4 }}><BubbleText k="catch" progress={prog} dx={90} /></div>
+              <BubbleText k="catch" progress={prog} />
             </>
           );
         })() : slot.src ? (
