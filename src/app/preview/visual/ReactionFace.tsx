@@ -26,7 +26,7 @@ export default function ReactionFace({ active }: { active: boolean }) {
   const els = useRef<Record<string, HTMLImageElement | null>>({});
   useEffect(() => {
     const show = (f: Face) => FACES.forEach((n) => { const el = els.current[n]; if (el) el.style.opacity = n === f ? "1" : "0"; });
-    const rest = () => { show("wide"); ["stress", "sweat"].forEach((n) => { const el = els.current[n]; if (el) gsap.set(el, { opacity: 0, y: 0 }); }); };
+    const rest = () => { show("wide"); ["stress", "sweatA", "sweatB"].forEach((n) => { const el = els.current[n]; if (el) gsap.set(el, { opacity: 0, y: 0 }); }); };
     rest();
     if (!active) return;
     const tl = gsap.timeline();
@@ -38,18 +38,19 @@ export default function ReactionFace({ active }: { active: boolean }) {
     loop.set({}, {}, l); // 补满一圈的时长
     tl.add(loop, at);
     // 符号（时间同 build_animation.py）：黑线淡入淡出；汗滴淡入、慢慢下滑、淡出
-    const stress = els.current.stress, sweat = els.current.sweat;
+    const stress = els.current.stress;
     if (stress) { tl.to(stress, { opacity: 1, duration: 0.6, ease: "none" }, 0.2); tl.to(stress, { opacity: 0, duration: 1, ease: "none" }, 4.6); }
-    if (sweat) {
-      const dropPx = (24 / H) * (els.current.base?.parentElement?.clientHeight ?? 400); // 6 s × 4px（966×682 画布）
-      tl.to(sweat, { opacity: 1, duration: 0.8, ease: "none" }, 3.4);
-      // 汗滴出来的时候妈妈的两声"呃"（2026-11-15 用户：原来放在"没事，是我拉肚子了"那一格后面很奇怪，挪到这里；第二声略低）
-      const uh = (rate: number) => () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "momUh", rate } }));
-      tl.call(uh(1), [], 3.55);
-      tl.call(uh(0.93), [], 4.5);
-      tl.to(sweat, { y: dropPx, duration: 6, ease: "none" }, 3.4);
-      tl.to(sweat, { opacity: 0, duration: 1.2, ease: "none" }, 9);
-    }
+    // 两颗汗滴逐颗出现，每颗出现的那一刻妈妈"呃"一声（2026-11-15 用户：呃要和汗滴动画连在一起；声音从原来放在"拉肚子"那格后面挪到这里；第二声略低）
+    const uh = (rate: number) => () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "momUh", rate } }));
+    const dropPx = (24 / H) * (els.current.base?.parentElement?.clientHeight ?? 400); // 6 s × 4px（966×682 画布）
+    ([["sweatA", 3.4, 1], ["sweatB", 4.4, 0.93]] as const).forEach(([n, at, rate]) => {
+      const el = els.current[n];
+      if (!el) return;
+      tl.to(el, { opacity: 1, duration: 0.45, ease: "none" }, at);
+      tl.call(uh(rate), [], at + 0.05); // 汗滴刚开始出现，声音同一拍
+      tl.to(el, { y: dropPx, duration: 6, ease: "none" }, at);
+      tl.to(el, { opacity: 0, duration: 1.2, ease: "none" }, 9 + (at - 3.4));
+    });
     return () => { tl.kill(); loop.kill(); rest(); };
   }, [active]);
   const img = "absolute block select-none pointer-events-none";
@@ -66,7 +67,10 @@ export default function ReactionFace({ active }: { active: boolean }) {
       <img ref={(el) => { els.current.stress = el; }} src={`${P}stress.webp`} alt="" draggable={false} aria-hidden className={img}
         style={{ left: pct(410, W), top: pct(145, H), width: pct(64, W), height: pct(80, H), opacity: 0 }} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={(el) => { els.current.sweat = el; }} src={`${P}sweat.webp`} alt="" draggable={false} aria-hidden className={img}
+      <img ref={(el) => { els.current.sweatA = el; }} src={`${P}sweat-a.webp`} alt="" draggable={false} aria-hidden className={img}
+        style={{ left: pct(648, W), top: pct(240, H), width: pct(70, W), height: pct(100, H), opacity: 0 }} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img ref={(el) => { els.current.sweatB = el; }} src={`${P}sweat-b.webp`} alt="" draggable={false} aria-hidden className={img}
         style={{ left: pct(648, W), top: pct(240, H), width: pct(70, W), height: pct(100, H), opacity: 0 }} />
     </>
   );
