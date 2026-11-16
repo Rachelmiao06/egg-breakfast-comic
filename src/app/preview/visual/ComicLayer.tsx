@@ -63,6 +63,9 @@ const P2B_SCHEDULE: [number, number][] = P2B_SEQ.map((f, i) => [f, i * P2B_STEP]
 // p4c 淋酱汁（egg-bowl-animations/p4c-sauce-drizzle：6 帧，GIF 时长 .22/.16×3/.18/.65 s，471×341，末帧停住）
 const P4C_FRAMES = seqFrames("p4c", 6);
 const P4C_SCHEDULE: [number, number][] = [[0, 0], [1, 0.22], [2, 0.38], [3, 0.54], [4, 0.7], [5, 0.88], [5, 1.53]];
+// p1a 回家放袋子（new-chat-5 生成的 3×2 拼图，每张 762×336）：妈妈提着袋子弯腰 → 放下 → 直起身；6 帧，滚动带动、相邻帧交叉淡化
+const P1A_FRAMES = seqFrames("p1a", 6);
+const P1A_SCHEDULE: [number, number][] = [[0, 0], [1, 0.35], [2, 0.7], [3, 1.05], [4, 1.4], [5, 1.9]];
 const P5F_FRAMES = seqFrames("p5f", 6);
 const P5F_SCHEDULE: [number, number][] = [[0, 0], [1, 0.65], [2, 0.89], [3, 1.13], [4, 1.37], [1, 1.61], [2, 1.85], [3, 2.09], [4, 2.33], [5, 2.57]];
 // p5b 妈妈在门边喊"宝宝？"（用户 2026-11-15 送图，6 张，泡是空的，字层从原格减出）：timeline f1 0.6 → f2 0.4 → f3 0.56（张嘴喊）→ f4 0.8 → f5 0.24（眨眼）→ f6 1.12 → f2 0.32 → f3 0.4（再喊）→ 回到 f1，共 4.44 s
@@ -496,7 +499,8 @@ function FlowLayer() {
         const scrub = Math.min(1, Math.max(0, (q - bph.enter) / Math.max(0.01, span)));
         const reading = perf && stage.entered && !stage.leaving && stage.vis >= 0.9; // 静止读格：妈妈的脸格才会眨眼
         const panel =
-          p.key === "p2a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2A_FRAMES} schedule={P2A_SCHEDULE} blend staticSrc={P2A_FRAMES[5]} />
+          p.key === "p1a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P1A_FRAMES} schedule={P1A_SCHEDULE} blend staticSrc={P1A_FRAMES[5]} />
+          : p.key === "p2a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2A_FRAMES} schedule={P2A_SCHEDULE} blend staticSrc={P2A_FRAMES[5]} />
           : p.key === "p2b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2B_FRAMES} schedule={P2B_SCHEDULE} scrubLoop={{ period: P2B_SEQ.length * P2B_STEP, cycles: 2, hitFrames: [4] }} staticSrc={P2B_FRAMES[0]} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />

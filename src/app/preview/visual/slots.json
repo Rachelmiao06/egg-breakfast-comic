@@ -4,13 +4,13 @@
   {
    "key": "p1a",
    "beat": "bag",
-   "src": "/assets/comic-v3/p1a.webp",
-   "source": "01-groceries-and-an-idea.png A 格",
+   "src": "/assets/comic-v6/p1a/frame-06.webp",
+   "source": "new-chat-5 生成的 6 帧拼图（comic-v6/p1a，SeqPanel 由滚动带动、相邻帧交叉淡化，静态取末帧）",
    "dialogueInImage": false,
    "x": 8,
    "y": 8,
    "w": 44,
-   "aspect": 2.0397,
+   "aspect": 2.2679,
    "from": "seam",
    "order": 0,
    "role": "hero"
