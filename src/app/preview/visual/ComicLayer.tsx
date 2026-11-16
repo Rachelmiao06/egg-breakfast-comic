@@ -78,8 +78,8 @@ const P5B_SCHEDULE: [number, number][] = [[0, 0], [1, 0.6], [2, 1.0], [3, 1.56],
 const P5B_TEXT: SeqText = {
   size: [512, 512],
   rows: [{ str: "宝宝？", x0: 329, x1: 451, y0: 45, y1: 90 }],
-  // "宝宝？" 在第一次张嘴喊（f3）时打出，之后一直留着
-  plan: [{ row: 0, at: 0.95, per: 0.18 }],
+  // "宝宝？" 一进格子就打出（2026-11-15 用户：不是要等到后面才出来），之后一直留着
+  plan: [{ row: 0, at: 0.1, per: 0.15 }],
 };
 const out3 = (t: number) => 1 - Math.pow(1 - t, 3);
 const in2 = (t: number) => t * t;
