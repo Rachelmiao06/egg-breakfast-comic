@@ -76,11 +76,7 @@
     "hold": 0.36,
     "exit": 0.3
    },
-   "kitchenDim": [
-    0.25,
-    0.7,
-    0.7
-   ],
+   "kitchenDim": [0, 0.7, 0.7],
    "egg": "table",
    "audio": {
     "loops": {
@@ -216,11 +212,7 @@
    "title": "\"是不是还少点什么……\"",
    "lengthVh": 160,
    "pin": "prep",
-   "kitchenDim": [
-    0.7,
-    0.7,
-    0.25
-   ],
+   "kitchenDim": [0.7, 0.7, 0],
    "egg": "table",
    "audio": {
     "loops": {
@@ -398,11 +390,7 @@
     "hold": 0.36,
     "exit": 0.3
    },
-   "kitchenDim": [
-    0.25,
-    0.7,
-    0.7
-   ],
+   "kitchenDim": [0, 0.7, 0.7],
    "egg": "gone",
    "audio": {
     "loops": {
