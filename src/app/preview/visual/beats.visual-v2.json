@@ -242,7 +242,7 @@
    "id": "prejump",
    "n": 8,
    "title": "环境段：桌沿上的小蛋准备起跳（漫画格全部离开，后景成为主体）",
-   "lengthVh": 100,
+   "lengthVh": 60,
    "pin": null,
    "phases": {
     "enter": 0.3,
