@@ -139,7 +139,7 @@
       "stingers": [
         {
           "sound": "boy-shh",
-          "at": 0.2,
+          "at": 0.22,
           "gain": 0.95,
           "pan": -0.7
         }
