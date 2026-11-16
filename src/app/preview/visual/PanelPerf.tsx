@@ -173,7 +173,7 @@ export function TurnPanel({ p, pos, dy, scrub, animate }: { p: PanelSlot; pos: P
 export type SeqText = { size: [number, number]; rows: { str: string; x0: number; x1: number; y0: number; y1: number }[]; plan: { row: number; at: number; per: number }[] };
 /** 对白用真字体渲染（2026-11-15 用户：从图里减出来的字层又糊又锯齿、字体也不一致）：黑体粗字，墨色，逐字显示；字号按原格里每个字的宽度（cqw = 格宽的 1%） */
 const SEQ_FONT = '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif';
-export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop, hits, scrubLoop }: {
+export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop, hits, scrubLoop, blend }: {
   p: PanelSlot; pos: Place; dy: number; scrub: number; animate: boolean;
   frames: string[]; schedule: [number, number][]; text?: SeqText; staticSrc: string;
   /** 循环周期（秒）：给了就按真实时间不停循环（炒菜这类一直在做的动作），不再由滚动带动 */
@@ -182,6 +182,8 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
   hits?: number[];
   /** 滚动循环：滚动进度 0–1 走 cycles 圈（每圈 period 秒的帧表），帧由滚动带动；hitFrames 里的帧每次切入时响一声刀刃落案板 */
   scrubLoop?: { period: number; cycles: number; hitFrames?: number[] };
+  /** 相邻两帧按滚动进度交叉淡化（帧数少、动作大的格子用：硬切会一顿一顿，淡化后是连续的） */
+  blend?: boolean;
 }) {
   const els = useRef<(HTMLImageElement | null)[]>([]);
   const rowEls = useRef<(HTMLDivElement | null)[]>([]);
@@ -212,7 +214,16 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
       if (n !== lastN.current && scrubLoop.hitFrames.includes(n) && scrub > 0 && scrub < 1) oneshot("chopHit", 0);
       lastN.current = n;
     }
-    els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
+    if (blend) {
+      // 交叉淡化：当前帧全不透明垫底，下一帧按到下一个时刻的进度（smoothstep）淡入盖上去
+      let k = 0;
+      for (let j = 0; j < schedule.length; j++) if (schedule[j][1] <= t + 1e-6) k = j;
+      const cur = schedule[k], nxt = schedule[Math.min(k + 1, schedule.length - 1)];
+      const span = nxt[1] - cur[1];
+      const u = span > 1e-6 ? Math.min(1, Math.max(0, (t - cur[1]) / span)) : 0;
+      const fr = u * u * (3 - 2 * u);
+      els.current.forEach((el, i) => { if (el) el.style.opacity = i === cur[0] ? "1" : i === nxt[0] ? fr.toFixed(3) : "0"; });
+    } else els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
     text?.rows.forEach((row, r) => {
       const plan = text.plan.find((pl) => pl.row === r);
       const k = plan ? Math.max(0, Math.min([...row.str].length, Math.floor((t - plan.at) / plan.per) + 1)) : 0;

@@ -491,7 +491,7 @@ function FlowLayer() {
         const scrub = Math.min(1, Math.max(0, (q - bph.enter) / Math.max(0.01, bph.action + bph.hold)));
         const reading = perf && stage.entered && !stage.leaving && stage.vis >= 0.9; // 静止读格：妈妈的脸格才会眨眼
         const panel =
-          p.key === "p2a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2A_FRAMES} schedule={P2A_SCHEDULE} staticSrc={P2A_FRAMES[5]} />
+          p.key === "p2a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2A_FRAMES} schedule={P2A_SCHEDULE} blend staticSrc={P2A_FRAMES[5]} />
           : p.key === "p2b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2B_FRAMES} schedule={P2B_SCHEDULE} scrubLoop={{ period: P2B_SEQ.length * P2B_STEP, cycles: 3, hitFrames: [4] }} staticSrc={P2B_FRAMES[0]} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
