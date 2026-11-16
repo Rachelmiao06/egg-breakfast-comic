@@ -22,6 +22,9 @@ export const BRISK_VH_PER_S = 40;
 export const LEN_SCALE = 1.0;
 /** 带格内动画的段：进入 / 离开各占的滚动距离（vh），与段总长无关 */
 const ENTER_VH = 75, EXIT_VH = 45;
+/** 故事后半段（呼唤蛋 → 结尾）：动画由滚动直接带动、没有"表演锁"，一甩手就能滚完，所以每秒动画要给更多滚动距离（用户 2026-11-15：从"宝宝来吃饭啦"开始后面都划得太快） */
+const LATE_BEATS = new Set(["eggcall", "return", "recognize", "worry", "punchline"]);
+const LATE_VH_PER_S = 70;
 export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as Raw[]).map((b) => ({
   phases: { enter: 0.25, action: 0, hold: 0.6, exit: 0.15 },
   kitchenDim: [0, 0, 0] as [number, number, number],
@@ -38,7 +41,7 @@ export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as
     // 带格内动画的段（动画由滚动带动，走完整个停留阶段）：进入、离开各占固定的滚动距离（ENTER_VH / EXIT_VH），
     // 其余全是停留；段长 = 动画需要的滚动距离 + 进入 + 离开。这样同一段里的几个格子紧挨着依次出现（不会因为段很长而"隔了很久"：用户 2026-11-15），
     // 长的只是格内动画那一截。
-    const len = Math.max(b.lengthVh, Math.ceil(r * BRISK_VH_PER_S + ENTER_VH + EXIT_VH));
+    const len = Math.max(b.lengthVh, Math.ceil(r * (LATE_BEATS.has(b.id) ? LATE_VH_PER_S : BRISK_VH_PER_S) + ENTER_VH + EXIT_VH));
     const enter = ENTER_VH / len, exit = EXIT_VH / len;
     b = { ...b, lengthVh: len, phases: { enter, action: 0, hold: 1 - enter - exit, exit } };
   }

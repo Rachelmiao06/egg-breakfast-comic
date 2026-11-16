@@ -116,13 +116,13 @@
   {
    "key": "p2e",
    "beat": "stirfry",
-   "src": "/assets/comic-v3/p2e.webp",
-   "source": "02-preparing-the-meal.png E 格",
+   "src": "/assets/comic-v6/p2e/frame-01.webp",
+   "source": "p2e-delivery 8 帧翻炒循环（comic-v6/p2e，SeqPanel 由滚动带动）",
    "dialogueInImage": false,
    "x": 36,
    "y": 44,
    "w": 40,
-   "aspect": 2.6027,
+   "aspect": 2.5957,
    "from": "bottom",
    "order": 1,
    "role": "support"
