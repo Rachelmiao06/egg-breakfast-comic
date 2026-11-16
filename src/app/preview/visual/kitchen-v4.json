@@ -1,588 +1,228 @@
 {
- "version": 1,
- "source": "kitchen-sliced-delivery（tools/prepare_kitchen_v4.py 生成，别手改；改落点在 backgrounds.json）",
- "anchors": [
-  {
-   "id": "counter",
-   "label": "台面",
-   "x": 900,
-   "y": 700,
-   "span": [
-    820,
-    980
-   ],
-   "layer": "countertop",
-   "depth": 30
-  },
-  {
-   "id": "rear-basket",
-   "label": "后排矮篮沿",
-   "x": 1150,
-   "y": 552,
-   "span": [
-    1090,
-    1210
-   ],
-   "layer": "rear-landing-basket",
-   "depth": 35
-  },
-  {
-   "id": "front-basket",
-   "label": "前排菜篮沿",
-   "x": 1480,
-   "y": 510,
-   "span": [
-    1430,
-    1530
-   ],
-   "layer": "basket-front",
-   "depth": 65,
-   "occluder": "basket-front"
-  },
-  {
-   "id": "window-sill",
-   "label": "窗台",
-   "x": 1250,
-   "y": 280,
-   "span": [
-    1150,
-    1350
-   ],
-   "layer": "window",
-   "depth": 12
-  },
-  {
-   "id": "shelf-top",
-   "label": "木架上层",
-   "x": 110,
-   "y": 365,
-   "span": [
-    65,
-    155
-   ],
-   "layer": "empty-shelf",
-   "depth": 40
-  }
- ],
+ "version": 2,
+ "source": "kitchen-original-layers（tools/prepare_kitchen_v4.py 生成，别手改）",
  "landscape": {
   "size": [
    1672,
    941
   ],
-  "wall": "/assets/bg-v4/wall-landscape.webp",
+  "wall": "/assets/bg-v4/bg-wall.webp",
   "items": [
    {
-    "id": "wall-cabinet",
-    "src": "/assets/bg-v4/wall-cabinet.webp",
+    "id": "bg-wall",
+    "src": "/assets/bg-v4/bg-wall.webp",
     "rect": [
      0,
      0,
-     585,
-     196
-    ],
-    "z": 10,
-    "plane": "far"
-   },
-   {
-    "id": "window",
-    "src": "/assets/bg-v4/window.webp",
-    "rect": [
-     1068,
-     0,
-     604,
-     300
-    ],
-    "z": 12,
-    "plane": "far"
-   },
-   {
-    "id": "countertop",
-    "src": "/assets/bg-v4/countertop.webp",
-    "rect": [
-     0,
-     667,
      1672,
-     274
+     941
     ],
-    "z": 30,
-    "plane": "near"
+    "z": 0,
+    "plane": "wall"
    },
    {
-    "id": "rear-landing-basket",
-    "src": "/assets/bg-v4/rear-landing-basket.webp",
-    "rect": [
-     1010,
-     540,
-     270,
-     150
-    ],
-    "z": 35,
-    "plane": "near"
-   },
-   {
-    "id": "empty-shelf",
-    "src": "/assets/bg-v4/empty-shelf.webp",
+    "id": "counter",
+    "src": "/assets/bg-v4/counter.webp",
     "rect": [
      0,
-     350,
-     390,
-     360
+     670,
+     1672,
+     271
     ],
-    "z": 40,
-    "plane": "shelf"
+    "z": 1,
+    "plane": "near"
    },
    {
-    "id": "potted-plant",
-    "src": "/assets/bg-v4/potted-plant.webp",
+    "id": "shelf",
+    "src": "/assets/bg-v4/shelf.webp",
     "rect": [
-     -12,
-     147,
-     245,
-     390
+     0,
+     349,
+     393,
+     373
     ],
-    "z": 44,
+    "z": 2,
     "plane": "shelf"
    },
    {
     "id": "basket-back",
     "src": "/assets/bg-v4/basket-back.webp",
     "rect": [
-     1370,
-     440,
-     295,
-     285
+     1371,
+     475,
+     301,
+     246
     ],
-    "z": 45,
+    "z": 3,
     "plane": "near"
    },
    {
-    "id": "sugar-jar",
-    "src": "/assets/bg-v4/sugar-jar.webp",
+    "id": "veg-lettuce",
+    "src": "/assets/bg-v4/veg-lettuce.webp",
     "rect": [
-     190,
-     235,
+     1507,
+     281,
      165,
-     150
+     313
     ],
-    "z": 46,
-    "plane": "shelf"
-   },
-   {
-    "id": "white-bean-jar",
-    "src": "/assets/bg-v4/white-bean-jar.webp",
-    "rect": [
-     0,
-     486,
-     100,
-     195
-    ],
-    "z": 46,
-    "plane": "shelf"
-   },
-   {
-    "id": "pepper-jar",
-    "src": "/assets/bg-v4/pepper-jar.webp",
-    "rect": [
-     105,
-     486,
-     100,
-     195
-    ],
-    "z": 46,
-    "plane": "shelf"
-   },
-   {
-    "id": "lettuce",
-    "src": "/assets/bg-v4/lettuce.webp",
-    "rect": [
-     1525,
-     280,
-     150,
-     260
-    ],
-    "z": 46,
+    "z": 4,
     "plane": "near"
    },
    {
-    "id": "oil-bottle",
-    "src": "/assets/bg-v4/oil-bottle.webp",
+    "id": "veg-corn",
+    "src": "/assets/bg-v4/veg-corn.webp",
     "rect": [
-     205,
-     390,
-     105,
-     290
+     1621,
+     346,
+     51,
+     253
     ],
-    "z": 47,
-    "plane": "shelf"
-   },
-   {
-    "id": "corn",
-    "src": "/assets/bg-v4/corn.webp",
-    "rect": [
-     1600,
-     330,
-     80,
-     210
-    ],
-    "z": 47,
+    "z": 5,
     "plane": "near"
    },
    {
-    "id": "soy-bottle",
-    "src": "/assets/bg-v4/soy-bottle.webp",
+    "id": "veg-tomato",
+    "src": "/assets/bg-v4/veg-tomato.webp",
     "rect": [
-     300,
-     440,
-     69,
-     240
+     1545,
+     418,
+     121,
+     134
     ],
-    "z": 48,
-    "plane": "shelf"
-   },
-   {
-    "id": "tomato",
-    "src": "/assets/bg-v4/tomato.webp",
-    "rect": [
-     1555,
-     445,
-     112,
-     85
-    ],
-    "z": 48,
+    "z": 6,
     "plane": "near"
    },
    {
-    "id": "scallion-leaves",
-    "src": "/assets/bg-v4/scallion-leaves.webp",
+    "id": "veg-carrot",
+    "src": "/assets/bg-v4/veg-carrot.webp",
     "rect": [
-     1325,
-     320,
-     210,
-     230
+     1433,
+     327,
+     131,
+     300
     ],
-    "z": 48,
-    "plane": "near"
-   },
-   {
-    "id": "carrot-leaves",
-    "src": "/assets/bg-v4/carrot-leaves.webp",
-    "rect": [
-     1430,
-     320,
-     110,
-     120
-    ],
-    "z": 49,
-    "plane": "near"
-   },
-   {
-    "id": "carrot-body-clean",
-    "src": "/assets/bg-v4/carrot-body-clean.webp",
-    "rect": [
-     1430,
-     415,
-     110,
-     145
-    ],
-    "z": 50,
+    "z": 7,
     "plane": "near"
    },
    {
     "id": "basket-front",
     "src": "/assets/bg-v4/basket-front.webp",
     "rect": [
-     1370,
-     500,
-     295,
-     225
+     1371,
+     538,
+     301,
+     183
     ],
-    "z": 70,
+    "z": 8,
     "plane": "front"
    },
    {
-    "id": "gingham-cloth",
-    "src": "/assets/bg-v4/gingham-cloth.webp",
+    "id": "gingham",
+    "src": "/assets/bg-v4/gingham.webp",
     "rect": [
-     1585,
-     488,
-     100,
-     205
-    ],
-    "z": 71,
-    "plane": "front"
-   },
-   {
-    "id": "scallion-body",
-    "src": "/assets/bg-v4/scallion-body.webp",
-    "rect": [
-     1277,
-     550,
-     110,
-     155
-    ],
-    "z": 73,
-    "plane": "front"
-   }
-  ]
- },
- "portrait": {
-  "size": [
-   852,
-   1846
-  ],
-  "wall": "/assets/bg-v4/wall-portrait.webp",
-  "items": [
-   {
-    "id": "wall-cabinet",
-    "src": "/assets/bg-v4/wall-cabinet.webp",
-    "rect": [
-     -10,
-     0,
-     260,
-     215
-    ],
-    "z": 10,
-    "plane": "far"
-   },
-   {
-    "id": "window",
-    "src": "/assets/bg-v4/window.webp",
-    "rect": [
-     550,
-     0,
-     302,
-     350
-    ],
-    "z": 12,
-    "plane": "far"
-   },
-   {
-    "id": "countertop",
-    "src": "/assets/bg-v4/countertop.webp",
-    "rect": [
-     0,
-     1670,
-     852,
+     1566,
+     478,
+     106,
      176
     ],
-    "z": 30,
-    "plane": "near"
-   },
-   {
-    "id": "rear-landing-basket",
-    "src": "/assets/bg-v4/rear-landing-basket.webp",
-    "rect": [
-     465,
-     1460,
-     190,
-     95
-    ],
-    "z": 35,
-    "plane": "near"
-   },
-   {
-    "id": "empty-shelf",
-    "src": "/assets/bg-v4/empty-shelf.webp",
-    "rect": [
-     -10,
-     665,
-     195,
-     430
-    ],
-    "z": 40,
-    "plane": "shelf"
-   },
-   {
-    "id": "potted-plant",
-    "src": "/assets/bg-v4/potted-plant.webp",
-    "rect": [
-     -65,
-     350,
-     210,
-     380
-    ],
-    "z": 44,
-    "plane": "shelf"
-   },
-   {
-    "id": "basket-back",
-    "src": "/assets/bg-v4/basket-back.webp",
-    "rect": [
-     650,
-     1400,
-     220,
-     300
-    ],
-    "z": 45,
-    "plane": "near"
-   },
-   {
-    "id": "sugar-jar",
-    "src": "/assets/bg-v4/sugar-jar.webp",
-    "rect": [
-     45,
-     555,
-     110,
-     145
-    ],
-    "z": 46,
-    "plane": "shelf"
-   },
-   {
-    "id": "white-bean-jar",
-    "src": "/assets/bg-v4/white-bean-jar.webp",
-    "rect": [
-     -135,
-     900,
-     70,
-     160
-    ],
-    "z": 46,
-    "plane": "shelf"
-   },
-   {
-    "id": "pepper-jar",
-    "src": "/assets/bg-v4/pepper-jar.webp",
-    "rect": [
-     -100,
-     900,
-     70,
-     160
-    ],
-    "z": 46,
-    "plane": "shelf"
-   },
-   {
-    "id": "lettuce",
-    "src": "/assets/bg-v4/lettuce.webp",
-    "rect": [
-     790,
-     1220,
-     120,
-     260
-    ],
-    "z": 46,
-    "plane": "near"
-   },
-   {
-    "id": "oil-bottle",
-    "src": "/assets/bg-v4/oil-bottle.webp",
-    "rect": [
-     0,
-     775,
-     95,
-     290
-    ],
-    "z": 47,
-    "plane": "shelf"
-   },
-   {
-    "id": "corn",
-    "src": "/assets/bg-v4/corn.webp",
-    "rect": [
-     845,
-     1290,
-     75,
-     200
-    ],
-    "z": 47,
-    "plane": "near"
-   },
-   {
-    "id": "soy-bottle",
-    "src": "/assets/bg-v4/soy-bottle.webp",
-    "rect": [
-     85,
-     815,
-     73,
-     250
-    ],
-    "z": 48,
-    "plane": "shelf"
-   },
-   {
-    "id": "tomato",
-    "src": "/assets/bg-v4/tomato.webp",
-    "rect": [
-     805,
-     1400,
-     90,
-     90
-    ],
-    "z": 48,
-    "plane": "near"
-   },
-   {
-    "id": "carrot-leaves",
-    "src": "/assets/bg-v4/carrot-leaves.webp",
-    "rect": [
-     690,
-     1230,
-     120,
-     150
-    ],
-    "z": 49,
-    "plane": "near"
-   },
-   {
-    "id": "carrot-body-clean",
-    "src": "/assets/bg-v4/carrot-body-clean.webp",
-    "rect": [
-     680,
-     1340,
-     90,
-     130
-    ],
-    "z": 50,
-    "plane": "near"
-   },
-   {
-    "id": "basket-front",
-    "src": "/assets/bg-v4/basket-front.webp",
-    "rect": [
-     650,
-     1440,
-     220,
-     260
-    ],
-    "z": 70,
+    "z": 9,
     "plane": "front"
    },
    {
-    "id": "gingham-cloth",
-    "src": "/assets/bg-v4/gingham-cloth.webp",
+    "id": "plant",
+    "src": "/assets/bg-v4/plant.webp",
     "rect": [
-     790,
-     1420,
-     100,
-     205
+     0,
+     115,
+     235,
+     403
     ],
-    "z": 71,
+    "z": 10,
+    "plane": "shelf"
+   },
+   {
+    "id": "jar-character",
+    "src": "/assets/bg-v4/jar-character.webp",
+    "rect": [
+     198,
+     232,
+     154,
+     157
+    ],
+    "z": 11,
+    "plane": "shelf"
+   },
+   {
+    "id": "jar-beans",
+    "src": "/assets/bg-v4/jar-beans.webp",
+    "rect": [
+     0,
+     494,
+     100,
+     186
+    ],
+    "z": 12,
+    "plane": "shelf"
+   },
+   {
+    "id": "jar-pepper",
+    "src": "/assets/bg-v4/jar-pepper.webp",
+    "rect": [
+     103,
+     489,
+     98,
+     190
+    ],
+    "z": 13,
+    "plane": "shelf"
+   },
+   {
+    "id": "bottle-soy",
+    "src": "/assets/bg-v4/bottle-soy.webp",
+    "rect": [
+     289,
+     440,
+     78,
+     237
+    ],
+    "z": 14,
+    "plane": "shelf"
+   },
+   {
+    "id": "bottle-oil",
+    "src": "/assets/bg-v4/bottle-oil.webp",
+    "rect": [
+     206,
+     397,
+     100,
+     280
+    ],
+    "z": 15,
+    "plane": "shelf"
+   },
+   {
+    "id": "scallion-body",
+    "src": "/assets/bg-v4/scallion-body.webp",
+    "rect": [
+     1301,
+     523,
+     94,
+     183
+    ],
+    "z": 16,
     "plane": "front"
    },
    {
     "id": "scallion-leaves",
     "src": "/assets/bg-v4/scallion-leaves.webp",
     "rect": [
-     540,
-     1310,
-     180,
-     200
+     1320,
+     379,
+     145,
+     144
     ],
-    "z": 72,
+    "z": 17,
     "plane": "near"
-   },
-   {
-    "id": "scallion-body",
-    "src": "/assets/bg-v4/scallion-body.webp",
-    "rect": [
-     565,
-     1510,
-     95,
-     180
-    ],
-    "z": 73,
-    "plane": "front"
    }
   ]
  }
