@@ -156,22 +156,22 @@
      },
      {
       "id": "scallion",
-      "src": "/assets/bg/props-scallion.png",
+      "src": "/assets/bg/props-scallion-hires.webp",
       "img": [
-       1296,
-       519,
-       90,
-       154
+       1288,
+       484,
+       136,
+       235
       ]
      },
      {
       "id": "basket",
-      "src": "/assets/bg/props-basket.png",
+      "src": "/assets/bg/props-basket-hires.webp",
       "img": [
        1384,
        278,
        288,
-       394
+       396
       ]
      }
     ]
@@ -219,16 +219,16 @@
    },
    {
     "id": "scallion-leaves",
-    "src": "/assets/bg/friends-scallion-leaves.png",
+    "src": "/assets/bg/friends-scallion-leaves-hires.webp",
     "img": [
-     1330,
-     373,
-     138,
-     149
+     1318,
+     370,
+     160,
+     173
     ],
     "pivot": [
-     1335,
-     522
+     1324,
+     543
     ],
     "curve": "friendLeaves",
     "range": [
