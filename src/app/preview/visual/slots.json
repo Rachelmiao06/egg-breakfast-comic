@@ -60,13 +60,13 @@
   {
    "key": "p2a",
    "beat": "chop",
-   "src": "/assets/comic-v6/p2a/frame-01.webp",
-   "source": "用户送来的 6 帧切菜整格（comic-v6/p2a，SeqPanel 由滚动带动，4 圈）；p2b 仍是只有手和胡萝卜的特写",
+   "src": "/assets/comic-v6/p2a/frame-06.webp",
+   "source": "p2a-arrange-with-carrot（comic-v6/p2a，SeqPanel 由滚动带动，静态取末帧）",
    "dialogueInImage": false,
-   "x": 31.0,
+   "x": 27,
    "y": 4,
-   "w": 34,
-   "aspect": 1.6599,
+   "w": 42,
+   "aspect": 2.2009,
    "from": "top",
    "order": 0,
    "role": "hero"

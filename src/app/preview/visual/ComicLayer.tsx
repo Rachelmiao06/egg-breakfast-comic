@@ -47,9 +47,9 @@ const P6A_SCHEDULE: [number, number][] = [[0, 0], [1, 1.05], [2, 1.33], [3, 1.61
 // p3b 倒菜进饭碗（p3b-sauce-animation：6 帧，GIF 时长 .25/.18×4/.65 s，约 1.6 s，末帧停住）
 const P3B_FRAMES = seqFrames("p3b", 6);
 const P3B_SCHEDULE: [number, number][] = [[0, 0], [1, 0.25], [2, 0.43], [3, 0.61], [4, 0.79], [5, 0.97], [5, 1.62]];
-// p2a 切菜（顶上那张妈妈切菜大格；用户 2026-11-15 送来的 6 帧整格，3×2 切图，每张 654×394）：由滚动带动、滚完整段走 2 圈（用户：切得太快，要慢慢切）（用户：动画要和滚动联动，不能自己跑），第 3、5 帧切入时响 chopHit
+// p2a 摆放食材（顶上那张妈妈中景；p2a-arrange-with-carrot：6 张完整帧 1950×886，timeline 停留 .45/.3/.3/.4/.4/1.35 s）：扶葱束 → 轻推 → 松手 → 双手收回，保留整根胡萝卜给下一格切；由滚动带动，末帧停住
 const P2A_FRAMES = seqFrames("p2a", 6);
-const P2A_SCHEDULE: [number, number][] = Array.from({ length: 6 }, (_, i) => [i, i * 0.22] as [number, number]);
+const P2A_SCHEDULE: [number, number][] = [[0, 0], [1, 0.45], [2, 0.75], [3, 1.05], [4, 1.45], [5, 1.85], [5, 3.2]];
 // p4b 蛋滑进碗（egg-bowl-animations/p4b-egg-slide：6 帧，GIF 时长 .22/.16×3/.18/.65 s，437×341，末帧停住）
 const P4B_FRAMES = seqFrames("p4b", 6);
 const P4B_SCHEDULE: [number, number][] = [[0, 0], [1, 0.22], [2, 0.38], [3, 0.54], [4, 0.7], [5, 0.88], [5, 1.53]];
@@ -491,7 +491,7 @@ function FlowLayer() {
         const scrub = Math.min(1, Math.max(0, (q - bph.enter) / Math.max(0.01, bph.action + bph.hold)));
         const reading = perf && stage.entered && !stage.leaving && stage.vis >= 0.9; // 静止读格：妈妈的脸格才会眨眼
         const panel =
-          p.key === "p2a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2A_FRAMES} schedule={P2A_SCHEDULE} scrubLoop={{ period: 1.32, cycles: 2 }} staticSrc={P2A_FRAMES[0]} />
+          p.key === "p2a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2A_FRAMES} schedule={P2A_SCHEDULE} staticSrc={P2A_FRAMES[5]} />
           : p.key === "p2b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2B_FRAMES} schedule={P2B_SCHEDULE} scrubLoop={{ period: P2B_SEQ.length * P2B_STEP, cycles: 3, hitFrames: [4] }} staticSrc={P2B_FRAMES[0]} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
