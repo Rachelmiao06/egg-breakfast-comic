@@ -48,8 +48,8 @@ const P6A_SCHEDULE: [number, number][] = [[0, 0], [1, 1.05], [2, 1.33], [3, 1.61
 const P3B_FRAMES = seqFrames("p3b", 6);
 const P3B_SCHEDULE: [number, number][] = [[0, 0], [1, 0.25], [2, 0.43], [3, 0.61], [4, 0.79], [5, 0.97], [5, 1.62]];
 // p2a 摆放食材（顶上那张妈妈中景；p2a-arrange-with-carrot：6 张完整帧 1950×886，timeline 停留 .45/.3/.3/.4/.4/1.35 s）：扶葱束 → 轻推 → 松手 → 双手收回，保留整根胡萝卜给下一格切；由滚动带动，末帧停住
-/** 格内序列动画从开始到演完占的滚动距离上限（vh）：单次甩出上限 35vh，两三下 ≈ 90vh */
-const ANIM_SPAN_VH = 90;
+/** 格内序列动画从开始到演完占的滚动距离上限（vh）：单次甩出上限 35vh，两三下 ≈ 110vh */
+const ANIM_SPAN_VH = 110;
 const P2A_FRAMES = seqFrames("p2a", 6);
 const P2A_SCHEDULE: [number, number][] = [[0, 0], [1, 0.45], [2, 0.75], [3, 1.05], [4, 1.45], [5, 1.85]]; // 最后一帧就在滚动进度 1：和下面切胡萝卜那格（p2b，滚完整段走 3 圈）同时开始、同时结束
 // p4b 蛋滑进碗（egg-bowl-animations/p4b-egg-slide：6 帧，GIF 时长 .22/.16×3/.18/.65 s，437×341，末帧停住）
