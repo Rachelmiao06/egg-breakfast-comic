@@ -157,6 +157,9 @@ function panelPresence(t: Timeline, beats: Beat[]) {
 
 /** 阅读厨房图上沿之上补的天花板高度（场景像素，够镜头抬到最高处） */
 const CEILING_H = 700;
+/** 阅读厨房图往上的延伸（2026-11-15 用户送来的 kitchen-upper.png，1672×760，底部 140px 和原图顶部 140px 逐像素一致）：
+ *  放在远景层里（和墙一起动），图片像素 y = -(760 - 140) = -620 起；它之上再用原来的拉伸渐隐补一条（镜头抬到最高处才用得上） */
+const UPPER = { src: "/assets/bg/kitchen-upper.webp", w: 1672, h: 760, overlap: 140 };
 
 function ReadingKitchen({ reveal }: { reveal: number }) {
   const R = BG.reading;
@@ -286,11 +289,11 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
           图的最上面几行往上拉伸、渐隐，再铺一层奶油色的天花板底；只在横版画（竖版的 box 本来就伸出画面）。
           底图盖在远景层之下、多垫 8px，远景层的小幅视差不会露缝。 */}
       {!portrait && (
-        <div aria-hidden data-bg="ceiling" className="pointer-events-none absolute" style={{ left: 0, top: -CEILING_H, width: "100%", height: CEILING_H + 8, background: "linear-gradient(to bottom, #f7e4c4, #fbe9cb)" }}>
+        <div aria-hidden data-bg="ceiling" className="pointer-events-none absolute" style={{ left: 0, top: -CEILING_H - ((UPPER.h - UPPER.overlap) / ih) * h, width: "100%", height: CEILING_H + 8, background: "linear-gradient(to bottom, #f7e4c4, #fbe9cb)" }}>
           <div className="absolute left-0 w-full overflow-hidden" style={{ bottom: 0, height: 120, filter: "blur(9px)", WebkitMaskImage: "linear-gradient(to top, #000 5%, transparent 85%)", maskImage: "linear-gradient(to top, #000 5%, transparent 85%)" }}>
             <div className="absolute left-0 w-full overflow-hidden" style={{ bottom: 0, height: 6, transform: "scaleY(27)", transformOrigin: "bottom" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={PL ? PL.far.src : src} alt="" draggable={false} className="absolute left-0 top-0 max-w-none select-none" style={{ width: w, height: PL ? (h * PL.far.img[3]) / ih : h }} />
+              <img src={PL ? UPPER.src : src} alt="" draggable={false} className="absolute left-0 top-0 max-w-none select-none" style={{ width: w, height: PL ? (h * UPPER.h) / ih : h }} />
             </div>
           </div>
         </div>
@@ -299,6 +302,8 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
         <>
           {/* 远景层：墙、瓷砖、吊柜、窗；比主体层少动（ticker 写 translate）。台面后沿以下多画了几十行墙，往上走时不露底 */}
           <div ref={farRef} data-plane="far" className="absolute inset-0" style={{ willChange: "translate" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={UPPER.src} alt="" draggable={false} className="absolute select-none" style={pct([0, -(UPPER.h - UPPER.overlap), UPPER.w, UPPER.h])} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={PL.far.src} alt="" draggable={false} className="absolute select-none" style={pct(PL.far.img)} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
