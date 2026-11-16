@@ -146,12 +146,12 @@
     "items": [
      {
       "id": "shelf",
-      "src": "/assets/bg/props-shelf.png",
+      "src": "/assets/bg/props-shelf-hires.webp",
       "img": [
        0,
        113,
        420,
-       562
+       612
       ]
      },
      {
@@ -246,16 +246,6 @@
      394,
      102,
      304
-    ]
-   },
-   {
-    "id": "post",
-    "src": "/assets/bg/friends-post.png",
-    "img": [
-     362,
-     349,
-     30,
-     362
     ]
    }
   ],
