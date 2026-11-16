@@ -133,13 +133,13 @@
    "src": "/assets/comic-v5/p3a/static.webp",
    "source": "new pics/C-sauce frame-01（静态格用原图；动画用分层 comic-v4/layers/p3a-base、part、front，tools/split_layers.py）",
    "dialogueInImage": false,
-   "x": 28,
-   "y": 8,
-   "w": 26,
+   "x": 60,
+   "y": 40,
+   "w": 20,
    "aspect": 1,
-   "from": "left",
-   "order": 0,
-   "role": "hero"
+   "from": "right",
+   "order": 1,
+   "role": "support"
   },
   {
    "key": "p3b",
@@ -147,13 +147,13 @@
    "src": "/assets/comic-v6/p3b/frame-06.webp",
    "source": "p3b-sauce-animation（comic-v6/p3b，SeqPanel 由滚动带动，静态取末帧）",
    "dialogueInImage": false,
-   "x": 60,
-   "y": 40,
-   "w": 20,
+   "x": 28,
+   "y": 8,
+   "w": 26,
    "aspect": 1.1232,
-   "from": "right",
-   "order": 1,
-   "role": "support"
+   "from": "left",
+   "order": 0,
+   "role": "hero"
   },
   {
    "key": "p3c",

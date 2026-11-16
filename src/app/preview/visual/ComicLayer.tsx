@@ -501,7 +501,7 @@ function FlowLayer() {
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} loop={P2E_LOOP} staticSrc={P2E_FRAMES[0]} />
-          : p.key === "p3b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P3B_FRAMES} schedule={P3B_SCHEDULE} staticSrc={P3B_FRAMES[5]} />
+          : p.key === "p3b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={Math.min(1, scrub * 2)} animate={perf} frames={P3B_FRAMES} schedule={P3B_SCHEDULE} staticSrc={P3B_FRAMES[5]} />
           : p.key === "p4b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4B_FRAMES} schedule={P4B_SCHEDULE} staticSrc={P4B_FRAMES[5]} />
           : p.key === "p4c" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4C_FRAMES} schedule={P4C_SCHEDULE} staticSrc={P4C_FRAMES[5]} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
