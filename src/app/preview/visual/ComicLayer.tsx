@@ -23,9 +23,10 @@ import { ENTER_SCALE, PAPER_PARALLAX, PAPER_SHADOW } from "./paper";
 const seqFrames = (dir: string, n: number) => Array.from({ length: n }, (_, i) => `/assets/comic-v6/${dir}/frame-0${i + 1}.webp`);
 const P4D_FRAMES = seqFrames("p4d", 8);
 const P4D_SCHEDULE: [number, number][] = [[0, 0], [1, 0.4], [2, 0.56], [3, 0.72], [4, 0.92], [5, 1.08], [6, 1.28], [7, 1.58]];
-// p2e 炒菜：8 张翻炒循环（每张 0.2 s），滚动带动走两圈，最后回到第 1 张
+// p2e 炒菜：8 张翻炒循环（每张 0.2 s），一圈 1.6 s，格子在屏幕上就不停循环
 const P2E_FRAMES = seqFrames("p2e", 8);
-const P2E_SCHEDULE: [number, number][] = [...Array.from({ length: 16 }, (_, i) => [i % 8, i * 0.2] as [number, number]), [0, 3.2]];
+const P2E_SCHEDULE: [number, number][] = Array.from({ length: 8 }, (_, i) => [i, i * 0.2] as [number, number]);
+const P2E_LOOP = 1.6; // 真实时间不停循环（用户：炒菜应该一直在动，不能只随滚动动一下）
 const P6D_FRAMES = seqFrames("p6d", 6);
 const P6D_SCHEDULE: [number, number][] = [[0, 0], [1, 1.0], [2, 1.7], [3, 2.5], [4, 2.7], [5, 2.95]];
 const P6D_TEXT: SeqText = {
@@ -476,7 +477,7 @@ function FlowLayer() {
           p.key === "p2b" ? <ChopPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} staticSrc={P2E_FRAMES[0]} />
+          : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} loop={P2E_LOOP} staticSrc={P2E_FRAMES[0]} />
           : p.key === "p3a" ? <SaucePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p4d" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4D_FRAMES} schedule={P4D_SCHEDULE} staticSrc={P4D_FRAMES[7]} />
           : p.key === "p6d" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P6D_FRAMES} schedule={P6D_SCHEDULE} text={P6D_TEXT} staticSrc="/assets/comic-v3/p6d.webp" />

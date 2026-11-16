@@ -23,7 +23,9 @@ export const LEN_SCALE = 1.0;
 /** 带格内动画的段：进入 / 离开各占的滚动距离（vh），与段总长无关 */
 const ENTER_VH = 75, EXIT_VH = 45;
 /** 故事后半段（呼唤蛋 → 结尾）：动画由滚动直接带动、没有"表演锁"，一甩手就能滚完，所以每秒动画要给更多滚动距离（用户 2026-11-15：从"宝宝来吃饭啦"开始后面都划得太快） */
-const LATE_BEATS = new Set(["eggcall", "return", "recognize", "worry", "punchline"]);
+const LATE_BEATS = new Set(["yolk", "search", "eggcall", "return", "recognize", "worry", "punchline"]);
+/** 炒菜段也要划两三下才过得去（用户 2026-11-15） */
+const TIGHT_BEATS = new Set(["stirfry"]);
 const LATE_VH_PER_S = 85;
 /** 后半段单次甩出的距离上限（vh）：一格的进入 + 动画要划两三下才过得去（用户 2026-11-15："最起码划两下"） */
 const LATE_THROW_VH = 35;
@@ -47,7 +49,7 @@ export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as
     const enter = ENTER_VH / len, exit = EXIT_VH / len;
     b = { ...b, lengthVh: len, phases: { enter, action: 0, hold: 1 - enter - exit, exit } };
   }
-  return { ...b, ...(LATE_BEATS.has(b.id) ? { throwVh: LATE_THROW_VH } : {}), lengthVh: Math.round(b.lengthVh * LEN_SCALE) };
+  return { ...b, ...(LATE_BEATS.has(b.id) || TIGHT_BEATS.has(b.id) ? { throwVh: LATE_THROW_VH } : {}), lengthVh: Math.round(b.lengthVh * LEN_SCALE) };
 }) as (Beat & { camera: string })[];
 
 export const BG = bg;
