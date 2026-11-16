@@ -204,7 +204,7 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
         const fs = ((row.x1 - row.x0) / chars.length / text.size[0]) * 100; // cqw
         return (
           <div key={r} ref={(el) => { rowEls.current[r] = el; }} aria-hidden className="pointer-events-none absolute whitespace-nowrap"
-            style={{ left: `${(row.x0 / text.size[0]) * 100}%`, top: `${(row.y0 / text.size[1]) * 100}%`, height: `${((row.y1 - row.y0) / text.size[1]) * 100}%`, display: "flex", alignItems: "center", fontFamily: SEQ_FONT, fontWeight: 900, fontSize: `${fs.toFixed(3)}cqw`, lineHeight: 1, color: "#2b2118", WebkitTextStroke: "0.035em #2b2118" }}>
+            style={{ left: `${(row.x0 / text.size[0]) * 100}%`, top: `${(row.y0 / text.size[1]) * 100}%`, height: `${((row.y1 - row.y0) / text.size[1]) * 100}%`, display: "flex", alignItems: "center", fontFamily: SEQ_FONT, fontWeight: 600, fontSize: `${fs.toFixed(3)}cqw`, lineHeight: 1, color: "#2b2118", textRendering: "geometricPrecision", WebkitFontSmoothing: "antialiased" }}>
             {chars.map((c, i) => <span key={i} style={{ opacity: 0 }}>{c}</span>)}
           </div>
         );

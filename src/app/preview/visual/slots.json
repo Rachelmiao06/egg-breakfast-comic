@@ -361,13 +361,13 @@
   {
    "key": "p6a",
    "beat": "return",
-   "src": "/assets/comic-v3/p6a.webp",
-   "source": "06-recognition-and-punchline.png A 格",
+   "src": "/assets/comic-v6/p6a/frame-01.webp",
+   "source": "p6a-delivery（comic-v6/p6a，SeqPanel 由滚动带动）",
    "dialogueInImage": false,
    "x": 36,
    "y": 46,
    "w": 46,
-   "aspect": 2.6676,
+   "aspect": 2.6703,
    "from": "top",
    "order": 1,
    "role": "hero"

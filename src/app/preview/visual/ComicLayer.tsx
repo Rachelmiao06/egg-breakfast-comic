@@ -40,6 +40,9 @@ const P6D_TEXT: SeqText = {
   plan: [{ row: 0, at: 0.1, per: 0.09 }, { row: 1, at: 0.6, per: 0.08 }, { row: 2, at: 1.4, per: 0.12 }, { row: 3, at: 1.8, per: 0.1 }],
 };
 // p5f 妈妈趴在桌边看碗里的蛋（用户 2026-11-15 送图，6 张，timeline：f1 0.65 s → (f2 f3 f4 f5 各 0.24 s) × 2 → f6 停住，共 2.57 s 后停在第 6 张）
+// p6a 认出：timeline 用到第 1–5 张（先停 1.05 s，再 2→3→4→5 再退回 1），第 6 张未用
+const P6A_FRAMES = seqFrames("p6a", 6);
+const P6A_SCHEDULE: [number, number][] = [[0, 0], [1, 1.05], [2, 1.33], [3, 1.61], [4, 2.26], [3, 2.5], [2, 2.8], [1, 3.08], [0, 3.36]];
 const P5F_FRAMES = seqFrames("p5f", 6);
 const P5F_SCHEDULE: [number, number][] = [[0, 0], [1, 0.65], [2, 0.89], [3, 1.13], [4, 1.37], [1, 1.61], [2, 1.85], [3, 2.09], [4, 2.33], [5, 2.57]];
 // p5b 妈妈在门边喊"宝宝？"（用户 2026-11-15 送图，6 张，泡是空的，字层从原格减出）：timeline f1 0.6 → f2 0.4 → f3 0.56（张嘴喊）→ f4 0.8 → f5 0.24（眨眼）→ f6 1.12 → f2 0.32 → f3 0.4（再喊）→ 回到 f1，共 4.44 s
@@ -478,6 +481,7 @@ function FlowLayer() {
           : p.key === "p4d" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4D_FRAMES} schedule={P4D_SCHEDULE} staticSrc={P4D_FRAMES[7]} />
           : p.key === "p6d" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P6D_FRAMES} schedule={P6D_SCHEDULE} text={P6D_TEXT} staticSrc="/assets/comic-v3/p6d.webp" />
           : p.key === "p5f" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P5F_FRAMES} schedule={P5F_SCHEDULE} staticSrc={P5F_FRAMES[5]} />
+          : p.key === "p6a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P6A_FRAMES} schedule={P6A_SCHEDULE} staticSrc={P6A_FRAMES[0]} />
           : p.key === "p5b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P5B_FRAMES} schedule={P5B_SCHEDULE} text={P5B_TEXT} staticSrc="/assets/comic-v3/p5b.webp" />
           : p.key === "p5e" ? <TurnPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} />
           : p.key === "p6e" ? <DialoguePanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
