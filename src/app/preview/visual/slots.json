@@ -205,8 +205,8 @@
   {
    "key": "p4c",
    "beat": "bowl",
-   "src": "/assets/comic-v3/p4c.webp",
-   "source": "04-catch-and-call.png C 格",
+   "src": "/assets/comic-v6/p4c/frame-06.webp",
+   "source": "egg-bowl-animations/p4c-sauce-drizzle（comic-v6/p4c，SeqPanel 由滚动带动，静态取末帧）",
    "dialogueInImage": false,
    "x": 52,
    "y": 44,
