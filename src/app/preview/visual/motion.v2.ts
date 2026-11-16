@@ -19,13 +19,13 @@ type Raw = Partial<Beat> & { id: string; n: number; title: string; lengthVh: num
  */
 export const BRISK_VH_PER_S = 40;
 /** 全部段落的滚动距离倍数：>1 = 整体更慢。2026-11-15：有读格门 / 表演锁之后不需要靠加长滚动距离防跳过，1.35 让人要一直不停地滚、蛋飞起来那段不连贯，改回 1 */
-export const LEN_SCALE = 1.25; // 2026-11-15 用户：所有滚动都太快、停留时间不够 → 1.0 → 1.25（没有锁滚动位置，所以不会像上次 1.35 那样不连贯）
+export const LEN_SCALE = 1.4; // 前半段（非 LATE_BEATS）的长度倍数；后半段（呼唤蛋以后）用户说"差不多正好"，保持 1.0。 // 2026-11-15 用户：所有滚动都太快、停留时间不够 → 1.0 → 1.25（没有锁滚动位置，所以不会像上次 1.35 那样不连贯）
 /** 带格内动画的段：进入 / 离开各占的滚动距离（vh），与段总长无关 */
 const ENTER_VH = 75, EXIT_VH = 45;
 /** 故事后半段（呼唤蛋 → 结尾）：动画由滚动直接带动、没有"表演锁"，一甩手就能滚完，所以每秒动画要给更多滚动距离（用户 2026-11-15：从"宝宝来吃饭啦"开始后面都划得太快） */
 const LATE_BEATS = new Set(["yolk", "search", "eggcall", "return", "recognize", "worry", "punchline"]);
 /** 炒菜段也要划两三下才过得去（用户 2026-11-15） */
-const TIGHT_BEATS = new Set(["chop", "stirfry"]);
+const TIGHT_BEATS = new Set(["chop", "stirfry", "call"]);
 const LATE_VH_PER_S = 85;
 /** 后半段单次甩出的距离上限（vh）：一格的进入 + 动画要划两三下才过得去（用户 2026-11-15："最起码划两下"） */
 const LATE_THROW_VH = 35;
@@ -49,7 +49,7 @@ export const V2_BEATS: (Beat & { camera: string })[] = (data.beats as unknown as
     const enter = ENTER_VH / len, exit = EXIT_VH / len;
     b = { ...b, lengthVh: len, phases: { enter, action: 0, hold: 1 - enter - exit, exit } };
   }
-  return { ...b, ...(LATE_BEATS.has(b.id) || TIGHT_BEATS.has(b.id) ? { throwVh: LATE_THROW_VH } : {}), lengthVh: Math.round(b.lengthVh * LEN_SCALE) };
+  return { ...b, ...(LATE_BEATS.has(b.id) || TIGHT_BEATS.has(b.id) ? { throwVh: LATE_THROW_VH } : {}), lengthVh: Math.round(b.lengthVh * (LATE_BEATS.has(b.id) ? 1 : LEN_SCALE)) };
 }) as (Beat & { camera: string })[];
 
 export const BG = bg;
