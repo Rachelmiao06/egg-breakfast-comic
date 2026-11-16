@@ -13,7 +13,7 @@ export const BUBBLES = bubbles as Record<string, BubbleSpec>;
 export const BUBBLE_FONT = '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif';
 const PAD = 5; // 盖字的矩形比字的外框多出的像素，盖住抗锯齿的边
 
-export function BubbleText({ k, progress }: { k: string; progress: number }) {
+export function BubbleText({ k, progress, dx = 0 }: { k: string; progress: number; dx?: number }) {
   const s = BUBBLES[k];
   if (!s) return null;
   const [W, H] = s.size;
@@ -30,14 +30,14 @@ export function BubbleText({ k, progress }: { k: string; progress: number }) {
       {s.rows.map((r, i) => {
         const [x0, y0, x1, y1] = r.box;
         return (
-          <div key={`c${i}`} aria-hidden className="pointer-events-none absolute" style={{ left: `${((x0 - PAD) / W) * 100}%`, top: `${((y0 - PAD) / H) * 100}%`, width: `${((x1 - x0 + 2 * PAD) / W) * 100}%`, height: `${((y1 - y0 + 2 * PAD) / H) * 100}%`, background: bg, borderRadius: 6 }} />
+          <div key={`c${i}`} aria-hidden className="pointer-events-none absolute" style={{ left: `${((x0 + dx - PAD) / W) * 100}%`, top: `${((y0 - PAD) / H) * 100}%`, width: `${((x1 - x0 + 2 * PAD) / W) * 100}%`, height: `${((y1 - y0 + 2 * PAD) / H) * 100}%`, background: bg, borderRadius: 6 }} />
         );
       })}
       {s.rows.map((r, i) => {
         const [x0, y0, , y1] = r.box;
         const from = starts[i];
         return (
-          <div key={`t${i}`} aria-hidden className="pointer-events-none absolute whitespace-nowrap" style={{ left: `${(x0 / W) * 100}%`, top: `${(y0 / H) * 100}%`, height: `${((y1 - y0) / H) * 100}%`, display: "flex", alignItems: "center", fontFamily: BUBBLE_FONT, fontWeight: 600, fontSize: `${fs.toFixed(3)}cqw`, lineHeight: 1, color: "#2b2118", textRendering: "geometricPrecision" }}>
+          <div key={`t${i}`} aria-hidden className="pointer-events-none absolute whitespace-nowrap" style={{ left: `${((x0 + dx) / W) * 100}%`, top: `${(y0 / H) * 100}%`, height: `${((y1 - y0) / H) * 100}%`, display: "flex", alignItems: "center", fontFamily: BUBBLE_FONT, fontWeight: 600, fontSize: `${fs.toFixed(3)}cqw`, lineHeight: 1, color: "#2b2118", textRendering: "geometricPrecision" }}>
             {chars[i].map((c, j) => (
               <span key={j} style={{ opacity: from + j < shown ? 1 : 0, transform: from + j < shown ? "none" : "translateY(0.12em)", transition: "opacity .18s ease-out, transform .18s ease-out" }}>{c}</span>
             ))}

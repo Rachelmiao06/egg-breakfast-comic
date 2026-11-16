@@ -44,6 +44,8 @@ export type SceneSlot = {
   box: [number, number, number, number]; // x, y, w, h（场景像素）
   land: { fx: number; fy: number };
   src: string | null;
+  /** 伸手序列帧（接蛋格 p3e，2026-11-15）：随 catch 段进度交叉淡化，末帧 = 接蛋姿势 = src */
+  frames?: string[];
   frameSrc: string | null;
   occluderSrc: string | null;
   appearFlight?: [number, number];

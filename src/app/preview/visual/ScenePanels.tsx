@@ -25,7 +25,7 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
   const vp = useViewport();
   const slot = cfg.scene.catch;
   // 预先解码接蛋格、交接格（含遮罩）和蛋的表情图：这些图到接蛋段才第一次挂载，首次解码会在伸铲格出现那一帧卡顿约 0.3 秒
-  const warm = [slot.src, cfg.scene.handoff?.src, cfg.scene.handoff?.eggHoleMask, cfg.egg.faces?.fly, cfg.egg.faces?.rest].filter(Boolean).join("|");
+  const warm = [slot.src, ...(slot.frames ?? []), cfg.scene.handoff?.src, cfg.scene.handoff?.eggHoleMask, cfg.egg.faces?.fly, cfg.egg.faces?.rest].filter(Boolean).join("|");
   useEffect(() => {
     for (const src of warm.split("|")) {
       if (!src) continue;
@@ -96,13 +96,34 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
         className="panel-frame pointer-events-none absolute"
         style={{ left: x, top: y, width: w, height: h, zIndex: flow ? Z.catchPanel : Z.mom, opacity: flow ? 1 : Math.min(1, k * 1.5), transform: `translateY(${(1 - e) * (flow ? 560 : 70)}px)`, containerType: "inline-size" }}
       >
-        {slot.src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={slot.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
+        {slot.frames && slot.frames.length > 1 ? (() => {
+          // 伸手序列：妈妈随接蛋段进度把手臂伸出去（交叉淡化），末帧 = 接蛋姿势；其它段（交接）一直是末帧
+          const n = slot.frames.length;
+          const u = t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.06) / 0.36)) : 1;
+          const pos = u * (n - 1), i0 = Math.min(n - 1, Math.floor(pos)), fr = pos - i0, sm = fr * fr * (3 - 2 * fr);
+          const op = (i: number) => (i === i0 ? 1 : i === i0 + 1 ? sm : 0);
+          // 第 4 帧妈妈身体后仰、对话泡整体右移约 90px：它的字单独盖、单独出
+          const prog = t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.25) / 0.2)) : 1;
+          const o4 = op(3), oRest = Math.max(op(0), op(1), op(2), op(4));
+          return (
+            <>
+              {slot.frames.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={src} src={src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none object-contain" style={{ opacity: op(i) }} />
+              ))}
+              <div className="absolute inset-0" style={{ opacity: oRest }}><BubbleText k="catch" progress={prog} /></div>
+              <div className="absolute inset-0" style={{ opacity: o4 }}><BubbleText k="catch" progress={prog} dx={90} /></div>
+            </>
+          );
+        })() : slot.src ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={slot.src} alt="" draggable={false} className="block h-full w-full select-none object-contain" />
+            <BubbleText k="catch" progress={t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.25) / 0.2)) : 1} />
+          </>
         ) : (
           <Placeholder label={slot.label} align="bottom" />
         )}
-        {slot.src && <BubbleText k="catch" progress={t.beat.id === "catch" ? Math.min(1, Math.max(0, (t.p - 0.25) / 0.2)) : 1} />}
       </div>
       {slot.occluderSrc && (
         // eslint-disable-next-line @next/next/no-img-element
