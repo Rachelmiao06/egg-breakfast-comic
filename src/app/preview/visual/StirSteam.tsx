@@ -54,9 +54,9 @@ export const STEAM = {
     /** 锅口中心在格子里的位置（格内比例） */
     at: [0.33, 0.84] as [number, number],
     /** 丝状噪声成形（比满屏雾更锐，丝缕更分明） */
-    shape: [0.1, 0.4] as [number, number],
+    shape: [0.06, 0.32] as [number, number], // 2026-11-15 用户：烟要更明显：阈值放低，丝缕更多更粗
     /** 烟丝的颜色：略带灰的暖白（纯白在浅色背景上看不出来，要有一点明暗才像烟） */
-    color: [228, 221, 208] as [number, number, number],
+    color: [214, 207, 194] as [number, number, number],
     /** 几层丝：纹理边长（屏幕长边倍数）、纵向拉长倍数、上升速度（纹理边长 / 秒）、横向漂移、透明度 */
     strands: [
       { size: 0.45, stretch: 3.2, vy: 0.22, vx: 0.01, a: 1 },
@@ -64,17 +64,17 @@ export const STEAM = {
       { size: 0.2, stretch: 4.0, vy: 0.5, vx: 0.02, a: 0.7 },
     ],
     /** 烟柱半宽：出口 → 最高处（屏幕宽的比例）；蜿蜒幅度；最高处（离出口多远，屏幕高的比例）烟散尽 */
-    w0: 0.03,
-    w1: 0.2,
-    wiggle: 0.09,
+    w0: 0.045,
+    w1: 0.28,
+    wiggle: 0.11,
     /** 几缕烟：各自的最宽半宽（屏幕宽比例）、左右摆幅、一路上的弯数、摆动速度（弯往上走的圈/秒）、相位、浓度。行波：弯是顺着烟往上"传"的，像烟真的在飘 */
     ribbons: [
-      { w1: 0.1, amp: 0.15, cycles: 1.3, speed: 0.2, phase: 0, a: 1 },
-      { w1: 0.065, amp: 0.1, cycles: 2.1, speed: 0.28, phase: 2.2, a: 0.85 },
-      { w1: 0.05, amp: 0.2, cycles: 0.9, speed: 0.15, phase: 4.1, a: 0.7 },
+      { w1: 0.14, amp: 0.15, cycles: 1.3, speed: 0.2, phase: 0, a: 1 },
+      { w1: 0.09, amp: 0.1, cycles: 2.1, speed: 0.28, phase: 2.2, a: 1 },
+      { w1: 0.07, amp: 0.2, cycles: 0.9, speed: 0.15, phase: 4.1, a: 0.9 },
     ],
-    reach: 0.9,
-    alpha: 1,
+    reach: 1.15,
+    alpha: 1.35,
   },
 };
 
