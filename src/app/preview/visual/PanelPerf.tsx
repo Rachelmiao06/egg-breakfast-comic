@@ -143,7 +143,8 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
  * 整格是同画布的姿势图，硬切（图与图之间是同一背景，不会重影）。
  */
 const TURN_DIR = "/assets/comic-v6/p5e/";
-const TURN_FRAMES: [number, number][] = [[0, 0], [1, 0.4], [2, 0.7], [1, 1.0], [2, 1.2], [3, 1.4], [4, 1.6], [5, 1.9], [6, 2.2], [7, 2.28], [8, 2.4]];
+// 2026-11-15 换成"绿色卧室走廊"版（p5e-green-bedroom-delivery，timeline.txt：背影 → 回头 → 惊讶 → 出现惊叹线，末帧停 1.8 s）
+const TURN_FRAMES: [number, number][] = [[0, 0], [1, 0.4], [2, 0.9], [3, 1.4], [4, 1.6], [5, 1.9], [6, 2.2], [7, 2.28], [8, 2.4]];
 export function TurnPanel({ p, pos, dy, scrub, animate }: { p: PanelSlot; pos: Place; dy: number; scrub: number; animate: boolean }) {
   const els = useRef<(HTMLImageElement | null)[]>([]);
   // 动画进度由滚动直接带动（scrub 0–1 = 这一段"停留"阶段的滚动进度）：慢滚一帧一帧走，回滚倒着走，没有"播过去"的问题
