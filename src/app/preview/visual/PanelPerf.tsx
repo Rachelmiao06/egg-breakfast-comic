@@ -173,11 +173,13 @@ export function TurnPanel({ p, pos, dy, scrub, animate }: { p: PanelSlot; pos: P
 export type SeqText = { size: [number, number]; rows: { str: string; x0: number; x1: number; y0: number; y1: number }[]; plan: { row: number; at: number; per: number }[] };
 /** 对白用真字体渲染（2026-11-15 用户：从图里减出来的字层又糊又锯齿、字体也不一致）：黑体粗字，墨色，逐字显示；字号按原格里每个字的宽度（cqw = 格宽的 1%） */
 const SEQ_FONT = '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif';
-export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop }: {
+export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop, hits }: {
   p: PanelSlot; pos: Place; dy: number; scrub: number; animate: boolean;
   frames: string[]; schedule: [number, number][]; text?: SeqText; staticSrc: string;
   /** 循环周期（秒）：给了就按真实时间不停循环（炒菜这类一直在做的动作），不再由滚动带动 */
   loop?: number;
+  /** 循环模式下，每圈里这些时刻（秒）各响一声刀刃落案板 */
+  hits?: number[];
 }) {
   const els = useRef<(HTMLImageElement | null)[]>([]);
   const rowEls = useRef<(HTMLDivElement | null)[]>([]);
@@ -186,15 +188,18 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
   useEffect(() => {
     if (!loop || !animate) return;
     const t0 = performance.now();
+    let prev = 0;
     const tick = () => {
       const t = ((performance.now() - t0) / 1000) % loop;
+      for (const h of hits ?? []) if ((prev < h && h <= t) || (t < prev && (h > prev || h <= t))) oneshot("chopHit", 0);
+      prev = t;
       let n = 0;
       for (const [i, at] of schedule) if (at <= t + 1e-6) n = i;
       els.current.forEach((el, i) => { if (el) el.style.opacity = i === n ? "1" : "0"; });
     };
     gsap.ticker.add(tick);
     return () => gsap.ticker.remove(tick);
-  }, [loop, animate, schedule]);
+  }, [loop, animate, schedule, hits]);
   useEffect(() => {
     if (loop) return;
     const t = scrub * total;

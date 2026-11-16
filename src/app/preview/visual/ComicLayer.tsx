@@ -8,7 +8,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { ChopPanel, DialoguePanel, HearPanel, SeqPanel, TurnPanel, type SeqText, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
+import { DialoguePanel, HearPanel, SeqPanel, TurnPanel, type SeqText, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer } from "./Blink";
 import ReactionFace from "./ReactionFace";
 import FrameReact from "./FrameReact";
@@ -47,6 +47,10 @@ const P6A_SCHEDULE: [number, number][] = [[0, 0], [1, 1.05], [2, 1.33], [3, 1.61
 // p3b 倒菜进饭碗（p3b-sauce-animation：6 帧，GIF 时长 .25/.18×4/.65 s，约 1.6 s，末帧停住）
 const P3B_FRAMES = seqFrames("p3b", 6);
 const P3B_SCHEDULE: [number, number][] = [[0, 0], [1, 0.25], [2, 0.43], [3, 0.61], [4, 0.79], [5, 0.97], [5, 1.62]];
+// p2b 切菜（用户 2026-11-15 送来的 6 帧整格，3×2 切图，每张 654×394）：真实时间循环，每圈 1.32 s，刀落案板处响 chopHit
+const P2B_FRAMES = seqFrames("p2b", 6);
+const P2B_SCHEDULE: [number, number][] = Array.from({ length: 6 }, (_, i) => [i, i * 0.22] as [number, number]);
+const P2B_HITS = [0.44, 0.88];
 const P5F_FRAMES = seqFrames("p5f", 6);
 const P5F_SCHEDULE: [number, number][] = [[0, 0], [1, 0.65], [2, 0.89], [3, 1.13], [4, 1.37], [1, 1.61], [2, 1.85], [3, 2.09], [4, 2.33], [5, 2.57]];
 // p5b 妈妈在门边喊"宝宝？"（用户 2026-11-15 送图，6 张，泡是空的，字层从原格减出）：timeline f1 0.6 → f2 0.4 → f3 0.56（张嘴喊）→ f4 0.8 → f5 0.24（眨眼）→ f6 1.12 → f2 0.32 → f3 0.4（再喊）→ 回到 f1，共 4.44 s
@@ -477,7 +481,7 @@ function FlowLayer() {
         const scrub = Math.min(1, Math.max(0, (q - bph.enter) / Math.max(0.01, bph.action + bph.hold)));
         const reading = perf && stage.entered && !stage.leaving && stage.vis >= 0.9; // 静止读格：妈妈的脸格才会眨眼
         const panel =
-          p.key === "p2b" ? <ChopPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
+          p.key === "p2b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2B_FRAMES} schedule={P2B_SCHEDULE} loop={1.32} hits={P2B_HITS} staticSrc={P2B_FRAMES[0]} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} loop={P2E_LOOP} staticSrc={P2E_FRAMES[0]} />
