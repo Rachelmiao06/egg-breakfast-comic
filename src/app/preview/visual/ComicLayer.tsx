@@ -8,7 +8,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { DialoguePanel, HearPanel, SeqPanel, TurnPanel, type SeqText, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, usePourDone, type Stage } from "./PanelPerf";
+import { DialoguePanel, HearPanel, SeqPanel, TurnPanel, type SeqText, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer } from "./Blink";
 import ReactionFace from "./ReactionFace";
 import FrameReact from "./FrameReact";
@@ -388,7 +388,6 @@ function FlowLayer() {
   const tiltRef = useRef<HTMLDivElement>(null);
   usePaperTilt(tiltRef, false); // 2026-11-15 用户：每次滑动格子都先漂一下，不真实 → 关掉（滚动 / 镜头 / 鼠标都不再让纸面倾斜）
   const vp = useViewport();
-  const pourDone = usePourDone();
   const perf = usePerfEnabled() && !reducedMotion; // 格内表演：减少动态效果或 ?perf=0 时用原静态格
   const g = t.index + t.p;
   const index: Record<string, number> = {};
@@ -501,7 +500,7 @@ function FlowLayer() {
           : p.key === "p2b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2B_FRAMES} schedule={P2B_SCHEDULE} scrubLoop={{ period: P2B_SEQ.length * P2B_STEP, cycles: 2, hitFrames: [4] }} staticSrc={P2B_FRAMES[0]} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} loop={P2E_LOOP} loopOn={pourDone && scrub > 0.2} staticSrc={P2E_FRAMES[0]} />
+          : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} loop={P2E_LOOP} staticSrc={P2E_FRAMES[0]} />
           : p.key === "p3b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P3B_FRAMES} schedule={P3B_SCHEDULE} staticSrc={P3B_FRAMES[5]} />
           : p.key === "p4b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4B_FRAMES} schedule={P4B_SCHEDULE} staticSrc={P4B_FRAMES[5]} />
           : p.key === "p4c" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4C_FRAMES} schedule={P4C_SCHEDULE} staticSrc={P4C_FRAMES[5]} />

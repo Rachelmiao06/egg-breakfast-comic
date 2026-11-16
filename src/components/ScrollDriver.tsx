@@ -88,7 +88,7 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
       lenis = new Lenis({
         duration: 1.3,
         easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
-        wheelMultiplier: 0.8,
+        wheelMultiplier: 0.65, // 2026-11-15 用户：所有滚动都太快，动画没看清就滑走：0.8 → 0.65
         touchMultiplier: 1.4,
         smoothWheel: true,
         syncTouch: false, // 触屏保留系统原生惯性

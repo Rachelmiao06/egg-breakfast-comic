@@ -178,7 +178,7 @@
     "hold": 0.54,
     "exit": 0.2
    },
-   "readS": 3
+   "readS": 5
   },
   {
    "id": "sauce",
@@ -208,7 +208,7 @@
     "hold": 0.54,
     "exit": 0.2
    },
-   "readS": 2.5
+   "readS": 4
   },
   {
    "id": "missing",

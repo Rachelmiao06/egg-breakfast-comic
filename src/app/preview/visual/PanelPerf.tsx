@@ -63,13 +63,6 @@ const flag = (on: boolean) => {
  *   在边缘来回滚动不会反复触发：播过之后，没有离开到复位线以外就不会再播。
  * - 关掉表演（减少动态效果 / ?perf=0）时立即复位；卸载时复位。
  */
-/** 倒菜格 p2d 是否已经演完（或被滚过去）。下面炒菜格 p2e 要等它演完、用户再往下滚一点才开始循环（用户 2026-11-15：先滚上面那格演一次，再往下滚下面才开始动、可以一直循环） */
-let pourDone = false;
-const pourListeners = new Set<() => void>();
-const setPourDone = (v: boolean) => { if (pourDone === v) return; pourDone = v; pourListeners.forEach((l) => l()); };
-export function usePourDone() {
-  return useSyncExternalStore((cb) => { pourListeners.add(cb); return () => { pourListeners.delete(cb); }; }, () => pourDone, () => false);
-}
 function useStage(q: number, stage: Stage, enabled: boolean, playRaw: () => void, stopRaw: () => void, resetRaw: () => void, gateS = 0, seq = 0) {
   const played = useRef(false);
   const gateId = useId();
@@ -438,11 +431,10 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
   const apply = (v: Record<string, number>) => Object.entries(v).forEach(([n, o]) => { const el = els.current[n]; if (el) gsap.set(el, { opacity: o }); });
   const hideDrops = () => DROPS.forEach((_, i) => { const el = els.current[`drop${i}`]; if (el) gsap.set(el, { opacity: 0, x: 0, y: 0, rotation: 0, xPercent: -50, yPercent: -50 }); });
   const halt = () => { if (live.current) { live.current = false; snd.stop(); } };
-  const reset = () => { tl.current?.kill(); tl.current = null; apply(P2D_INIT); hideDrops(); flag(false); halt(); setPourDone(false); };
-  const settle = () => { apply(P2D_END); hideDrops(); flag(false); setPourDone(true); };
+  const reset = () => { tl.current?.kill(); tl.current = null; apply(P2D_INIT); hideDrops(); flag(false); halt(); };
+  const settle = () => { apply(P2D_END); hideDrops(); flag(false); };
   const stop = () => {
     halt();
-    setPourDone(true); // 滚过去 / 离场也算演完，下面炒菜格才不会一直卡在静止
     if (!tl.current) return;
     tl.current.kill(); tl.current = null;
     settle();
