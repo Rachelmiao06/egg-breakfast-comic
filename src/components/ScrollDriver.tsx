@@ -110,7 +110,8 @@ export default function ScrollDriver({ smooth = true }: { smooth?: boolean }) {
           if (Math.sign(ahead) !== Math.sign(deltaY)) return true; // 反向永远放行（马上能掉头）
           const cur = locate(l.animatedScroll / vhPx, beats);
           const reading = (cur.beat as { readS?: number }).readS && (cur.phase === "enter" || cur.phase === "hold");
-          if (Math.abs(ahead) < (reading ? THROW_READING_VH : THROW_VH) * vhPx) return true;
+          const lateCap = (cur.beat as { throwVh?: number }).throwVh; // 后半段更紧：一格要划两三下
+          if (Math.abs(ahead) < (lateCap ?? (reading ? THROW_READING_VH : THROW_VH)) * vhPx) return true;
           if (event.cancelable) event.preventDefault();
           return false;
         },
