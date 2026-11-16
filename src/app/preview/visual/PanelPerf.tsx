@@ -126,7 +126,7 @@ export function HearPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; pos
   useStage(q, stage, animate, play, stop, reset, 2.4, p.order ?? 0);
   if (!animate) return <StaticImg src={p.src!} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
-    <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+    <div data-panel={p.key} className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={p.src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -157,7 +157,7 @@ export function TurnPanel({ p, pos, dy, scrub, animate }: { p: PanelSlot; pos: P
   });
   if (!animate) return <StaticImg src={`${TURN_DIR}pose-08.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
-    <div className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+    <div data-panel={p.key} className="panel-frame absolute will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
       {Array.from({ length: 9 }, (_, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={i} ref={(el) => { els.current[i] = el; }} src={`${TURN_DIR}pose-0${i}.webp`} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={{ opacity: i === 0 ? 1 : 0 }} />
@@ -237,7 +237,7 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
   });
   if (!animate) return <StaticImg src={staticSrc} pos={pos} aspect={p.aspect} dy={dy} />;
   return (
-    <div className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
+    <div data-panel={p.key} className="panel-frame absolute will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
       {frames.map((src, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={src} ref={(el) => { els.current[i] = el; }} src={src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={{ opacity: i === 0 ? 1 : 0 }} />
@@ -344,7 +344,7 @@ function LayersPanel({
     <img key={n} ref={ref ? (el) => { els.current[n] = el; } : undefined} src={src} alt="" draggable={false} className="absolute inset-0 block h-full w-full select-none" style={ref ? { willChange: "transform" } : undefined} />
   );
   return (
-    <div className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+    <div data-panel={p.key} className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
       {layer("base", `${L4}${k}-base.webp`, false)}
       {layer("part", `${L4}${k}-part.webp`, true)}
       {extras.map((n) => clips[n]
@@ -481,7 +481,7 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate, textP }: { p: Pane
     <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P2D}${n}.webp`} alt="" draggable={false} className={img} style={{ opacity: P2D_INIT[n] }} />
   );
   return (
-    <div ref={box} className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
+    <div ref={box} data-panel={p.key} className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy), containerType: "inline-size" }}>
       {P2D_BACK.map(layer)}
       {DROPS.map((d, i) => (
         // eslint-disable-next-line @next/next/no-img-element
@@ -536,7 +536,7 @@ export function SaucePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; po
   if (!animate) return <StaticImg src={`${P3A}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   return (
-    <div className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
+    <div data-panel={p.key} className="panel-frame absolute overflow-hidden will-change-transform" style={boxStyle(pos, p.aspect, dy)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={`${P3A}static.webp`} alt="" draggable={false} className={img} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -600,7 +600,7 @@ export function DialoguePanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot;
     <img key={n} ref={(el) => { els.current[n] = el; }} src={`${P5}${n}.webp`} alt="" draggable={false} className={img} style={{ opacity: o }} />
   );
   return (
-    <div className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
+    <div data-panel={p.key} className="panel-frame absolute overflow-hidden will-change-transform" style={{ ...boxStyle(pos, p.aspect, dy) }}>
       {/* 会被降饱和的部分：底图（04 帧）+ 蛋黄流出处的两块补丁 */}
       <div ref={art} className="absolute inset-0">
         {layer("base", 1)}
