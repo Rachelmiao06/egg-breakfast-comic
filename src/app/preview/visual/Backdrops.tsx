@@ -28,6 +28,7 @@ import { Z } from "@/lib/scene";
 import { useScene } from "@/lib/scene-context";
 import { BG, curve, gNow } from "./motion.v2";
 import { HEAR_EVENT } from "./PanelPerf";
+import K from "./kitchen-v4.json";
 import { useViewport } from "./viewport";
 import { PANELS, useSlots } from "./slots";
 import { eggAtTableFor, tableWaitFor } from "./eggPath";
@@ -77,16 +78,29 @@ export function Paper() {
     <>
       {BG.reading.src ? (
         (s.reading > SHOW || s.paper > SHOW) && (
-          <div
-            aria-hidden
-            data-bg="table-group"
-            className="pointer-events-none absolute left-0 top-0 h-full w-full"
-            style={{ zIndex: Z.paper, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
-          >
-            {/* 新厨房直接叠化盖过旧厨房（drop 0.3–0.6，不经过整屏米白的纸面）；纸面只在新厨房未满时作底 */}
-            {s.paper > SHOW && s.reading < 0.999 && <PaperSheet opacity={s.paper} />}
-            {s.reading > SHOW && <ReadingKitchen reveal={s.reading} />}
-          </div>
+          <>
+            <div
+              aria-hidden
+              data-bg="table-group"
+              className="pointer-events-none absolute left-0 top-0 h-full w-full"
+              style={{ zIndex: Z.paper, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
+            >
+              {/* 新厨房直接叠化盖过旧厨房（drop 0.3–0.6，不经过整屏米白的纸面）；纸面只在新厨房未满时作底 */}
+              {s.paper > SHOW && s.reading < 0.999 && <PaperSheet opacity={s.paper} />}
+              {s.reading > SHOW && <ReadingKitchen reveal={s.reading} />}
+            </div>
+            {/* 篮子前壁、格纹布、葱身子：在桌沿蛋（Z.eggOnTable）之上，蛋站在篮沿时脚被前壁挡住；位移和后景同一组 */}
+            {s.reading > SHOW && (
+              <div
+                aria-hidden
+                data-bg="table-group-front"
+                className="pointer-events-none absolute left-0 top-0 h-full w-full"
+                style={{ zIndex: Z.bowlFront, translate: `var(--kl-mid-x, 0px) calc(var(--kl-mid-y, 0px) + ${s.lift.toFixed(2)}px)` }}
+              >
+                <ReadingKitchen reveal={s.reading} part="front" />
+              </div>
+            )}
+          </>
         )
       ) : (s.paper > SHOW || s.table > SHOW) && (
         <div
@@ -158,20 +172,30 @@ function panelPresence(t: Timeline, beats: Beat[]) {
 /** 阅读厨房图上沿之上补的天花板高度（场景像素，够镜头抬到最高处） */
 const CEILING_H = 700;
 
-function ReadingKitchen({ reveal }: { reveal: number }) {
+/** 新厨房分层（kitchen-v4.json，tools/prepare_kitchen_v4.py 从 kitchen-sliced-delivery 生成）里有小角色反应的三层：层 id → 旧 actors 的曲线 / 范围 / 反应 id，以及旋转支点（脚底） */
+const ACT_OF: Record<string, { actor: string; origin: string }> = {
+  "soy-bottle": { actor: "soy", origin: "50% 100%" },
+  "sugar-jar": { actor: "jar", origin: "50% 100%" },
+  "scallion-leaves": { actor: "scallion-leaves", origin: "10% 100%" },
+};
+type V4Item = { id: string; src: string; rect: number[]; z: number; plane: string };
+
+/**
+ * part = "back"：墙 → 吊柜 / 窗（远景）→ 层板上的东西 → 台面 + 篮子 + 蔬菜；part = "front"：篮子前壁、格纹布、葱身子，
+ * 单独渲染在蛋（Z.eggOnTable）之上（Z.bowlFront），蛋站在篮沿时脚被前壁挡住。两个 part 的外框、遮罩、推近完全一样。
+ */
+function ReadingKitchen({ reveal, part = "back" }: { reveal: number; part?: "back" | "front" }) {
   const R = BG.reading;
   const vp = useViewport();
   const { timeline: t, reducedMotion, beats } = useScene();
   const { cfg } = useSlots();
-  useFriendReactions(!reducedMotion);
+  useFriendReactions(!reducedMotion && part === "back");
   const portrait = !!R.srcPortrait && vp.w / vp.h < R.portraitBelow;
   const [x, y, w, h] = portrait ? R.boxPortrait : R.box;
   const c = portrait ? R.counterPortrait : R.counter;
-  // 横版有拆好的小角色层：底图换成补好的那张，角色和遮挡物叠在上面（角度 0 时与原图一致）
-  const actors = !portrait && R.srcBase ? R.actors : [];
-  const src = portrait ? R.srcPortrait : actors.length ? R.srcBase : R.src;
-  const [iw, ih] = R.size;
-  const pct = (b: number[]) => ({ left: `${(b[0] / iw) * 100}%`, top: `${(b[1] / ih) * 100}%`, width: `${(b[2] / iw) * 100}%`, height: `${(b[3] / ih) * 100}%` });
+  const V = portrait ? K.portrait : K.landscape;
+  const [vw, vh] = V.size as [number, number];
+  const rpct = (r: number[]) => ({ left: `${(r[0] / vw) * 100}%`, top: `${(r[1] / vh) * 100}%`, width: `${(r[2] / vw) * 100}%`, height: `${(r[3] / vh) * 100}%` });
   const g = gNow(t);
   // drop 换场：新厨房从蛋的落点（eggPath 按当前布局算出的桌沿等待点，蛋身中部）以软边圆形向外扩开，盖过旧厨房。
   // 进度就是 curves.reading（滚动驱动、可逆）；只改 CSS mask 的半径，不重绘图片。半径到 1 时覆盖整张图的最远角，之后去掉 mask。
@@ -190,143 +214,102 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
   const lq = lf * lf * (3 - 2 * lf);
   const lfoc = portrait ? LS.focusPortrait : LS.focus;
   const [liw, lih] = portrait ? R.sizePortrait : R.size;
-  const near = portrait ? LS.nearPortrait : LS.near;
+  const near = { ...(portrait ? LS.nearPortrait : LS.near), src: portrait ? "/assets/bg-v4/counter-front-portrait.webp" : "/assets/bg-v4/counter-front-landscape.webp" };
   const L = portrait ? LS.lightPortrait : LS.light;
   const lx = L.from[0] + (L.to[0] - L.from[0]) * lp, ly = L.from[1] + (L.to[1] - L.from[1]) * lp;
   const lpct = (b: number[]) => ({ left: `${(b[0] / liw) * 100}%`, top: `${(b[1] / lih) * 100}%`, width: `${(b[2] / liw) * 100}%`, height: `${(b[3] / lih) * 100}%` });
-  // 纵深（reading.planes，横版拆层时）：远景层（墙、瓷砖、吊柜、窗）比主体层少动；近景层（整条台面加站在台面上的
-  // 层板架、罐子、盆栽、菜篮、葱，连同小角色）是一块刚体跟主体层走，盖在远景层上：台面后沿和物件的轮廓在墙上滑动。
-  // 画格在场时远景软化（预烘的软化版叠化进来，小角色和窗玻璃加一点模糊）。竖版没有拆层，保持单张。
-  const PL = !portrait && actors.length ? R.planes : null;
-  const farSoft = PL && !reducedMotion ? panelPresence(t, beats) : 0;
+  // 纵深（五个平面，2026-11-15 新分层）：墙（最慢）→ 吊柜 + 窗（远景）→ 层板上的东西（比台面略远，少跟一点）→ 台面 + 篮子 + 蔬菜（主体层，蛋站的地方，刚体）→ 篮子前壁（在蛋上面）。
+  // 画格在场时墙和远景轻微软化。
+  const farSoft = !reducedMotion ? panelPresence(t, beats) : 0;
+  const wallRef = useRef<HTMLDivElement>(null);
   const farRef = useRef<HTMLDivElement>(null);
+  const shelfRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!PL) return;
+    if (part !== "back") return;
     const root = document.documentElement.style;
     const num = (name: string) => parseFloat(root.getPropertyValue(name)) || 0;
+    const F = R.planes.far;
     const tick = () => {
-      const far = farRef.current;
-      if (!far) return;
-      const dx = num("--kl-mouse-x") * PL.far.mouse + num("--kl-depth-x") * PL.far.depth;
-      const dy = num("--kl-mouse-y") * PL.far.mouseY + num("--kl-depth-y") * PL.far.depthY + num("--kl-drift") * PL.far.drift;
-      far.style.translate = `${dx.toFixed(2)}px ${dy.toFixed(2)}px`;
+      const dx = num("--kl-mouse-x") * F.mouse + num("--kl-depth-x") * F.depth;
+      const dy = num("--kl-mouse-y") * F.mouseY + num("--kl-depth-y") * F.depthY + num("--kl-drift") * F.drift;
+      if (farRef.current) farRef.current.style.translate = `${dx.toFixed(2)}px ${dy.toFixed(2)}px`;
+      if (wallRef.current) wallRef.current.style.translate = `${(dx * 0.55).toFixed(2)}px ${(dy * 0.55).toFixed(2)}px`;
+      // 层板上的东西比台面略远：少跟 8% 的主体层位移（再加一点反向的鼠标视差），台面、篮子等刚体不动
+      if (shelfRef.current) shelfRef.current.style.translate = `calc(var(--kl-mid-x, 0px) * -0.08 + ${(-num("--kl-mouse-x") * 1.2).toFixed(2)}px) calc(var(--kl-mid-y, 0px) * -0.08)`;
     };
     gsap.ticker.add(tick);
     return () => gsap.ticker.remove(tick);
-  }, [PL]);
-  const blur = (px: number): CSSProperties | undefined => (PL && farSoft > 0.01 ? { filter: `blur(${(px * farSoft).toFixed(2)}px)` } : undefined);
-  const actorEls = actors.map((a) => {
-    const deg = reducedMotion ? 0 : Math.min(a.range[1], Math.max(a.range[0], bgCurve(a.curve as CurveName, g)));
+  }, [R, part]);
+  const soften = (px: number): CSSProperties | undefined => (farSoft > 0.01 ? { filter: `blur(${(px * farSoft).toFixed(2)}px)` } : undefined);
+  const itemEl = (it: V4Item) => {
+    const a = ACT_OF[it.id];
+    const act = a ? R.actors.find((q) => q.id === a.actor) : undefined;
+    const deg = act && !reducedMotion ? Math.min(act.range[1], Math.max(act.range[0], bgCurve(act.curve as CurveName, g))) : 0;
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        key={a.id}
-        data-actor={a.id}
-        src={a.src}
+        key={it.id}
+        data-prop={it.id}
+        data-actor={act ? act.id : undefined}
+        src={it.src}
         alt=""
         draggable={false}
         className="absolute select-none"
-        style={{ ...pct(a.img), ...blur(PL?.soft.friendsBlur ?? 0), transform: `rotate(${deg.toFixed(2)}deg)`, transformOrigin: `${((a.pivot[0] - a.img[0]) / a.img[2]) * 100}% ${((a.pivot[1] - a.img[1]) / a.img[3]) * 100}%` }}
+        style={{ ...rpct(it.rect), ...(act ? { ...soften(PL_FRIEND_BLUR), transform: `rotate(${deg.toFixed(2)}deg)`, transformOrigin: a.origin } : undefined) }}
       />
     );
-  });
-  // 远景：窗外的树比墙面慢一点（横向），阅读停留时镜头不动，它也不动；减少动态效果时不做
-  const windowEls =
-    !portrait &&
-    !reducedMotion &&
-    R.window.panes.map((p, i) => {
-      const pw = p[2] - p[0], ph = p[3] - p[1];
-      return (
-        <div key={i} data-window-pane={i} className="absolute overflow-hidden" style={pct([p[0], p[1], pw, ph])}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt=""
-            draggable={false}
-            className="absolute max-w-none select-none"
-            style={{
-              left: `${(-p[0] / pw) * 100}%`,
-              top: `${(-p[1] / ph) * 100}%`,
-              width: `${(iw / pw) * 100}%`,
-              height: `${(ih / ph) * 100}%`,
-              transformOrigin: `${((p[0] + pw / 2) / iw) * 100}% ${((p[1] + ph / 2) / ih) * 100}%`,
-              transform: `scale(${R.window.scale})`,
-              // 拆层时窗在远景平面里，只再多一点横向鼠标视差；未拆层时按厨房中景与主体层的差值
-              translate: PL ? `calc(var(--kl-mouse-x, 0) * ${PL.windowMouse}px) 0px` : `calc((var(--kl-counter-x, 0px) - var(--kl-mid-x, 0px)) * ${R.window.parallax}) 0px`,
-              ...blur(PL?.soft.windowBlur ?? 0),
-            }}
-          />
-        </div>
-      );
-    });
-  const occluderEls =
-    actors.length > 0 &&
-    R.occluders.map((o) => (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img key={o.id} data-occluder={o.id} src={o.src} alt="" draggable={false} className="absolute select-none" style={{ ...pct(o.img), ...blur(PL?.soft.friendsBlur ?? 0) }} />
-    ));
+  };
+  const items = V.items as V4Item[];
+  const frame: CSSProperties = {
+    left: x,
+    top: y,
+    width: w,
+    height: h,
+    opacity,
+    maskImage: mask,
+    WebkitMaskImage: mask,
+    transformOrigin: `${(lfoc[0] / liw) * 100}% ${(lfoc[1] / lih) * 100}%`,
+    transform: lq > 0.001 ? `scale(${(1 + LS.push * lp * lq).toFixed(4)})` : undefined,
+  };
+  if (part === "front") {
+    return (
+      <div data-bg="reading-front" data-variant={portrait ? "portrait" : "landscape"} className="absolute" style={frame}>
+        {items.filter((i) => i.plane === "front").map(itemEl)}
+      </div>
+    );
+  }
   return (
-    <div
-      data-bg="reading"
-      data-variant={portrait ? "portrait" : "landscape"}
-      className="absolute"
-      style={{
-        left: x,
-        top: y,
-        width: w,
-        height: h,
-        opacity,
-        maskImage: mask,
-        WebkitMaskImage: mask,
-        transformOrigin: `${(lfoc[0] / liw) * 100}% ${(lfoc[1] / lih) * 100}%`,
-        transform: lq > 0.001 ? `scale(${(1 + LS.push * lp * lq).toFixed(4)})` : undefined,
-      }}
-    >
+    <div data-bg="reading" data-variant={portrait ? "portrait" : "landscape"} className="absolute" style={frame}>
       {/* 天花板（2026-11-15 用户：飞起来时镜头抬高，背景穿帮——这张图的上沿之上没画天花板，露出了旧厨房的墙）：
-          图的最上面几行往上拉伸、渐隐，再铺一层奶油色的天花板底；只在横版画（竖版的 box 本来就伸出画面）。
+          墙图最上面几行往上拉伸、渐隐，再铺一层奶油色的天花板底；只在横版画（竖版的 box 本来就伸出画面）。
           底图盖在远景层之下、多垫 8px，远景层的小幅视差不会露缝。 */}
       {!portrait && (
         <div aria-hidden data-bg="ceiling" className="pointer-events-none absolute" style={{ left: 0, top: -CEILING_H, width: "100%", height: CEILING_H + 8, background: "linear-gradient(to bottom, #f7e4c4, #fbe9cb)" }}>
           <div className="absolute left-0 w-full overflow-hidden" style={{ bottom: 0, height: 120, filter: "blur(9px)", WebkitMaskImage: "linear-gradient(to top, #000 5%, transparent 85%)", maskImage: "linear-gradient(to top, #000 5%, transparent 85%)" }}>
             <div className="absolute left-0 w-full overflow-hidden" style={{ bottom: 0, height: 6, transform: "scaleY(27)", transformOrigin: "bottom" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={PL ? PL.far.src : src} alt="" draggable={false} className="absolute left-0 top-0 max-w-none select-none" style={{ width: w, height: PL ? (h * PL.far.img[3]) / ih : h }} />
+              <img src={V.wall} alt="" draggable={false} className="absolute left-0 top-0 max-w-none select-none" style={{ width: w, height: h }} />
             </div>
           </div>
         </div>
       )}
-      {PL ? (
-        <>
-          {/* 远景层：墙、瓷砖、吊柜、窗；比主体层少动（ticker 写 translate）。台面后沿以下多画了几十行墙，往上走时不露底 */}
-          <div ref={farRef} data-plane="far" className="absolute inset-0" style={{ willChange: "translate" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={PL.far.src} alt="" draggable={false} className="absolute select-none" style={pct(PL.far.img)} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img data-plane-soft src={PL.soft.src} alt="" draggable={false} className="absolute select-none" style={{ ...pct(PL.far.img), opacity: farSoft }} />
-            {windowEls}
-          </div>
-          {/* 近景层：整条台面（蛋站的地方）加站在台面上的东西，和小角色、遮挡物一起跟主体层走，不拉伸，盖住远景层 */}
-          <div data-plane="near" className="absolute inset-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={PL.near.src} alt="" draggable={false} className="absolute select-none" style={pct(PL.near.img)} />
-            {/* 道具切片（层板架、葱身子、菜篮）：蛋的支点，独立图片 */}
-            {PL.props.items.map((it) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={it.id} data-prop={it.id} src={it.src} alt="" draggable={false} className="absolute select-none" style={pct(it.img)} />
-            ))}
-            {actorEls}
-            {occluderEls}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
-          {actorEls}
-          {windowEls}
-          {occluderEls}
-        </>
-      )}
+      {/* 墙（最远，几乎不动；台面后沿以下也是墙，往上走时不露底） */}
+      <div ref={wallRef} data-plane="wall" className="absolute inset-0" style={{ willChange: "translate", ...soften(1.4) }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={V.wall} alt="" draggable={false} className="absolute inset-0 h-full w-full select-none" />
+      </div>
+      {/* 远景：吊柜、窗（比台面少动，画格在场时轻微软化） */}
+      <div ref={farRef} data-plane="far" className="absolute inset-0" style={{ willChange: "translate", ...soften(1.0) }}>
+        {items.filter((i) => i.plane === "far").map(itemEl)}
+      </div>
+      {/* 台面（蛋站的地方）和台面上的东西：一块刚体跟主体层走；层板上的东西夹在里面，层序按 z */}
+      <div data-plane="near" className="absolute inset-0">
+        {items.filter((i) => i.plane === "near" && i.z < 40).map(itemEl)}
+        <div ref={shelfRef} data-plane="shelf" className="absolute inset-0" style={{ willChange: "translate" }}>
+          {items.filter((i) => i.plane === "shelf").map(itemEl)}
+        </div>
+        {items.filter((i) => i.plane === "near" && i.z >= 40).map(itemEl)}
+      </div>
       {lq > 0.001 && (
         <>
           {/* 台面前沿近景层：以底边中点为原点再多推近一点，只往外长、盖住台面 */}
@@ -369,6 +352,7 @@ function ReadingKitchen({ reveal }: { reveal: number }) {
     </div>
   );
 }
+const PL_FRIEND_BLUR = 0.6;
 
 /**
  * B3 饭桌上的碗：两层，夹住碗里的蛋（Z.eggOnTable 63）。
