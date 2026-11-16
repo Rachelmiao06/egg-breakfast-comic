@@ -69,6 +69,7 @@
    "n": 2,
    "title": "进门放下买菜袋：\"呼……\"",
    "lengthVh": 167,
+   "readS": 1.3,
    "pin": "prep",
    "phases": {
     "enter": 0.34,
@@ -93,6 +94,7 @@
    "n": 3,
    "title": "\"今天给宝宝做点什么呢？\" \"先炒个配菜饭吧。\"",
    "lengthVh": 174,
+   "readS": 1.3,
    "pin": "prep",
    "kitchenDim": [
     0.7,

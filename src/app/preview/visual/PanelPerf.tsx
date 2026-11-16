@@ -252,7 +252,7 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
           </div>
         );
       })}
-      {!text && BUBBLES[p.key] && <BubbleText k={p.key} progress={Math.min(1, scrub * 2.2)} />}
+      {!text && BUBBLES[p.key] && <BubbleText k={p.key} progress={Math.min(1, scrub * 1.5)} />}
       <span className="sr-only">{text?.rows.map((r) => r.str).join("")}</span>
     </div>
   );
