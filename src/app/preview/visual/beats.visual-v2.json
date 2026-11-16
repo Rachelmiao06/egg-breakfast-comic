@@ -122,7 +122,7 @@
    "id": "chop",
    "n": 4,
    "title": "切菜：\"哒、哒、哒\"",
-   "lengthVh": 140,
+   "lengthVh": 90,
    "pin": "prep",
    "kitchenDim": [
     0.7,
@@ -151,7 +151,7 @@
    "id": "stirfry",
    "n": 5,
    "title": "下锅：\"滋啦——\"、翻炒",
-   "lengthVh": 110,
+   "lengthVh": 72,
    "pin": "prep",
    "kitchenDim": [
     0.7,
@@ -180,7 +180,7 @@
    "id": "sauce",
    "n": 6,
    "title": "调汁、盛饭",
-   "lengthVh": 110,
+   "lengthVh": 72,
    "pin": "prep",
    "kitchenDim": [
     0.7,
