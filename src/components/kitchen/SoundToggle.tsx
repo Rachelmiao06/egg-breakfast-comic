@@ -76,8 +76,8 @@ export default function SoundToggle() {
     )}
     {locked && (
       // 浏览器要求先有一次点击 / 触摸 / 按键才能出声：只滚动不算。声音默认是开的，所以这里提示一下，免得整段安静（2026-11-15 用户反馈听不到最新配乐）
-      <div aria-hidden className="pointer-events-none fixed bottom-[4.6rem] right-5 z-50 rounded-full bg-cream/90 px-3 py-1.5 text-[12px] leading-none text-ink shadow-[0_1px_4px_rgba(107,74,43,0.25)] ring-1 ring-ink/10">
-        点一下页面，开启配乐和音效 ♪
+      <div aria-hidden className="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2 animate-pulse rounded-full bg-cream px-5 py-3 text-[15px] font-medium leading-none text-ink shadow-[0_2px_10px_rgba(107,74,43,0.35)] ring-2 ring-ink/25">
+        ♪ 点一下页面任意位置，开启配乐和音效（只滚动浏览器不会出声）
       </div>
     )}
     <button

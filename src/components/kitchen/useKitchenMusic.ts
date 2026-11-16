@@ -63,7 +63,7 @@ const DUCK_TO = 0.5, DUCK_HOLD_S = 0.3, DUCK_RELEASE_TC = 0.25;
 const BLOOP_RATES = [1, 1.122, 1.26, 1.498, 1.682];
 const MAX_CROSS_VH = 40;
 /** settle 事件：等待期间滚动位置动了超过这么多 vh 就算"滚走了"，不响 */
-const SETTLE_MOVE_VH = 12;
+const SETTLE_SPEED_VH = 4; // 最近 0.25 s 内滚动位移不超过它，才算"停在这一页"（见 stinger 触发处）
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /** 整体音乐音量倍数：网址 ?music= 优先，其次 localStorage kitchen.musicGain，默认 1；非法值当 1 */
@@ -424,7 +424,14 @@ export function useKitchenMusic({ getCtx, soundOn, timeline, beats, resolveAt }:
   // stinger：向下越过触发点时播一次
   const prevT = useRef<Timeline | null>(null);
   const latest = useRef(timeline);
-  useEffect(() => { latest.current = timeline; }, [timeline]);
+  const posHist = useRef<{ t: number; p: number }[]>([]); // 最近约 0.6 s 的滚动位置（vh），给 settle 判断速度用
+  useEffect(() => {
+    latest.current = timeline;
+    const now = performance.now();
+    const h = posHist.current;
+    h.push({ t: now, p: posVh(timeline, beats) });
+    while (h.length > 1 && now - h[0].t > 600) h.shift();
+  }, [timeline, beats]);
   useEffect(() => {
     if (document.visibilityState === "hidden") { prevT.current = timeline; return; }
     const prev = prevT.current;
@@ -435,13 +442,21 @@ export function useKitchenMusic({ getCtx, soundOn, timeline, beats, resolveAt }:
     if (prev && Math.abs(posVh(timeline, beats) - posVh(prev, beats)) > MAX_CROSS_VH) return; // 拖滚动条 / 跳转：全部跳过
     const s = crossed[crossed.length - 1];
     if (s.settleMs) {
-      // 跟滚动契合：很快滑过这一页就不响；停在这一页（或慢慢进来）settleMs 之后才响
-      const id = timeline.beat.id, startVh = posVh(timeline, beats);
-      window.setTimeout(() => {
+      // 跟滚动契合：很快滑过这一页就不响；停在这一页（或慢慢进来）才响。
+      // 2026-11-15：原来要求"settleMs 内位移 < 12vh"，Lenis 改成 lerp 之后一次滑动的长尾本身就超过 12vh，蛋黄咕嘟、搅拌这类声音就全被判成"滑过去了"。
+      // 改成看速度：settleMs 之后，最近 0.25 s 内滚动位移 < SETTLE_SPEED_VH 才响；还在动就每 120 ms 再看一次，最多等 3 s，离开这一页就放弃。
+      const id = timeline.beat.id, born = performance.now();
+      const tryFire = () => {
         const t = latest.current;
-        if (t.beat.id !== id || Math.abs(posVh(t, beats) - startVh) > SETTLE_MOVE_VH) return;
-        engine.current?.stinger(s.sound, s.gain, s.rate, s.pan, id);
-      }, s.settleMs);
+        if (t.beat.id !== id) return;
+        const now = performance.now();
+        const hist = posHist.current;
+        const old = hist.find((h) => now - h.t <= 260) ?? hist[0];
+        const moved = old ? Math.abs(posVh(t, beats) - old.p) : 0;
+        if (moved <= SETTLE_SPEED_VH) { engine.current?.stinger(s.sound, s.gain, s.rate, s.pan, id); return; }
+        if (now - born < 3000) window.setTimeout(tryFire, 120);
+      };
+      window.setTimeout(tryFire, s.settleMs);
       return;
     }
     engine.current?.stinger(s.sound, s.gain, s.rate, s.pan);
