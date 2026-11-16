@@ -394,6 +394,7 @@ const DROPS: { s: string; w: number; x: number; at: number }[] = [
 const dropLandY = (i: number) => 0.83 + (i % 3) * 0.035; // 落进锅里的菜面（原图归一化 y）
 /** 一颗菜的宽度（占格宽 %）：单颗素材比案板上的略大，按 0.62 缩到和菜堆里的差不多（约 1.15 倍） */
 const dropW = (w: number) => (w / 1800) * 100 * 0.62;
+const P2D_SPEED = 0.65; // 倒菜动画的时间倍率（<1 = 慢）；读格门（gateS）按它同比拉长
 const P2D_BACK = ["base", "panfull", "pile1", "pile2", "pile3"];
 const P2D_FRONT = ["spatA", "spatB"];
 const P2D_INIT: Record<string, number> = { base: 1, panfull: 0, pile1: 1, pile2: 0, pile3: 0, spatA: 1, spatB: 0 };
@@ -452,10 +453,11 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
     });
     t.call(() => oneshot("stirfryIn", pan), [], 0.45 + 0.34); // 第一颗菜落进锅里
     t.call(() => snd.start(pan), [], 2.3);
+    t.timeScale(P2D_SPEED); // 2026-11-15 用户：上面倒菜这格太快 → 整条时间轴放慢（声音时刻跟着慢）
     tl.current = t;
     debugTl("p2d", t);
   };
-  useStage(q, stage, true, play, stop, reset, animate ? 3.2 : 0, p.order ?? 0);
+  useStage(q, stage, true, play, stop, reset, animate ? 3.2 / P2D_SPEED : 0, p.order ?? 0);
   if (!animate) return <StaticImg src={`${P2D}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   const layer = (n: string) => (
