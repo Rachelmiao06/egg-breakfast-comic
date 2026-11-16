@@ -8,7 +8,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import { useScene } from "@/lib/scene-context";
 import { PANELS, type PanelSlot as PanelSpec } from "./slots";
 import { useViewport } from "./viewport";
-import { DialoguePanel, HearPanel, SeqPanel, TurnPanel, type SeqText, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, type Stage } from "./PanelPerf";
+import { DialoguePanel, HearPanel, SeqPanel, TurnPanel, type SeqText, PanelSignal, SaucePanel, StirfryPanel, usePerfEnabled, usePourDone, type Stage } from "./PanelPerf";
 import { BLINK_PANELS, BlinkLayer } from "./Blink";
 import ReactionFace from "./ReactionFace";
 import FrameReact from "./FrameReact";
@@ -48,12 +48,14 @@ const P6A_SCHEDULE: [number, number][] = [[0, 0], [1, 1.05], [2, 1.33], [3, 1.61
 const P3B_FRAMES = seqFrames("p3b", 6);
 const P3B_SCHEDULE: [number, number][] = [[0, 0], [1, 0.25], [2, 0.43], [3, 0.61], [4, 0.79], [5, 0.97], [5, 1.62]];
 // p2a 摆放食材（顶上那张妈妈中景；p2a-arrange-with-carrot：6 张完整帧 1950×886，timeline 停留 .45/.3/.3/.4/.4/1.35 s）：扶葱束 → 轻推 → 松手 → 双手收回，保留整根胡萝卜给下一格切；由滚动带动，末帧停住
+/** 格内序列动画从开始到演完占的滚动距离上限（vh）：单次甩出上限 35vh，两三下 ≈ 90vh */
+const ANIM_SPAN_VH = 90;
 const P2A_FRAMES = seqFrames("p2a", 6);
 const P2A_SCHEDULE: [number, number][] = [[0, 0], [1, 0.45], [2, 0.75], [3, 1.05], [4, 1.45], [5, 1.85]]; // 最后一帧就在滚动进度 1：和下面切胡萝卜那格（p2b，滚完整段走 3 圈）同时开始、同时结束
 // p4b 蛋滑进碗（egg-bowl-animations/p4b-egg-slide：6 帧，GIF 时长 .22/.16×3/.18/.65 s，437×341，末帧停住）
 const P4B_FRAMES = seqFrames("p4b", 6);
 const P4B_SCHEDULE: [number, number][] = [[0, 0], [1, 0.22], [2, 0.38], [3, 0.54], [4, 0.7], [5, 0.88], [5, 1.53]];
-// p2b 切菜特写（只有手和胡萝卜；p2b-scroll-connected：6 张完整姿态，对白泡已画在图里）：每圈 0→1→2→1→3→4→5→0，滚动走 3 圈，第 5 张（落刀）响 chopHit
+// p2b 切菜特写（只有手和胡萝卜；p2b-scroll-connected：6 张完整姿态，对白泡已画在图里）：每圈 0→1→2→1→3→4→5→0，滚动走 2 圈（整段在 ANIM_SPAN_VH 内演完），第 5 张（落刀）响 chopHit
 const P2B_FRAMES = seqFrames("p2b", 6);
 const P2B_SEQ = [0, 1, 2, 1, 3, 4, 5, 0];
 const P2B_STEP = 0.12;
@@ -386,6 +388,7 @@ function FlowLayer() {
   const tiltRef = useRef<HTMLDivElement>(null);
   usePaperTilt(tiltRef, false); // 2026-11-15 用户：每次滑动格子都先漂一下，不真实 → 关掉（滚动 / 镜头 / 鼠标都不再让纸面倾斜）
   const vp = useViewport();
+  const pourDone = usePourDone();
   const perf = usePerfEnabled() && !reducedMotion; // 格内表演：减少动态效果或 ?perf=0 时用原静态格
   const g = t.index + t.p;
   const index: Record<string, number> = {};
@@ -488,14 +491,17 @@ function FlowLayer() {
         }
         // 滚动带动的格内动画进度（SeqPanel / TurnPanel）：这一段"停留"阶段的滚动进度 0–1，之前 0、之后 1
         const bph = beats[index[p.beat]].phases ?? { enter: 0.3, action: 0, hold: 0.45, exit: 0.25 };
-        const scrub = Math.min(1, Math.max(0, (q - bph.enter) / Math.max(0.01, bph.action + bph.hold)));
+        // 格内序列动画由滚动带动，并且一定在 ANIM_SPAN_VH（约划两三下）之内演完，之后可以继续滚（用户 2026-11-15：保证所有格内动画在滚两下之内播完）
+        const beatVh = beats[index[p.beat]].lengthVh;
+        const span = Math.min(bph.action + bph.hold, ANIM_SPAN_VH / Math.max(1, beatVh));
+        const scrub = Math.min(1, Math.max(0, (q - bph.enter) / Math.max(0.01, span)));
         const reading = perf && stage.entered && !stage.leaving && stage.vis >= 0.9; // 静止读格：妈妈的脸格才会眨眼
         const panel =
           p.key === "p2a" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2A_FRAMES} schedule={P2A_SCHEDULE} blend staticSrc={P2A_FRAMES[5]} />
-          : p.key === "p2b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2B_FRAMES} schedule={P2B_SCHEDULE} scrubLoop={{ period: P2B_SEQ.length * P2B_STEP, cycles: 3, hitFrames: [4] }} staticSrc={P2B_FRAMES[0]} />
+          : p.key === "p2b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2B_FRAMES} schedule={P2B_SCHEDULE} scrubLoop={{ period: P2B_SEQ.length * P2B_STEP, cycles: 2, hitFrames: [4] }} staticSrc={P2B_FRAMES[0]} />
           : p.key === "p3d" ? <HearPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
           : p.key === "p2d" ? <StirfryPanel p={p} pos={pos} dy={dy} q={q} stage={stage} animate={perf} />
-          : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} loop={P2E_LOOP} staticSrc={P2E_FRAMES[0]} />
+          : p.key === "p2e" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P2E_FRAMES} schedule={P2E_SCHEDULE} loop={P2E_LOOP} loopOn={pourDone && scrub > 0.2} staticSrc={P2E_FRAMES[0]} />
           : p.key === "p3b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P3B_FRAMES} schedule={P3B_SCHEDULE} staticSrc={P3B_FRAMES[5]} />
           : p.key === "p4b" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4B_FRAMES} schedule={P4B_SCHEDULE} staticSrc={P4B_FRAMES[5]} />
           : p.key === "p4c" ? <SeqPanel p={p} pos={pos} dy={dy} scrub={scrub} animate={perf} frames={P4C_FRAMES} schedule={P4C_SCHEDULE} staticSrc={P4C_FRAMES[5]} />

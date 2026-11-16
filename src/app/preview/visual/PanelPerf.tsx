@@ -63,6 +63,13 @@ const flag = (on: boolean) => {
  *   在边缘来回滚动不会反复触发：播过之后，没有离开到复位线以外就不会再播。
  * - 关掉表演（减少动态效果 / ?perf=0）时立即复位；卸载时复位。
  */
+/** 倒菜格 p2d 是否已经演完（或被滚过去）。下面炒菜格 p2e 要等它演完、用户再往下滚一点才开始循环（用户 2026-11-15：先滚上面那格演一次，再往下滚下面才开始动、可以一直循环） */
+let pourDone = false;
+const pourListeners = new Set<() => void>();
+const setPourDone = (v: boolean) => { if (pourDone === v) return; pourDone = v; pourListeners.forEach((l) => l()); };
+export function usePourDone() {
+  return useSyncExternalStore((cb) => { pourListeners.add(cb); return () => { pourListeners.delete(cb); }; }, () => pourDone, () => false);
+}
 function useStage(q: number, stage: Stage, enabled: boolean, playRaw: () => void, stopRaw: () => void, resetRaw: () => void, gateS = 0, seq = 0) {
   const played = useRef(false);
   const gateId = useId();
@@ -173,11 +180,13 @@ export function TurnPanel({ p, pos, dy, scrub, animate }: { p: PanelSlot; pos: P
 export type SeqText = { size: [number, number]; rows: { str: string; x0: number; x1: number; y0: number; y1: number }[]; plan: { row: number; at: number; per: number }[] };
 /** 对白用真字体渲染（2026-11-15 用户：从图里减出来的字层又糊又锯齿、字体也不一致）：黑体粗字，墨色，逐字显示；字号按原格里每个字的宽度（cqw = 格宽的 1%） */
 const SEQ_FONT = '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif';
-export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop, hits, scrubLoop, blend }: {
+export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, staticSrc, loop, hits, scrubLoop, blend, loopOn = true }: {
   p: PanelSlot; pos: Place; dy: number; scrub: number; animate: boolean;
   frames: string[]; schedule: [number, number][]; text?: SeqText; staticSrc: string;
   /** 循环周期（秒）：给了就按真实时间不停循环（炒菜这类一直在做的动作），不再由滚动带动 */
   loop?: number;
+  /** 循环模式的开关：false 时停在第一帧，true 才开始循环 */
+  loopOn?: boolean;
   /** 循环模式下，每圈里这些时刻（秒）各响一声刀刃落案板 */
   hits?: number[];
   /** 滚动循环：滚动进度 0–1 走 cycles 圈（每圈 period 秒的帧表），帧由滚动带动；hitFrames 里的帧每次切入时响一声刀刃落案板 */
@@ -192,6 +201,7 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
   const total = Math.max(schedule[schedule.length - 1][1], ...(text?.plan.map((pl) => pl.at + [...(text.rows[pl.row].str)].length * pl.per) ?? [0]));
   useEffect(() => {
     if (!loop || !animate) return;
+    if (!loopOn) { els.current.forEach((el, i) => { if (el) el.style.opacity = i === 0 ? "1" : "0"; }); return; }
     const t0 = performance.now();
     let prev = 0;
     const tick = () => {
@@ -204,7 +214,7 @@ export function SeqPanel({ p, pos, dy, scrub, animate, frames, schedule, text, s
     };
     gsap.ticker.add(tick);
     return () => gsap.ticker.remove(tick);
-  }, [loop, animate, schedule, hits]);
+  }, [loop, loopOn, animate, schedule, hits]);
   useEffect(() => {
     if (loop) return;
     const t = scrubLoop ? (scrub * scrubLoop.cycles * scrubLoop.period) % scrubLoop.period : scrub * total;
@@ -405,8 +415,7 @@ const DROPS: { s: string; w: number; x: number; at: number }[] = [
 const dropLandY = (i: number) => 0.83 + (i % 3) * 0.035; // 落进锅里的菜面（原图归一化 y）
 /** 一颗菜的宽度（占格宽 %）：单颗素材比案板上的略大，按 0.62 缩到和菜堆里的差不多（约 1.15 倍） */
 const dropW = (w: number) => (w / 1800) * 100 * 0.62;
-const P2D_GATE = 1.0; // 读格门只挡 1 s（用户 2026-11-15：这格滚一下触发、播一次就行，不要拦着滚动等它播完）；动画自己播完，滚走时收到结束画面
-const P2D_SPEED = 0.65; // 倒菜动画的时间倍率（<1 = 慢）；读格门（gateS）按它同比拉长
+const P2D_SPEED = 0.8; // 倒菜动画的时间倍率（<1 = 慢）；读格门（gateS = 3.2 / 倍率 ≈ 4 s）拦到它演完，之后继续滚（用户 2026-11-15：格内动画一定在滚两下内播完，然后可以继续滚） // 倒菜动画的时间倍率（<1 = 慢）；读格门（gateS）按它同比拉长
 const P2D_BACK = ["base", "panfull", "pile1", "pile2", "pile3"];
 const P2D_FRONT = ["spatA", "spatB"];
 const P2D_INIT: Record<string, number> = { base: 1, panfull: 0, pile1: 1, pile2: 0, pile3: 0, spatA: 1, spatB: 0 };
@@ -429,10 +438,11 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
   const apply = (v: Record<string, number>) => Object.entries(v).forEach(([n, o]) => { const el = els.current[n]; if (el) gsap.set(el, { opacity: o }); });
   const hideDrops = () => DROPS.forEach((_, i) => { const el = els.current[`drop${i}`]; if (el) gsap.set(el, { opacity: 0, x: 0, y: 0, rotation: 0, xPercent: -50, yPercent: -50 }); });
   const halt = () => { if (live.current) { live.current = false; snd.stop(); } };
-  const reset = () => { tl.current?.kill(); tl.current = null; apply(P2D_INIT); hideDrops(); flag(false); halt(); };
-  const settle = () => { apply(P2D_END); hideDrops(); flag(false); };
+  const reset = () => { tl.current?.kill(); tl.current = null; apply(P2D_INIT); hideDrops(); flag(false); halt(); setPourDone(false); };
+  const settle = () => { apply(P2D_END); hideDrops(); flag(false); setPourDone(true); };
   const stop = () => {
     halt();
+    setPourDone(true); // 滚过去 / 离场也算演完，下面炒菜格才不会一直卡在静止
     if (!tl.current) return;
     tl.current.kill(); tl.current = null;
     settle();
@@ -469,7 +479,7 @@ export function StirfryPanel({ p, pos, dy, q, stage, animate }: { p: PanelSlot; 
     tl.current = t;
     debugTl("p2d", t);
   };
-  useStage(q, stage, true, play, stop, reset, animate ? P2D_GATE : 0, p.order ?? 0);
+  useStage(q, stage, true, play, stop, reset, animate ? 3.2 / P2D_SPEED : 0, p.order ?? 0);
   if (!animate) return <StaticImg src={`${P2D}static.webp`} pos={pos} aspect={p.aspect} dy={dy} />;
   const img = "absolute inset-0 block h-full w-full select-none pointer-events-none";
   const layer = (n: string) => (
