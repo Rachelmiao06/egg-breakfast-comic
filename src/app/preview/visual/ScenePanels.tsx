@@ -51,12 +51,13 @@ export default function ScenePanels({ debug = false, flow = false }: { debug?: b
   const hb = handoffBox(cfg);
   const hand = cfg.scene.handoff;
   // 交叉淡化完成后（只剩画里的蛋），交接格平滑移到画面内完整可读的位置
-  if (hb && t.beat.id === "handoff" && (t.phase === "hold" || t.phase === "exit")) {
+  // 2026-11-16 用户：交接格停在蛋的位置（右边被切掉、还压着上一格）太久：swap 一过（进入阶段后半）就开始往画面内滑，不再等到停留阶段
+  if (hb && t.beat.id === "handoff" && (t.phase === "hold" || t.phase === "exit" || (t.phase === "enter" && handIn > HANDOFF.swap + 0.02))) {
     // 以接蛋镜头下实际可见的范围为界（page.tsx 按视口算出；没有时退回 1440×900 的右边界 1340）
     const v = cfg.view ?? { x0: 0, x1: 1340 };
     const m = 16;
     const target = Math.max(v.x0 + m, Math.min(hb[0], v.x1 - m - hb[2]));
-    const k2 = t.phase === "hold" ? Math.min(1, t.phaseP / 0.35) : 1;
+    const k2 = t.phase === "enter" ? Math.min(1, (handIn - HANDOFF.swap - 0.02) / (1 - HANDOFF.swap - 0.02)) : 1;
     hb[0] = Math.round(hb[0] + (target - hb[0]) * (k2 * k2 * (3 - 2 * k2)));
   }
   // swap 之前交接格里画的蛋（连手脚）用剪影遮罩挖掉（tools/make_egg_hole.py 生成，不改原图），透出下面接蛋格自己的铲面，
