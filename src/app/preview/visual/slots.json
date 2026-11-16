@@ -46,13 +46,13 @@
   {
    "key": "p1d",
    "beat": "idea",
-   "src": "/assets/comic-v3/p1d.webp",
-   "source": "01-groceries-and-an-idea.png D 格",
+   "src": "/assets/comic-v6/p1d/frame-06.webp",
+   "source": "new-chat-5 生成的 6 帧拼图（comic-v6/p1d，SeqPanel 由滚动带动、相邻帧交叉淡化，静态取末帧；对白泡在图里）",
    "dialogueInImage": true,
    "x": 60,
    "y": 50,
-   "w": 32,
-   "aspect": 1.9463,
+   "w": 34,
+   "aspect": 2.9592,
    "from": "bottom",
    "order": 1,
    "role": "support"
