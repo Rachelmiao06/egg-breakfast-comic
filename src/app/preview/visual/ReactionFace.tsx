@@ -8,6 +8,7 @@
  * 稳定后开始、回滚离开就收起（回到瞪大的底图），再次稳定重新播。减少动态效果 / ?perf=0：只显示底图（瞪大的静帧），没有符号。
  */
 import gsap from "gsap";
+import { KITCHEN_ONESHOT_EVENT } from "@/components/kitchen/useKitchenAudio";
 import { useEffect, useRef } from "react";
 
 const P = "/assets/comic-v5/p6f/";
@@ -42,6 +43,10 @@ export default function ReactionFace({ active }: { active: boolean }) {
     if (sweat) {
       const dropPx = (24 / H) * (els.current.base?.parentElement?.clientHeight ?? 400); // 6 s × 4px（966×682 画布）
       tl.to(sweat, { opacity: 1, duration: 0.8, ease: "none" }, 3.4);
+      // 汗滴出来的时候妈妈的两声"呃"（2026-11-15 用户：原来放在"没事，是我拉肚子了"那一格后面很奇怪，挪到这里；第二声略低）
+      const uh = (rate: number) => () => window.dispatchEvent(new CustomEvent(KITCHEN_ONESHOT_EVENT, { detail: { sound: "momUh", rate } }));
+      tl.call(uh(1), [], 3.55);
+      tl.call(uh(0.93), [], 4.5);
       tl.to(sweat, { y: dropPx, duration: 6, ease: "none" }, 3.4);
       tl.to(sweat, { opacity: 0, duration: 1.2, ease: "none" }, 9);
     }

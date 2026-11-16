@@ -337,6 +337,12 @@ class MusicEngine {
       if (this.stinger("egg-bloop", 0.3, BLOOP_RATES[Math.floor(Math.random() * BLOOP_RATES.length)])) this.lastBloop = now;
       return;
     }
+    if (d?.sound === "momUh") {
+      // 汗滴出来时的"呃"（结尾特写，前景 ReactionFace 派发；rate 控制第二声略低）
+      const r = (e as CustomEvent<{ rate?: unknown }>).detail?.rate;
+      if (this.scene === "closeup") this.stinger("mom-uh", 0.9, typeof r === "number" ? r : 1);
+      return;
+    }
     if (typeof d?.sound === "string" && /^hopTap[123]$/.test(d.sound)) {
       const n = Number(d.sound.slice(-1));
       // 结尾三个点（前景派发 hopTap1/2/3）：不再是"嗒"，换成蟋蟀的一声，三个点逐个略降调（2026-11-15 用户：嗒嗒嗒表达无语太局限、不明显）

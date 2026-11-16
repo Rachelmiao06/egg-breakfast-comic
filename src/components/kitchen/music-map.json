@@ -289,11 +289,6 @@
           "sound": "punch-dum",
           "at": 0.42,
           "gain": 0.5
-        },
-        {
-          "sound": "mom-uh",
-          "at": 0.5,
-          "gain": 0.9
         }
       ]
     },

@@ -468,6 +468,7 @@ class KitchenMixer {
   private onShotEvent = (e: Event) => {
     const d = (e as CustomEvent<{ sound?: unknown; surface?: unknown; rate?: unknown; gain?: unknown; pan?: unknown }>).detail;
     const name = d?.sound;
+    if (name === "momUh") return; // 妈妈的"呃"由配乐引擎（useKitchenMusic）播
     if (typeof name !== "string" || !(name in ONESHOTS)) {
       warnOnce(`${KITCHEN_ONESHOT_EVENT}: 未登记的声音 ${String(name)}`);
       return;
