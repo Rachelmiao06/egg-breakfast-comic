@@ -191,13 +191,13 @@
   {
    "key": "p4b",
    "beat": "bowl",
-   "src": "/assets/comic-v3/p4b.webp",
-   "source": "04-catch-and-call.png B 格",
+   "src": "/assets/comic-v6/p4b/frame-06.webp",
+   "source": "egg-bowl-animations/p4b-egg-slide（comic-v6/p4b，SeqPanel 由滚动带动，静态取末帧）",
    "dialogueInImage": false,
    "x": 14,
    "y": 8,
    "w": 28,
-   "aspect": 1.3754,
+   "aspect": 1.2815,
    "from": "left",
    "order": 0,
    "role": "hero"
