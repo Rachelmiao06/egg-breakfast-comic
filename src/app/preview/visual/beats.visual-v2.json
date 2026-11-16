@@ -120,7 +120,7 @@
    "id": "chop",
    "n": 4,
    "title": "切菜：\"哒、哒、哒\"",
-   "lengthVh": 188,
+   "lengthVh": 140,
    "pin": "prep",
    "kitchenDim": [
     0.7,
@@ -143,14 +143,13 @@
     "action": 0,
     "hold": 0.36,
     "exit": 0.3
-   },
-   "readS": 4
+   }
   },
   {
    "id": "stirfry",
    "n": 5,
    "title": "下锅：\"滋啦——\"、翻炒",
-   "lengthVh": 167,
+   "lengthVh": 110,
    "pin": "prep",
    "kitchenDim": [
     0.7,
@@ -173,14 +172,13 @@
     "action": 0,
     "hold": 0.54,
     "exit": 0.2
-   },
-   "readS": 1
+   }
   },
   {
    "id": "sauce",
    "n": 6,
    "title": "调汁、盛饭",
-   "lengthVh": 160,
+   "lengthVh": 110,
    "pin": "prep",
    "kitchenDim": [
     0.7,
@@ -203,8 +201,7 @@
     "action": 0,
     "hold": 0.54,
     "exit": 0.2
-   },
-   "readS": 4
+   }
   },
   {
    "id": "missing",
