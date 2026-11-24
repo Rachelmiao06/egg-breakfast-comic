@@ -26,7 +26,11 @@ Scroll down and the story plays:
 6. She puts it on the rice, pours the sauce, and cuts into the yolk.
 7. Then comes a short twist at the end. I will not spoil it here.
 
+![Panels of the mom chopping vegetables and stir-frying, floating over the kitchen](docs/screenshots/03-chop-and-stir.jpg)
+
 ![The mom stretches out a spatula while the egg flies toward it, across the panel border](docs/screenshots/04-egg-flies-to-spatula.jpg)
+
+![A close-up panel of the egg on the rice with the yolk flowing out](docs/screenshots/05-yolk-and-serve.jpg)
 
 ![A bowl of rice with a smiling egg, calling out, next to a panel of the mom turning around](docs/screenshots/06-mom-here.jpg)
 
